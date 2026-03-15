@@ -6,7 +6,7 @@ var Colors = {
     brownDark:0x23190f,
     pink:0xF5986E,
     yellow:0xf4ce93,
-    blue:0x68c3c0,
+    blue:0x1A8A7D,
 
 };
 
@@ -14,6 +14,7 @@ var Colors = {
 
 // GAME VARIABLES
 var game;
+var paused = false;
 var deltaTime = 0;
 var newTime = new Date().getTime();
 var oldTime = new Date().getTime();
@@ -116,7 +117,7 @@ function createScene() {
     nearPlane,
     farPlane
     );
-  scene.fog = new THREE.Fog(0xf7d9aa, 100,950);
+  scene.fog = new THREE.Fog(0x87CEEB, 100,950);
   camera.position.x = 0;
   camera.position.z = 200;
   camera.position.y = game.planeDefaultHeight;
@@ -560,14 +561,43 @@ Cloud.prototype.rotate = function(){
 }
 
 Ennemy = function(){
-  var geom = new THREE.TetrahedronGeometry(8,2);
-  var mat = new THREE.MeshPhongMaterial({
-    color:Colors.red,
-    shininess:0,
-    specular:0xffffff,
+  this.mesh = new THREE.Object3D();
+
+  // Mace ball (dark iron sphere)
+  var ballGeom = new THREE.BoxGeometry(14,14,14,1,1,1);
+  var ballMat = new THREE.MeshPhongMaterial({
+    color:0x333333,
+    shininess:30,
+    specular:0x666666,
     shading:THREE.FlatShading
   });
-  this.mesh = new THREE.Mesh(geom,mat);
+  var ball = new THREE.Mesh(ballGeom, ballMat);
+  this.mesh.add(ball);
+
+  // Spikes (sharp cones around the ball)
+  var spikeMat = new THREE.MeshPhongMaterial({
+    color:0x555555,
+    shininess:40,
+    specular:0x999999,
+    shading:THREE.FlatShading
+  });
+  var spikePositions = [
+    [10,0,0], [-10,0,0], [0,10,0], [0,-10,0], [0,0,10], [0,0,-10],
+    [7,7,0], [-7,7,0], [7,-7,0], [-7,-7,0], [0,7,7], [0,-7,-7]
+  ];
+  for (var i=0; i<spikePositions.length; i++){
+    var spikeGeom = new THREE.BoxGeometry(3,8,3,1,1,1);
+    spikeGeom.vertices[4].x = 0; spikeGeom.vertices[4].z = 0;
+    spikeGeom.vertices[5].x = 0; spikeGeom.vertices[5].z = 0;
+    spikeGeom.vertices[6].x = 0; spikeGeom.vertices[6].z = 0;
+    spikeGeom.vertices[7].x = 0; spikeGeom.vertices[7].z = 0;
+    var spike = new THREE.Mesh(spikeGeom, spikeMat);
+    spike.position.set(spikePositions[i][0], spikePositions[i][1], spikePositions[i][2]);
+    spike.lookAt(new THREE.Vector3(spikePositions[i][0]*2, spikePositions[i][1]*2, spikePositions[i][2]*2));
+    spike.castShadow = true;
+    this.mesh.add(spike);
+  }
+
   this.mesh.castShadow = true;
   this.angle = 0;
   this.dist = 0;
@@ -615,7 +645,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     var diffPos = airplane.mesh.position.clone().sub(ennemy.mesh.position.clone());
     var d = diffPos.length();
     if (d<game.ennemyDistanceTolerance){
-      particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, Colors.red, 3);
+      particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, 0x333333, 3);
 
       ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
       this.mesh.remove(ennemy.mesh);
@@ -636,7 +666,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
 Particle = function(){
   var geom = new THREE.TetrahedronGeometry(3,0);
   var mat = new THREE.MeshPhongMaterial({
-    color:0x009999,
+    color:0xC4883A,
     shininess:0,
     specular:0xffffff,
     shading:THREE.FlatShading
@@ -687,15 +717,33 @@ ParticlesHolder.prototype.spawnParticles = function(pos, density, color, scale){
 }
 
 Coin = function(){
-  var geom = new THREE.TetrahedronGeometry(5,0);
-  var mat = new THREE.MeshPhongMaterial({
-    color:0x009999,
-    shininess:0,
-    specular:0xffffff,
+  this.mesh = new THREE.Object3D();
 
+  // Almond shape using sphere stretched into oval
+  var almondGeom = new THREE.SphereGeometry(5, 6, 4);
+  // Stretch into almond shape (tall and slightly wide)
+  almondGeom.applyMatrix(new THREE.Matrix4().makeScale(0.6, 1.2, 0.5));
+  var almondMat = new THREE.MeshPhongMaterial({
+    color:0xC4883A,
+    shininess:15,
+    specular:0xFFDDAA,
     shading:THREE.FlatShading
   });
-  this.mesh = new THREE.Mesh(geom,mat);
+  var almond = new THREE.Mesh(almondGeom, almondMat);
+  this.mesh.add(almond);
+
+  // Light line on almond side
+  var lineGeom = new THREE.BoxGeometry(0.5,9,1.5);
+  var lineMat = new THREE.MeshPhongMaterial({
+    color:0xDDA855,
+    shininess:5,
+    specular:0xFFEECC,
+    shading:THREE.FlatShading
+  });
+  var line = new THREE.Mesh(lineGeom, lineMat);
+  line.position.set(2.8,0,0);
+  this.mesh.add(line);
+
   this.mesh.castShadow = true;
   this.angle = 0;
   this.dist = 0;
@@ -749,7 +797,7 @@ CoinsHolder.prototype.rotateCoins = function(){
     if (d<game.coinDistanceTolerance){
       this.coinsPool.unshift(this.coinsInUse.splice(i,1)[0]);
       this.mesh.remove(coin.mesh);
-      particlesHolder.spawnParticles(coin.mesh.position.clone(), 5, 0x009999, .8);
+      particlesHolder.spawnParticles(coin.mesh.position.clone(), 5, 0xC4883A, .8);
       addEnergy();
       i--;
     }else if (coin.angle > Math.PI){
@@ -766,7 +814,7 @@ var sea;
 var airplane;
 
 function createPlane(){
-  airplane = new AirPlane();
+  airplane = new Finch();
   airplane.mesh.scale.set(.25,.25,.25);
   airplane.mesh.position.y = game.planeDefaultHeight;
   scene.add(airplane.mesh);
@@ -811,6 +859,11 @@ function createParticles(){
 }
 
 function loop(){
+
+  if (paused) {
+    requestAnimationFrame(loop);
+    return;
+  }
 
   newTime = new Date().getTime();
   deltaTime = newTime-oldTime;
@@ -868,6 +921,7 @@ function loop(){
 
 
   airplane.propeller.rotation.x +=.2 + game.planeSpeed * deltaTime*.005;
+  if (airplane.updateWings) airplane.updateWings();
   sea.mesh.rotation.z += game.speed*deltaTime;//*game.seaRotationSpeed;
 
   if ( sea.mesh.rotation.z > 2*Math.PI)  sea.mesh.rotation.z -= 2*Math.PI;
@@ -898,7 +952,7 @@ function updateEnergy(){
   game.energy -= game.speed*deltaTime*game.ratioSpeedEnergy;
   game.energy = Math.max(0, game.energy);
   energyBar.style.right = (100-game.energy)+"%";
-  energyBar.style.backgroundColor = (game.energy<50)? "#f25346" : "#68c3c0";
+  energyBar.style.backgroundColor = (game.energy<50)? "#D4762C" : "#2E8B57";
 
   if (game.energy<30){
     energyBar.style.animationName = "blinking";
@@ -952,6 +1006,7 @@ function updatePlane(){
   game.planeCollisionDisplacementY += (0-game.planeCollisionDisplacementY)*deltaTime *0.01;
 
   airplane.pilot.updateHairs();
+  if (airplane.updateWings) airplane.updateWings();
 }
 
 function showReplay(){
@@ -998,8 +1053,28 @@ function init(event){
   document.addEventListener('touchmove', handleTouchMove, false);
   document.addEventListener('mouseup', handleMouseUp, false);
   document.addEventListener('touchend', handleTouchEnd, false);
+  document.addEventListener('keydown', handleKeyDown, false);
 
   loop();
 }
 
 window.addEventListener('load', init, false);
+
+function handleKeyDown(event) {
+  if (event.key === 'Escape' || event.key === 'p' || event.key === 'P') {
+    if (game.status === "playing") {
+      togglePause();
+    }
+  }
+}
+
+function togglePause() {
+  paused = !paused;
+  var overlay = document.getElementById('pauseOverlay');
+  if (paused) {
+    overlay.style.display = 'flex';
+  } else {
+    overlay.style.display = 'none';
+    oldTime = new Date().getTime();
+  }
+}
