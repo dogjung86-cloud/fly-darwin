@@ -82,6 +82,19 @@ function resetGame(){
           distanceForEnnemiesSpawn:50,
 
           status : "playing",
+          
+          // Transformation parameters
+          transformDistance1 : 1000,
+          transformDistance2 : 2000,
+          transformDistance3 : 3000,
+          transformDistance4 : 4000,
+          transformDistance5 : 5000,
+          transformDistance6 : 6000,
+          transformDistance7 : 7000,
+          transformDistance8 : 8000,
+          transformDistance9 : 9000,
+          transformDistance10 : 10000,
+          currentForm : "Amoeba", // Stage 1
          };
   fieldLevel.innerHTML = Math.floor(game.level);
 }
@@ -814,10 +827,76 @@ var sea;
 var airplane;
 
 function createPlane(){
-  airplane = new Finch();
+  airplane = new Amoeba();
   airplane.mesh.scale.set(.25,.25,.25);
   airplane.mesh.position.y = game.planeDefaultHeight;
   scene.add(airplane.mesh);
+}
+
+function transformPlane(newFormString) {
+  var oldPos = airplane.mesh.position.clone();
+  var oldRot = airplane.mesh.rotation.clone();
+
+  // 기존 기체 제거
+  scene.remove(airplane.mesh);
+
+  // 파티클 생성
+  particlesHolder.spawnParticles(oldPos, 20, 0xFFFFFF, 1.5);
+
+  // 새 기체 생성
+  switch(newFormString) {
+    case "Anomalocaris":
+      airplane = new Anomalocaris();
+      break;
+    case "Opabinia":
+      airplane = new Opabinia();
+      break;
+    case "Dunkleosteus":
+      airplane = new Dunkleosteus();
+      break;
+    case "Tiktaalik":
+      airplane = new Tiktaalik();
+      break;
+    case "Quetzalcoatlus":
+      airplane = new Quetzalcoatlus();
+      break;
+    case "Plesiosaur":
+      airplane = new Plesiosaur();
+      break;
+    case "Bat":
+      airplane = new Bat();
+      break;
+    case "WrightFlyer":
+      airplane = new WrightFlyer();
+      break;
+    case "Jetliner":
+      airplane = new Jetliner();
+      break;
+    case "NewtonApple":
+      airplane = new NewtonApple();
+      break;
+    case "TimeArrow":
+      airplane = new TimeArrow();
+      break;
+    case "AppleCraft":
+      airplane = new AppleCraft();
+      break;
+    case "Finch":
+      airplane = new Finch();
+      break;
+    case "Amoeba":
+    default:
+      airplane = new Amoeba();
+      break;
+  }
+
+  // 기존 속성 복원
+  airplane.mesh.scale.set(.25,.25,.25);
+  airplane.mesh.position.copy(oldPos);
+  airplane.mesh.rotation.copy(oldRot);
+  scene.add(airplane.mesh);
+  
+  game.currentForm = newFormString;
 }
 
 function createSea(){
@@ -896,6 +975,28 @@ function loop(){
       game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel*game.level
     }
 
+    // Checking for Transformation
+    if (game.distance > game.transformDistance1 && game.currentForm === "Amoeba") {
+      transformPlane("Anomalocaris");
+    } else if (game.distance > game.transformDistance2 && game.currentForm === "Anomalocaris") {
+      transformPlane("Dunkleosteus");
+    } else if (game.distance > game.transformDistance3 && game.currentForm === "Dunkleosteus") {
+      transformPlane("Tiktaalik");
+    } else if (game.distance > game.transformDistance4 && game.currentForm === "Tiktaalik") {
+      transformPlane("Plesiosaur");
+    } else if (game.distance > game.transformDistance5 && game.currentForm === "Plesiosaur") {
+      transformPlane("Quetzalcoatlus");
+    } else if (game.distance > game.transformDistance6 && game.currentForm === "Quetzalcoatlus") {
+      transformPlane("Finch");
+    } else if (game.distance > game.transformDistance7 && game.currentForm === "Finch") {
+      transformPlane("NewtonApple");
+    } else if (game.distance > game.transformDistance8 && game.currentForm === "NewtonApple") {
+      transformPlane("TimeArrow");
+    } else if (game.distance > game.transformDistance9 && game.currentForm === "TimeArrow") {
+      transformPlane("WrightFlyer");
+    } else if (game.distance > game.transformDistance10 && game.currentForm === "WrightFlyer") {
+      transformPlane("Jetliner");
+    }
 
     updatePlane();
     updateDistance();
