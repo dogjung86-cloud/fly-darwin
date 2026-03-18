@@ -339,6 +339,11 @@ function handleMouseMove(event) {
 }
 
 function handleTouchStart(event) {
+    var target = event.target;
+    // 일시정지 버튼/오버레이 터치 시에는 preventDefault 하지 않음
+    if (target.id === 'mobilePauseBtn' || target.id === 'pauseOverlay' || target.closest('#pauseOverlay')) {
+      return;
+    }
     event.preventDefault();
     var tx = -1 + (event.touches[0].pageX / WIDTH)*2;
     var ty = 1 - (event.touches[0].pageY / HEIGHT)*2;
@@ -1936,6 +1941,7 @@ function init(event){
 
   initRankingUI();
   initBGM();
+  initPauseUI();
   loop();
 }
 
@@ -1960,4 +1966,31 @@ function togglePause() {
     oldTime = new Date().getTime();
     if (bgm) bgm.play().catch(function(){});
   }
+}
+
+function initPauseUI() {
+  var pauseBtn = document.getElementById('mobilePauseBtn');
+  var pauseOverlay = document.getElementById('pauseOverlay');
+
+  function handlePauseBtnPress(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof togglePause === 'function' && game && game.status === 'playing') {
+      togglePause();
+    }
+  }
+
+  function handleOverlayPress(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof togglePause === 'function') {
+      togglePause();
+    }
+  }
+
+  // 모바일 터치와 데스크톱 클릭 모두 지원
+  pauseBtn.addEventListener('touchend', handlePauseBtnPress);
+  pauseBtn.addEventListener('click', handlePauseBtnPress);
+  pauseOverlay.addEventListener('touchend', handleOverlayPress);
+  pauseOverlay.addEventListener('click', handleOverlayPress);
 }
