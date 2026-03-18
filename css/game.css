@@ -171,13 +171,24 @@
 	100% { opacity: 1; }
 }
 
-@media screen and (max-width: 40em) {
+@media screen and (max-width: 768px) {
 	.header {
-		font-size: 0.75em;
-		top: 6.5em;
+		top: 4vh;
+	}
+	.header h1 {
+		font-size: 1.8em;
+		margin-bottom: 0.1em;
 	}
 	.header h2 {
-		letter-spacing: 0.65em;
+		font-size: 0.35em;
+		letter-spacing: 0.35em;
+		text-indent: 0.4em;
+		margin: 0.15em 0;
+	}
+	.score {
+		margin-top: 0.5em;
+		transform: scale(0.55);
+		transform-origin: top center;
 	}
 }
 

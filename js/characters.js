@@ -854,10 +854,6 @@ var Amoeba = function(){
   eyeR.position.set(15, -2, 16);
   this.mesh.add(eyeR);
 
-  var eyeL = new THREE.Mesh(eyeGeom, eyeMat);
-  eyeL.position.set(22, -2, 13);
-  this.mesh.add(eyeL);
-
   // Tentacles (pink and orange)
   var tentacleMatPink = new THREE.MeshPhongMaterial({color:0xFF9999, shading:THREE.FlatShading});
   var tentacleMatOrange = new THREE.MeshPhongMaterial({color:0xFFB266, shading:THREE.FlatShading});

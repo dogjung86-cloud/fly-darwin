@@ -52,29 +52,93 @@ function playDestroySound() {
     var ctx = getAudioCtx();
     var now = ctx.currentTime;
 
-    // 짧은 크래시/파괴 사운드
-    var bufferSize = ctx.sampleRate * 0.15;
+    // 임팩트 톤
+    var osc = ctx.createOscillator();
+    var oscGain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+    oscGain.gain.setValueAtTime(0.16, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.3);
+
+    // 크래시 노이즈
+    var bufferSize = ctx.sampleRate * 0.25;
     var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     var data = buffer.getChannelData(0);
     for (var i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
     }
-
     var noise = ctx.createBufferSource();
     noise.buffer = buffer;
     var gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
+    gain.gain.setValueAtTime(0.13, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
     var filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 2000;
-
+    filter.frequency.value = 3000;
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
     noise.start(now);
-    noise.stop(now + 0.15);
+    noise.stop(now + 0.3);
+  } catch(e) {}
+}
+
+function playInvincibleSmashSound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+
+    // 1) 강력한 저음 펀치
+    var osc1 = ctx.createOscillator();
+    var gain1 = ctx.createGain();
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(180, now);
+    osc1.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+    gain1.gain.setValueAtTime(0.18, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.35);
+
+    // 2) 상승하는 밝은 톤 (시원한 파괴)
+    var osc2 = ctx.createOscillator();
+    var gain2 = ctx.createGain();
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(500, now + 0.03);
+    osc2.frequency.exponentialRampToValueAtTime(1500, now + 0.15);
+    gain2.gain.setValueAtTime(0.1, now + 0.03);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.03);
+    osc2.stop(now + 0.3);
+
+    // 3) 금속성 노이즈 크래시
+    var bufferSize = ctx.sampleRate * 0.2;
+    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 1.5);
+    }
+    var noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    var gainN = ctx.createGain();
+    gainN.gain.setValueAtTime(0.13, now);
+    gainN.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 2500;
+    noise.connect(filter);
+    filter.connect(gainN);
+    gainN.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.25);
   } catch(e) {}
 }
 
@@ -756,7 +820,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
         particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 20, 0xFFD700, 2);
         ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
         this.mesh.remove(ennemy.mesh);
-        playDestroySound();
+        playInvincibleSmashSound();
         i--;
       } else {
         // 일반 상태: 기존 동작 (튕겨남 + 에너지 감소)
@@ -766,6 +830,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
         game.planeCollisionSpeedX = 100 * diffPos.x / d;
         game.planeCollisionSpeedY = 100 * diffPos.y / d;
         ambientLight.intensity = 2;
+        playDestroySound();
         removeEnergy();
         i--;
       }
@@ -1779,6 +1844,24 @@ function normalize(v,vmin,vmax,tmin, tmax){
 
 var fieldDistance, energyBar, replayMessage, fieldLevel, levelCircle;
 
+// BGM
+var bgm = null;
+function initBGM() {
+  bgm = new Audio('music/Townsong.mp3');
+  bgm.loop = true;
+  bgm.volume = 0.08;
+  // 브라우저 자동재생 정책 대응: 첫 인터랙션 후 재생
+  var startBGM = function() {
+    if (bgm && bgm.paused) {
+      bgm.play().catch(function(){});
+    }
+    document.removeEventListener('click', startBGM);
+    document.removeEventListener('touchstart', startBGM);
+  };
+  document.addEventListener('click', startBGM);
+  document.addEventListener('touchstart', startBGM);
+}
+
 function init(event){
 
   // UI
@@ -1808,6 +1891,7 @@ function init(event){
   document.addEventListener('keydown', handleKeyDown, false);
 
   initRankingUI();
+  initBGM();
   loop();
 }
 
@@ -1826,8 +1910,10 @@ function togglePause() {
   var overlay = document.getElementById('pauseOverlay');
   if (paused) {
     overlay.style.display = 'flex';
+    if (bgm && !bgm.paused) bgm.pause();
   } else {
     overlay.style.display = 'none';
     oldTime = new Date().getTime();
+    if (bgm) bgm.play().catch(function(){});
   }
 }
