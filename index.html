@@ -49,9 +49,56 @@
 				</div>
 			</div>
 			<div class="world" id="world"></div>
-			<div class="message message--replay" id="replayMessage">Click to Replay</div>
+		<!-- Game Over Overlay -->
+		<div id="gameOverOverlay" class="gameover-overlay">
+			<div class="gameover-panel">
+				<!-- Phase 1: Score Display + Name Input -->
+				<div id="gameOverScore" class="gameover-section">
+					<h2 class="gameover-title">GAME OVER</h2>
+					<div class="gameover-stats">
+						<div class="gameover-stat">
+							<span class="gameover-stat-label">최종 거리</span>
+							<span class="gameover-stat-value" id="finalDistance">0</span>
+						</div>
+						<div class="gameover-stat">
+							<span class="gameover-stat-label">레벨</span>
+							<span class="gameover-stat-value" id="finalLevel">1</span>
+						</div>
+						<div class="gameover-stat">
+							<span class="gameover-stat-label">진화 형태</span>
+							<span class="gameover-stat-value gameover-stat-form" id="finalForm">Amoeba</span>
+						</div>
+					</div>
+					<div class="gameover-input-group">
+						<input type="text" id="playerNameInput" class="gameover-input" maxlength="20" placeholder="닉네임 입력 (최대 20자)" autocomplete="off" />
+						<button id="submitScoreBtn" class="gameover-btn gameover-btn--submit">등록</button>
+					</div>
+					<button id="skipRankBtn" class="gameover-btn gameover-btn--skip">건너뛰고 다시 플레이</button>
+				</div>
 
+				<!-- Phase 2: Ranking Board -->
+				<div id="rankingBoard" class="gameover-section" style="display:none;">
+					<h2 class="gameover-title">🏆 랭킹</h2>
+					<div class="ranking-table-wrap">
+						<table class="ranking-table">
+							<thead>
+								<tr>
+									<th>순위</th>
+									<th>닉네임</th>
+									<th>거리</th>
+									<th>레벨</th>
+									<th>형태</th>
+								</tr>
+							</thead>
+							<tbody id="rankingBody"></tbody>
+						</table>
+					</div>
+					<button id="replayFromRankBtn" class="gameover-btn gameover-btn--replay">다시 플레이</button>
+				</div>
+			</div>
 		</div>
+
+	</div>
 
 		<div id="pauseOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
 			<div style="color:#fff; font-family:'Playfair Display',serif; font-size:72px; font-weight:700; text-shadow:2px 2px 10px rgba(0,0,0,0.5);">PAUSED</div>

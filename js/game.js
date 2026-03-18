@@ -12,6 +12,92 @@ var Colors = {
 
 ///////////////
 
+// SOUND EFFECTS (Web Audio API - no external files needed)
+var audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  // 브라우저 자동재생 정책 대응: suspended 상태이면 resume
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playPowerupSound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+
+    // 상승하는 음계 (파워업 느낌)
+    var frequencies = [523, 659, 784, 1047]; // C5, E5, G5, C6
+    for (var i = 0; i < frequencies.length; i++) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequencies[i];
+      gain.gain.setValueAtTime(0.15, now + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.25);
+    }
+  } catch(e) {}
+}
+
+function playDestroySound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+
+    // 짧은 크래시/파괴 사운드
+    var bufferSize = ctx.sampleRate * 0.15;
+    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 3);
+    }
+
+    var noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 2000;
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.15);
+  } catch(e) {}
+}
+
+function playCoinSound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+
+    // 짧은 "딩!" 동전 사운드
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(1800, now + 0.05);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  } catch(e) {}
+}
+
 // GAME VARIABLES
 var game;
 var paused = false;
@@ -94,7 +180,20 @@ function resetGame(){
           transformDistance8 : 8000,
           transformDistance9 : 9000,
           transformDistance10 : 10000,
+          transformDistance11 : 11000,
+          transformDistance12 : 12000,
+          transformDistance13 : 13000,
           currentForm : "Amoeba", // Stage 1
+          transforming : false,
+
+          // Invincibility
+          invincible : false,
+          invincibleTime : 0,
+          invincibleDuration : 5000, // 5초
+          invincibleFruitDistanceTolerance : 18,
+          invincibleFruitSpeed : 0.4,
+          invincibleFruitLastSpawn : 0,
+          distanceForInvincibleSpawn : 800, // 코인(100)의 8배 간격
          };
   fieldLevel.innerHTML = Math.floor(game.level);
 }
@@ -180,18 +279,12 @@ function handleTouchMove(event) {
 }
 
 function handleMouseUp(event){
-  if (game.status == "waitingReplay"){
-    resetGame();
-    hideReplay();
-  }
+  // Replay is handled by overlay buttons now
 }
 
 
 function handleTouchEnd(event){
-  if (game.status == "waitingReplay"){
-    resetGame();
-    hideReplay();
-  }
+  // Replay is handled by overlay buttons now
 }
 
 // LIGHTS
@@ -658,16 +751,24 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     var diffPos = airplane.mesh.position.clone().sub(ennemy.mesh.position.clone());
     var d = diffPos.length();
     if (d<game.ennemyDistanceTolerance){
-      particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, 0x333333, 3);
-
-      ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
-      this.mesh.remove(ennemy.mesh);
-      game.planeCollisionSpeedX = 100 * diffPos.x / d;
-      game.planeCollisionSpeedY = 100 * diffPos.y / d;
-      ambientLight.intensity = 2;
-
-      removeEnergy();
-      i--;
+      if (game.invincible) {
+        // 무적 상태: 장애물 파괴하고 그대로 전진
+        particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 20, 0xFFD700, 2);
+        ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
+        this.mesh.remove(ennemy.mesh);
+        playDestroySound();
+        i--;
+      } else {
+        // 일반 상태: 기존 동작 (튕겨남 + 에너지 감소)
+        particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, 0x333333, 3);
+        ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
+        this.mesh.remove(ennemy.mesh);
+        game.planeCollisionSpeedX = 100 * diffPos.x / d;
+        game.planeCollisionSpeedY = 100 * diffPos.y / d;
+        ambientLight.intensity = 2;
+        removeEnergy();
+        i--;
+      }
     }else if (ennemy.angle > Math.PI){
       ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
       this.mesh.remove(ennemy.mesh);
@@ -821,6 +922,179 @@ CoinsHolder.prototype.rotateCoins = function(){
   }
 }
 
+// ===== INVINCIBLE FRUIT =====
+
+InvincibleFruit = function(){
+  this.mesh = new THREE.Object3D();
+
+  // 별 모양 코어 (금빛 구체)
+  var coreGeom = new THREE.SphereGeometry(6, 6, 4);
+  var coreMat = new THREE.MeshPhongMaterial({
+    color: 0xFFD700,
+    emissive: 0xFF8C00,
+    emissiveIntensity: 0.6,
+    shininess: 80,
+    specular: 0xFFFFFF,
+    shading: THREE.FlatShading
+  });
+  var core = new THREE.Mesh(coreGeom, coreMat);
+  this.mesh.add(core);
+
+  // 스파이크 (별 빛살)
+  var spikeMat = new THREE.MeshPhongMaterial({
+    color: 0xFFEE44,
+    emissive: 0xFFAA00,
+    emissiveIntensity: 0.4,
+    shininess: 60,
+    shading: THREE.FlatShading
+  });
+  var spikePositions = [
+    [9,0,0], [-9,0,0], [0,9,0], [0,-9,0], [0,0,9], [0,0,-9]
+  ];
+  for (var i = 0; i < spikePositions.length; i++){
+    var spikeGeom = new THREE.BoxGeometry(3, 7, 3, 1, 1, 1);
+    // 뾰족하게
+    spikeGeom.vertices[4].x = 0; spikeGeom.vertices[4].z = 0;
+    spikeGeom.vertices[5].x = 0; spikeGeom.vertices[5].z = 0;
+    spikeGeom.vertices[6].x = 0; spikeGeom.vertices[6].z = 0;
+    spikeGeom.vertices[7].x = 0; spikeGeom.vertices[7].z = 0;
+    var spike = new THREE.Mesh(spikeGeom, spikeMat);
+    spike.position.set(spikePositions[i][0], spikePositions[i][1], spikePositions[i][2]);
+    spike.lookAt(new THREE.Vector3(spikePositions[i][0]*2, spikePositions[i][1]*2, spikePositions[i][2]*2));
+    this.mesh.add(spike);
+  }
+
+  this.mesh.castShadow = true;
+  this.angle = 0;
+  this.dist = 0;
+}
+
+InvincibleFruitHolder = function(n){
+  this.mesh = new THREE.Object3D();
+  this.fruitsInUse = [];
+  this.fruitsPool = [];
+  for (var i = 0; i < n; i++){
+    var fruit = new InvincibleFruit();
+    this.fruitsPool.push(fruit);
+  }
+}
+
+InvincibleFruitHolder.prototype.spawnFruit = function(){
+  var fruit;
+  if (this.fruitsPool.length){
+    fruit = this.fruitsPool.pop();
+  } else {
+    fruit = new InvincibleFruit();
+  }
+  this.mesh.add(fruit.mesh);
+  this.fruitsInUse.push(fruit);
+  fruit.angle = 0;
+
+  // 장애물과 겹치지 않는 위치 찾기
+  var safeDistance = 0;
+  var attempts = 0;
+  var minSeparation = 40; // 장애물과 최소 이격 거리
+  do {
+    safeDistance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight - 20);
+    var tooClose = false;
+    for (var e = 0; e < ennemiesHolder.ennemiesInUse.length; e++) {
+      var eDist = ennemiesHolder.ennemiesInUse[e].distance;
+      if (Math.abs(safeDistance - eDist) < minSeparation) {
+        tooClose = true;
+        break;
+      }
+    }
+    attempts++;
+  } while (tooClose && attempts < 10);
+
+  fruit.distance = safeDistance;
+  fruit.mesh.position.y = -game.seaRadius + Math.sin(fruit.angle) * fruit.distance;
+  fruit.mesh.position.x = Math.cos(fruit.angle) * fruit.distance;
+}
+
+InvincibleFruitHolder.prototype.rotateFruits = function(){
+  for (var i = 0; i < this.fruitsInUse.length; i++){
+    var fruit = this.fruitsInUse[i];
+    fruit.angle += game.speed * deltaTime * game.invincibleFruitSpeed;
+    if (fruit.angle > Math.PI * 2) fruit.angle -= Math.PI * 2;
+    fruit.mesh.position.y = -game.seaRadius + Math.sin(fruit.angle) * fruit.distance;
+    fruit.mesh.position.x = Math.cos(fruit.angle) * fruit.distance;
+    // 빙글빙글 회전 + 떠다니는 효과
+    fruit.mesh.rotation.y += 0.05;
+    fruit.mesh.rotation.z += 0.03;
+
+    var diffPos = airplane.mesh.position.clone().sub(fruit.mesh.position.clone());
+    var d = diffPos.length();
+    if (d < game.invincibleFruitDistanceTolerance){
+      this.fruitsPool.unshift(this.fruitsInUse.splice(i, 1)[0]);
+      this.mesh.remove(fruit.mesh);
+      particlesHolder.spawnParticles(fruit.mesh.position.clone(), 10, 0xFFD700, 1.2);
+      activateInvincible();
+      playPowerupSound();
+      i--;
+    } else if (fruit.angle > Math.PI){
+      this.fruitsPool.unshift(this.fruitsInUse.splice(i, 1)[0]);
+      this.mesh.remove(fruit.mesh);
+      i--;
+    }
+  }
+}
+
+var invincibleGlow = null;
+
+function activateInvincible(){
+  game.invincible = true;
+  game.invincibleTime = game.invincibleDuration;
+
+  // 비행체에 금빛 글로우 추가
+  if (!invincibleGlow){
+    var glowGeom = new THREE.SphereGeometry(120, 8, 6);
+    var glowMat = new THREE.MeshPhongMaterial({
+      color: 0xFFD700,
+      transparent: true,
+      opacity: 0.15,
+      emissive: 0xFFAA00,
+      emissiveIntensity: 0.3,
+      side: THREE.DoubleSide
+    });
+    invincibleGlow = new THREE.Mesh(glowGeom, glowMat);
+  }
+  invincibleGlow.visible = true;
+  if (!airplane.mesh.getObjectById(invincibleGlow.id)){
+    airplane.mesh.add(invincibleGlow);
+  }
+}
+
+function deactivateInvincible(){
+  game.invincible = false;
+  game.invincibleTime = 0;
+  if (invincibleGlow){
+    invincibleGlow.visible = false;
+    if (invincibleGlow.parent){
+      invincibleGlow.parent.remove(invincibleGlow);
+    }
+  }
+}
+
+function updateInvincible(){
+  if (!game.invincible) return;
+  game.invincibleTime -= deltaTime;
+
+  // 글로우 깜빡임 (마지막 1초)
+  if (invincibleGlow){
+    if (game.invincibleTime < 1000){
+      invincibleGlow.material.opacity = 0.15 * (0.5 + 0.5 * Math.sin(game.invincibleTime * 0.02));
+    } else {
+      invincibleGlow.material.opacity = 0.12 + 0.06 * Math.sin(Date.now() * 0.005);
+    }
+    invincibleGlow.rotation.y += 0.02;
+  }
+
+  if (game.invincibleTime <= 0){
+    deactivateInvincible();
+  }
+}
+
 
 // 3D Models
 var sea;
@@ -833,69 +1107,231 @@ function createPlane(){
   scene.add(airplane.mesh);
 }
 
+function createNewCharacter(formString) {
+  switch(formString) {
+    case "Anomalocaris": return new Anomalocaris();
+    case "Opabinia": return new Opabinia();
+    case "Dunkleosteus": return new Dunkleosteus();
+    case "Tiktaalik": return new Tiktaalik();
+    case "Quetzalcoatlus": return new Quetzalcoatlus();
+    case "Plesiosaur": return new Plesiosaur();
+    case "Bat": return new Bat();
+    case "Wright Flyer": return new WrightFlyer();
+    case "Jetliner": return new Jetliner();
+    case "Rocket": return new Rocket();
+    case "SpaceShuttle": return new SpaceShuttle();
+    case "UFO": return new UFO();
+    case "Newton's Apple": return new NewtonApple();
+    case "Einstein": return new TimeArrow();
+    case "AppleCraft": return new AppleCraft();
+    case "Darwin's Finch": return new Finch();
+    case "Amoeba":
+    default: return new Amoeba();
+  }
+}
+
+// 재귀적으로 모든 Mesh 자식을 수집
+function collectMeshes(obj, list) {
+  if (!list) list = [];
+  if (obj instanceof THREE.Mesh) {
+    list.push(obj);
+  }
+  for (var i = 0; i < obj.children.length; i++) {
+    collectMeshes(obj.children[i], list);
+  }
+  return list;
+}
+
+// 메시의 월드(로컬 기준) 위치를 부모 기준으로 가져오기
+function getLocalTransform(mesh, rootParent) {
+  var pos = new THREE.Vector3();
+  var scale = new THREE.Vector3();
+  var quat = new THREE.Quaternion();
+  
+  // 임시로 월드 매트릭스를 업데이트해서 루트 기준 좌표를 구함
+  rootParent.updateMatrixWorld(true);
+  
+  var worldMatrix = mesh.matrixWorld.clone();
+  var rootInverse = new THREE.Matrix4().getInverse(rootParent.matrixWorld);
+  worldMatrix.multiplyMatrices(rootInverse, worldMatrix);
+  worldMatrix.decompose(pos, quat, scale);
+  
+  var euler = new THREE.Euler().setFromQuaternion(quat);
+  
+  return {
+    x: pos.x, y: pos.y, z: pos.z,
+    rx: euler.x, ry: euler.y, rz: euler.z,
+    sx: scale.x, sy: scale.y, sz: scale.z,
+    color: mesh.material ? mesh.material.color.getHex() : 0xffffff
+  };
+}
+
 function transformPlane(newFormString) {
+  // 이미 변신 중이면 무시
+  if (game.transforming) return;
+  game.transforming = true;
+  
+  var oldAirplane = airplane;
   var oldPos = airplane.mesh.position.clone();
   var oldRot = airplane.mesh.rotation.clone();
-
-  // 기존 기체 제거
-  scene.remove(airplane.mesh);
-
-  // 파티클 생성
-  particlesHolder.spawnParticles(oldPos, 20, 0xFFFFFF, 1.5);
-
-  // 새 기체 생성
-  switch(newFormString) {
-    case "Anomalocaris":
-      airplane = new Anomalocaris();
-      break;
-    case "Opabinia":
-      airplane = new Opabinia();
-      break;
-    case "Dunkleosteus":
-      airplane = new Dunkleosteus();
-      break;
-    case "Tiktaalik":
-      airplane = new Tiktaalik();
-      break;
-    case "Quetzalcoatlus":
-      airplane = new Quetzalcoatlus();
-      break;
-    case "Plesiosaur":
-      airplane = new Plesiosaur();
-      break;
-    case "Bat":
-      airplane = new Bat();
-      break;
-    case "WrightFlyer":
-      airplane = new WrightFlyer();
-      break;
-    case "Jetliner":
-      airplane = new Jetliner();
-      break;
-    case "NewtonApple":
-      airplane = new NewtonApple();
-      break;
-    case "TimeArrow":
-      airplane = new TimeArrow();
-      break;
-    case "AppleCraft":
-      airplane = new AppleCraft();
-      break;
-    case "Finch":
-      airplane = new Finch();
-      break;
-    case "Amoeba":
-    default:
-      airplane = new Amoeba();
-      break;
-  }
-
-  // 기존 속성 복원
-  airplane.mesh.scale.set(.25,.25,.25);
-  airplane.mesh.position.copy(oldPos);
-  airplane.mesh.rotation.copy(oldRot);
-  scene.add(airplane.mesh);
+  var oldScale = airplane.mesh.scale.clone();
   
+  // 기존 비행체의 모든 메시 블록 수집
+  var oldMeshes = collectMeshes(oldAirplane.mesh);
+  var oldTransforms = [];
+  for (var i = 0; i < oldMeshes.length; i++) {
+    oldTransforms.push(getLocalTransform(oldMeshes[i], oldAirplane.mesh));
+  }
+  
+  // 새 비행체 생성 (아직 씬에 추가 안 함)
+  var newAirplane = createNewCharacter(newFormString);
+  newAirplane.mesh.scale.copy(oldScale);
+  newAirplane.mesh.position.copy(oldPos);
+  newAirplane.mesh.rotation.copy(oldRot);
+  
+  var newMeshes = collectMeshes(newAirplane.mesh);
+  var newTransforms = [];
+  for (var i = 0; i < newMeshes.length; i++) {
+    newTransforms.push(getLocalTransform(newMeshes[i], newAirplane.mesh));
+  }
+  
+  // 변신 컨테이너: 기존 비행체를 제거하고, flat한 블록들로 구성
+  scene.remove(oldAirplane.mesh);
+  
+  var morphContainer = new THREE.Object3D();
+  morphContainer.position.copy(oldPos);
+  morphContainer.rotation.copy(oldRot);
+  morphContainer.scale.copy(oldScale);
+  scene.add(morphContainer);
+  
+  // 기존 블록들을 morphContainer의 직속 자식으로 재배치
+  var morphBlocks = [];
+  for (var i = 0; i < oldMeshes.length; i++) {
+    var block = oldMeshes[i];
+    var t = oldTransforms[i];
+    
+    // 새 메시를 만들어서 같은 geometry와 material clone 사용
+    var newMat = block.material.clone();
+    var morphBlock = new THREE.Mesh(block.geometry.clone(), newMat);
+    morphBlock.position.set(t.x, t.y, t.z);
+    morphBlock.rotation.set(t.rx, t.ry, t.rz);
+    morphBlock.scale.set(t.sx, t.sy, t.sz);
+    morphBlock.castShadow = true;
+    
+    morphContainer.add(morphBlock);
+    morphBlocks.push(morphBlock);
+  }
+  
+  // 블록 수가 다를 때 처리
+  var maxBlocks = Math.max(oldTransforms.length, newTransforms.length);
+  
+  // 새 형태의 블록이 더 많으면: 추가 블록을 중앙에서 생성
+  while (morphBlocks.length < maxBlocks) {
+    var srcIdx = morphBlocks.length % oldTransforms.length;
+    var srcBlock = morphBlocks[srcIdx];
+    var extraBlock = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 2, 2),
+      srcBlock.material.clone()
+    );
+    extraBlock.position.set(0, 0, 0);
+    extraBlock.scale.set(0.01, 0.01, 0.01);
+    extraBlock.castShadow = true;
+    morphContainer.add(extraBlock);
+    morphBlocks.push(extraBlock);
+  }
+  
+  // 애니메이션 시간
+  var morphDuration = 1.2;
+  var completedCount = 0;
+  
+  for (var i = 0; i < maxBlocks; i++) {
+    var block = morphBlocks[i];
+    var delay = Math.random() * 0.3;
+    
+    if (i < newTransforms.length) {
+      // 목표가 있는 블록: 새 위치/크기/색으로 이동
+      var target = newTransforms[i];
+      
+      // 위치 애니메이션
+      TweenMax.to(block.position, morphDuration, {
+        x: target.x, y: target.y, z: target.z,
+        delay: delay,
+        ease: Power2.easeInOut
+      });
+      
+      // 회전 애니메이션
+      TweenMax.to(block.rotation, morphDuration, {
+        x: target.rx, y: target.ry, z: target.rz,
+        delay: delay,
+        ease: Power2.easeInOut
+      });
+      
+      // 스케일 애니메이션
+      TweenMax.to(block.scale, morphDuration, {
+        x: target.sx, y: target.sy, z: target.sz,
+        delay: delay,
+        ease: Power2.easeInOut
+      });
+      
+      // 색상 애니메이션
+      var targetColor = new THREE.Color(target.color);
+      TweenMax.to(block.material.color, morphDuration, {
+        r: targetColor.r, g: targetColor.g, b: targetColor.b,
+        delay: delay,
+        ease: Power2.easeInOut,
+        onUpdate: function() { this.target.material && (this.target.material.needsUpdate = true); }.bind({target: block})
+      });
+      
+    } else {
+      // 남는 블록: 축소되며 사라짐
+      TweenMax.to(block.scale, morphDuration * 0.6, {
+        x: 0.01, y: 0.01, z: 0.01,
+        delay: delay,
+        ease: Power2.easeIn
+      });
+    }
+    
+    // 마지막 블록의 완료 콜백으로 전환 마무리
+    if (i === maxBlocks - 1) {
+      TweenMax.to({}, morphDuration + 0.35, {
+        onComplete: function() {
+          // morphContainer 제거
+          scene.remove(morphContainer);
+          
+          // 실제 새 비행체로 교체
+          airplane = newAirplane;
+          airplane.mesh.position.copy(morphContainer.position);
+          airplane.mesh.rotation.copy(morphContainer.rotation);
+          airplane.mesh.scale.copy(morphContainer.scale);
+          scene.add(airplane.mesh);
+          
+          game.currentForm = newFormString;
+          game.transforming = false;
+          
+          // 파티클 이펙트 (변신 완료 강조)
+          particlesHolder.spawnParticles(airplane.mesh.position.clone(), 15, 0xFFFFFF, 1.2);
+          
+          // 무적 상태가 활성화되어 있으면 글로우를 새 비행체에 다시 붙여줌
+          if (game.invincible && invincibleGlow) {
+            invincibleGlow.visible = true;
+            if (invincibleGlow.parent) {
+              invincibleGlow.parent.remove(invincibleGlow);
+            }
+            airplane.mesh.add(invincibleGlow);
+          }
+        }
+      });
+    }
+  }
+  
+  // morphContainer가 airplane과 동일하게 움직이도록 임시 airplane 설정
+  // propeller와 pilot이 필요하므로 더미 설정
+  airplane = {
+    mesh: morphContainer,
+    propeller: { rotation: { x: 0 } },
+    pilot: { updateHairs: function(){} },
+    updateWings: null
+  };
   game.currentForm = newFormString;
 }
 
@@ -937,6 +1373,13 @@ function createParticles(){
   scene.add(particlesHolder.mesh)
 }
 
+var invincibleFruitHolder;
+
+function createInvincibleFruits(){
+  invincibleFruitHolder = new InvincibleFruitHolder(5);
+  scene.add(invincibleFruitHolder.mesh);
+}
+
 function loop(){
 
   if (paused) {
@@ -954,6 +1397,12 @@ function loop(){
     if (Math.floor(game.distance)%game.distanceForCoinsSpawn == 0 && Math.floor(game.distance) > game.coinLastSpawn){
       game.coinLastSpawn = Math.floor(game.distance);
       coinsHolder.spawnCoins();
+    }
+
+    // Spawn invincible fruit
+    if (Math.floor(game.distance)%game.distanceForInvincibleSpawn == 0 && Math.floor(game.distance) > game.invincibleFruitLastSpawn){
+      game.invincibleFruitLastSpawn = Math.floor(game.distance);
+      invincibleFruitHolder.spawnFruit();
     }
 
     if (Math.floor(game.distance)%game.distanceForSpeedUpdate == 0 && Math.floor(game.distance) > game.speedLastUpdate){
@@ -987,15 +1436,21 @@ function loop(){
     } else if (game.distance > game.transformDistance5 && game.currentForm === "Plesiosaur") {
       transformPlane("Quetzalcoatlus");
     } else if (game.distance > game.transformDistance6 && game.currentForm === "Quetzalcoatlus") {
-      transformPlane("Finch");
-    } else if (game.distance > game.transformDistance7 && game.currentForm === "Finch") {
-      transformPlane("NewtonApple");
-    } else if (game.distance > game.transformDistance8 && game.currentForm === "NewtonApple") {
-      transformPlane("TimeArrow");
-    } else if (game.distance > game.transformDistance9 && game.currentForm === "TimeArrow") {
-      transformPlane("WrightFlyer");
-    } else if (game.distance > game.transformDistance10 && game.currentForm === "WrightFlyer") {
+      transformPlane("Darwin's Finch");
+    } else if (game.distance > game.transformDistance7 && game.currentForm === "Darwin's Finch") {
+      transformPlane("Newton's Apple");
+    } else if (game.distance > game.transformDistance8 && game.currentForm === "Newton's Apple") {
+      transformPlane("Einstein");
+    } else if (game.distance > game.transformDistance9 && game.currentForm === "Einstein") {
+      transformPlane("Wright Flyer");
+    } else if (game.distance > game.transformDistance10 && game.currentForm === "Wright Flyer") {
       transformPlane("Jetliner");
+    } else if (game.distance > game.transformDistance11 && game.currentForm === "Jetliner") {
+      transformPlane("Rocket");
+    } else if (game.distance > game.transformDistance12 && game.currentForm === "Rocket") {
+      transformPlane("SpaceShuttle");
+    } else if (game.distance > game.transformDistance13 && game.currentForm === "SpaceShuttle") {
+      transformPlane("UFO");
     }
 
     updatePlane();
@@ -1012,7 +1467,7 @@ function loop(){
     airplane.mesh.position.y -= game.planeFallSpeed*deltaTime;
 
     if (airplane.mesh.position.y <-200){
-      showReplay();
+      showGameOver();
       game.status = "waitingReplay";
 
     }
@@ -1031,6 +1486,8 @@ function loop(){
 
   coinsHolder.rotateCoins();
   ennemiesHolder.rotateEnnemies();
+  invincibleFruitHolder.rotateFruits();
+  updateInvincible();
 
   sky.moveClouds();
   sea.moveWaves();
@@ -1069,9 +1526,11 @@ function updateEnergy(){
 function addEnergy(){
   game.energy += game.coinValue;
   game.energy = Math.min(game.energy, 100);
+  playCoinSound();
 }
 
 function removeEnergy(){
+  if (game.invincible) return; // 무적 상태에서는 에너지 감소 안 함
   game.energy -= game.ennemyValue;
   game.energy = Math.max(0, game.energy);
 }
@@ -1111,11 +1570,202 @@ function updatePlane(){
 }
 
 function showReplay(){
-  replayMessage.style.display="block";
+  // Legacy - no longer used
 }
 
 function hideReplay(){
-  replayMessage.style.display="none";
+  // Legacy - no longer used
+}
+
+// ===== RANKING SYSTEM =====
+
+var RANKING_KEY = 'flyDarwinRankings';
+var MAX_RANKINGS = 100;
+var currentPlayerRankIndex = -1;
+
+function getRankings() {
+  try {
+    var data = localStorage.getItem(RANKING_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function saveRanking(name, distance, level, form) {
+  var rankings = getRankings();
+  var entry = {
+    name: name,
+    distance: Math.floor(distance),
+    level: Math.floor(level),
+    form: form,
+    date: new Date().toISOString().slice(0, 10)
+  };
+  rankings.push(entry);
+  rankings.sort(function(a, b) { return b.distance - a.distance; });
+  if (rankings.length > MAX_RANKINGS) rankings = rankings.slice(0, MAX_RANKINGS);
+  
+  // Find current player's rank index
+  currentPlayerRankIndex = -1;
+  for (var i = 0; i < rankings.length; i++) {
+    if (rankings[i] === entry) {
+      currentPlayerRankIndex = i;
+      break;
+    }
+  }
+  // Fallback: find by matching all fields
+  if (currentPlayerRankIndex === -1) {
+    for (var i = 0; i < rankings.length; i++) {
+      if (rankings[i].name === entry.name && 
+          rankings[i].distance === entry.distance && 
+          rankings[i].date === entry.date) {
+        currentPlayerRankIndex = i;
+        break;
+      }
+    }
+  }
+  
+  localStorage.setItem(RANKING_KEY, JSON.stringify(rankings));
+  return currentPlayerRankIndex;
+}
+
+function renderRankingBoard() {
+  var rankings = getRankings();
+  var tbody = document.getElementById('rankingBody');
+  tbody.innerHTML = '';
+  
+  if (rankings.length === 0) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="5" style="color:rgba(255,255,255,0.3); padding:20px;">기록이 없습니다</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+  
+  var medals = ['🥇', '🥈', '🥉'];
+  for (var i = 0; i < rankings.length; i++) {
+    var r = rankings[i];
+    var tr = document.createElement('tr');
+    if (i === currentPlayerRankIndex) tr.className = 'rank-highlight';
+    
+    var rankDisplay = i < 3 ? '<span class="rank-medal">' + medals[i] + '</span>' : (i + 1);
+    tr.innerHTML = '<td>' + rankDisplay + '</td>' +
+                   '<td>' + escapeHtml(r.name) + '</td>' +
+                   '<td>' + r.distance.toLocaleString() + '</td>' +
+                   '<td>' + r.level + '</td>' +
+                   '<td>' + r.form + '</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
+}
+
+function showGameOver() {
+  var overlay = document.getElementById('gameOverOverlay');
+  var scoreSection = document.getElementById('gameOverScore');
+  var rankSection = document.getElementById('rankingBoard');
+  
+  // Fill final stats
+  document.getElementById('finalDistance').textContent = Math.floor(game.distance).toLocaleString();
+  document.getElementById('finalLevel').textContent = Math.floor(game.level);
+  document.getElementById('finalForm').textContent = game.currentForm;
+  
+  // Reset UI state
+  document.getElementById('playerNameInput').value = '';
+  scoreSection.style.display = 'block';
+  rankSection.style.display = 'none';
+  
+  // Show overlay
+  overlay.style.display = 'flex';
+  
+  // Focus the input
+  setTimeout(function() {
+    document.getElementById('playerNameInput').focus();
+  }, 600);
+}
+
+function hideGameOver() {
+  document.getElementById('gameOverOverlay').style.display = 'none';
+}
+
+function submitScore() {
+  var nameInput = document.getElementById('playerNameInput');
+  var name = nameInput.value.trim();
+  if (!name) {
+    nameInput.style.borderColor = '#f25346';
+    nameInput.style.boxShadow = '0 0 16px rgba(242, 83, 70, 0.3)';
+    nameInput.placeholder = '닉네임을 입력해주세요!';
+    nameInput.focus();
+    return;
+  }
+  
+  var rankIndex = saveRanking(name, game.distance, game.level, game.currentForm);
+  
+  // Switch to ranking board
+  document.getElementById('gameOverScore').style.display = 'none';
+  document.getElementById('rankingBoard').style.display = 'block';
+  
+  if (rankIndex === -1) {
+    // 랭킹 진입 실패
+    document.querySelector('#rankingBoard .gameover-title').textContent = '😢 아쉽지만, 랭킹 진입 실패!';
+  } else {
+    document.querySelector('#rankingBoard .gameover-title').textContent = '🏆 랭킹';
+  }
+  renderRankingBoard();
+}
+
+function startReplay() {
+  hideGameOver();
+  resetGame();
+  // Reset plane to initial form
+  var oldPos = airplane.mesh.position.clone();
+  scene.remove(airplane.mesh);
+  airplane = new Amoeba();
+  airplane.mesh.scale.set(.25,.25,.25);
+  airplane.mesh.position.y = game.planeDefaultHeight;
+  scene.add(airplane.mesh);
+}
+
+function initRankingUI() {
+  // Submit score button
+  document.getElementById('submitScoreBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    submitScore();
+  });
+  
+  // Enter key to submit
+  document.getElementById('playerNameInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitScore();
+    }
+    // Reset error styling on type
+    this.style.borderColor = '';
+    this.style.boxShadow = '';
+  });
+  
+  // Skip ranking button
+  document.getElementById('skipRankBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    startReplay();
+  });
+  
+  // Replay from ranking button
+  document.getElementById('replayFromRankBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    startReplay();
+  });
+  
+  // Prevent clicks on overlay from propagating
+  document.getElementById('gameOverOverlay').addEventListener('mouseup', function(e) {
+    e.stopPropagation();
+  });
+  document.getElementById('gameOverOverlay').addEventListener('touchend', function(e) {
+    e.stopPropagation();
+  });
 }
 
 function normalize(v,vmin,vmax,tmin, tmax){
@@ -1149,6 +1799,7 @@ function init(event){
   createCoins();
   createEnnemies();
   createParticles();
+  createInvincibleFruits();
 
   document.addEventListener('mousemove', handleMouseMove, false);
   document.addEventListener('touchmove', handleTouchMove, false);
@@ -1156,6 +1807,7 @@ function init(event){
   document.addEventListener('touchend', handleTouchEnd, false);
   document.addEventListener('keydown', handleKeyDown, false);
 
+  initRankingUI();
   loop();
 }
 

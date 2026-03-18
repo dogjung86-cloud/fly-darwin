@@ -3188,3 +3188,612 @@ var Jetliner = function(){
 Jetliner.prototype.updateWings = function(){
   // No moving parts - steady flight
 };
+
+
+// -------- ROCKET (Level 12 vehicle) --------
+var Rocket = function(){
+  this.mesh = new THREE.Object3D();
+  this.mesh.name = "rocket";
+
+  // Materials
+  var whiteMat = new THREE.MeshPhongMaterial({color:0xF0F0F0, shading:THREE.FlatShading});
+  var redMat = new THREE.MeshPhongMaterial({color:0xCC2222, shading:THREE.FlatShading});
+  var darkMat = new THREE.MeshPhongMaterial({color:0x333333, shading:THREE.FlatShading});
+  var grayMat = new THREE.MeshPhongMaterial({color:0x888888, shading:THREE.FlatShading});
+  var orangeMat = new THREE.MeshPhongMaterial({
+    color:0xFF6600,
+    emissive:0xFF4400,
+    emissiveIntensity:0.5,
+    shading:THREE.FlatShading
+  });
+  var yellowMat = new THREE.MeshPhongMaterial({
+    color:0xFFCC00,
+    emissive:0xFF8800,
+    emissiveIntensity:0.4,
+    shading:THREE.FlatShading
+  });
+
+  // === NOSE CONE (pointing right - long & sharp) ===
+  var noseGeom = new THREE.BoxGeometry(70, 30, 30, 1, 1, 1);
+  // Taper front face to a sharp point: collapse all vertices with positive x to a single point
+  for (var vi = 0; vi < noseGeom.vertices.length; vi++) {
+    if (noseGeom.vertices[vi].x > 0) {
+      noseGeom.vertices[vi].x = 45; // push further forward for a long sharp tip
+      noseGeom.vertices[vi].y = 0;
+      noseGeom.vertices[vi].z = 0;
+    }
+  }
+  noseGeom.computeFaceNormals();
+  noseGeom.computeVertexNormals();
+  var nose = new THREE.Mesh(noseGeom, redMat);
+  nose.position.set(40, 0, 0);
+  nose.castShadow = true;
+  this.mesh.add(nose);
+
+  // === MAIN BODY (cylindrical tube) ===
+  var bodyGeom = new THREE.BoxGeometry(80, 30, 30);
+  var body = new THREE.Mesh(bodyGeom, whiteMat);
+  body.position.set(0, 0, 0);
+  body.castShadow = true;
+  this.mesh.add(body);
+
+  // Red stripes on body
+  var stripe1Geom = new THREE.BoxGeometry(12, 31, 31);
+  var stripe1 = new THREE.Mesh(stripe1Geom, redMat);
+  stripe1.position.set(15, 0, 0);
+  this.mesh.add(stripe1);
+
+  var stripe2 = new THREE.Mesh(stripe1Geom, redMat);
+  stripe2.position.set(-10, 0, 0);
+  this.mesh.add(stripe2);
+
+  // Window (porthole)
+  var windowGeom = new THREE.BoxGeometry(2, 10, 10);
+  var windowMat = new THREE.MeshPhongMaterial({
+    color:0x4488CC,
+    emissive:0x224466,
+    emissiveIntensity:0.3,
+    shininess:80,
+    shading:THREE.FlatShading
+  });
+  var windowR = new THREE.Mesh(windowGeom, windowMat);
+  windowR.position.set(30, 6, 16);
+  this.mesh.add(windowR);
+  var windowL = windowR.clone();
+  windowL.position.z = -16;
+  this.mesh.add(windowL);
+
+  // === ENGINE SECTION (back) ===
+  var engineGeom = new THREE.BoxGeometry(25, 32, 32);
+  var engine = new THREE.Mesh(engineGeom, grayMat);
+  engine.position.set(-45, 0, 0);
+  engine.castShadow = true;
+  this.mesh.add(engine);
+
+  // Engine nozzle (dark, wider bell shape)
+  var nozzleGeom = new THREE.BoxGeometry(10, 26, 26, 1, 1, 1);
+  // Widen the back
+  nozzleGeom.vertices[0].y *= 1.3; nozzleGeom.vertices[0].z *= 1.3;
+  nozzleGeom.vertices[1].y *= 1.3; nozzleGeom.vertices[1].z *= 1.3;
+  nozzleGeom.vertices[2].y *= 1.3; nozzleGeom.vertices[2].z *= 1.3;
+  nozzleGeom.vertices[3].y *= 1.3; nozzleGeom.vertices[3].z *= 1.3;
+  var nozzle = new THREE.Mesh(nozzleGeom, darkMat);
+  nozzle.position.set(-60, 0, 0);
+  nozzle.castShadow = true;
+  this.mesh.add(nozzle);
+
+  // === TAIL FINS (4 fins at 90 degrees) ===
+  // Top fin
+  var finGeom = new THREE.BoxGeometry(20, 25, 4, 1, 1, 1);
+  finGeom.vertices[4].y += 8;
+  finGeom.vertices[5].y += 8;
+  finGeom.vertices[6].y += 8;
+  finGeom.vertices[7].y += 8;
+  var finTop = new THREE.Mesh(finGeom, redMat);
+  finTop.position.set(-42, 22, 0);
+  finTop.castShadow = true;
+  this.mesh.add(finTop);
+
+  // Bottom fin
+  var finBottom = new THREE.Mesh(finGeom, redMat);
+  finBottom.position.set(-42, -22, 0);
+  finBottom.rotation.x = Math.PI;
+  finBottom.castShadow = true;
+  this.mesh.add(finBottom);
+
+  // Right fin
+  var finSideGeom = new THREE.BoxGeometry(20, 4, 25, 1, 1, 1);
+  finSideGeom.vertices[4].z += 8;
+  finSideGeom.vertices[5].z += 8;
+  finSideGeom.vertices[6].z += 8;
+  finSideGeom.vertices[7].z += 8;
+  var finRight = new THREE.Mesh(finSideGeom, redMat);
+  finRight.position.set(-42, 0, 22);
+  finRight.castShadow = true;
+  this.mesh.add(finRight);
+
+  // Left fin
+  var finLeft = new THREE.Mesh(finSideGeom, redMat);
+  finLeft.position.set(-42, 0, -22);
+  finLeft.rotation.x = Math.PI;
+  finLeft.castShadow = true;
+  this.mesh.add(finLeft);
+
+  // === FLAME / EXHAUST (animated blocks) ===
+  this.flameBlocks = [];
+  for (var i = 0; i < 12; i++){
+    var flameSize = 6 + Math.random() * 8;
+    var flameGeom = new THREE.BoxGeometry(flameSize, flameSize * 0.8, flameSize * 0.8);
+    var flameMat = (i < 6) ? orangeMat.clone() : yellowMat.clone();
+    var flame = new THREE.Mesh(flameGeom, flameMat);
+    flame.position.set(
+      -65 - Math.random() * 30,
+      (-1 + Math.random() * 2) * 8,
+      (-1 + Math.random() * 2) * 8
+    );
+    flame.castShadow = false;
+    this.mesh.add(flame);
+    this.flameBlocks.push({
+      mesh: flame,
+      baseX: flame.position.x,
+      baseY: flame.position.y,
+      baseZ: flame.position.z,
+      speed: 0.5 + Math.random() * 1.5,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+
+  // Flame glow (larger transparent sphere at exhaust)
+  var glowGeom = new THREE.SphereGeometry(20, 6, 4);
+  var glowMat = new THREE.MeshPhongMaterial({
+    color: 0xFF6600,
+    emissive: 0xFF4400,
+    emissiveIntensity: 0.6,
+    transparent: true,
+    opacity: 0.2,
+    side: THREE.DoubleSide
+  });
+  this.flameGlow = new THREE.Mesh(glowGeom, glowMat);
+  this.flameGlow.position.set(-75, 0, 0);
+  this.mesh.add(this.flameGlow);
+
+  // Shadows on body
+  this.mesh.traverse(function(child) {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  // Dummy propeller
+  this.propeller = new THREE.Object3D();
+  this.mesh.add(this.propeller);
+
+  // Dummy pilot
+  this.pilot = {
+    mesh: new THREE.Object3D(),
+    updateHairs: function(){}
+  };
+  this.mesh.add(this.pilot.mesh);
+};
+
+Rocket.prototype.updateWings = function(){
+  // Animate flame blocks
+  var time = Date.now() * 0.003;
+  for (var i = 0; i < this.flameBlocks.length; i++){
+    var f = this.flameBlocks[i];
+    var m = f.mesh;
+    // Flicker position
+    m.position.x = f.baseX + Math.sin(time * f.speed + f.phase) * 5 - Math.random() * 3;
+    m.position.y = f.baseY + Math.sin(time * f.speed * 1.3 + f.phase) * 4;
+    m.position.z = f.baseZ + Math.cos(time * f.speed * 0.9 + f.phase) * 4;
+    // Flicker scale
+    var s = 0.6 + Math.sin(time * f.speed * 2 + f.phase) * 0.4;
+    m.scale.set(s, s, s);
+    // Flicker opacity
+    m.material.emissiveIntensity = 0.3 + Math.sin(time * f.speed * 3) * 0.3;
+  }
+  // Glow pulse
+  if (this.flameGlow) {
+    this.flameGlow.material.opacity = 0.15 + Math.sin(time * 2) * 0.08;
+    this.flameGlow.scale.set(
+      1 + Math.sin(time * 3) * 0.1,
+      1 + Math.cos(time * 2.5) * 0.1,
+      1 + Math.sin(time * 2) * 0.1
+    );
+  }
+};
+
+
+// -------- SPACE SHUTTLE (Level 13 vehicle) --------
+var SpaceShuttle = function(){
+  this.mesh = new THREE.Object3D();
+  this.mesh.name = "spaceShuttle";
+
+  // Materials
+  var whiteMat = new THREE.MeshPhongMaterial({color:0xF5F5F0, shininess:40, shading:THREE.FlatShading});
+  var darkMat = new THREE.MeshPhongMaterial({color:0x222222, shading:THREE.FlatShading});
+  var grayMat = new THREE.MeshPhongMaterial({color:0x777788, shininess:30, shading:THREE.FlatShading});
+  var heatMat = new THREE.MeshPhongMaterial({color:0x333333, shading:THREE.FlatShading});
+  var orangeMat = new THREE.MeshPhongMaterial({
+    color:0xFF6600,
+    emissive:0xFF4400,
+    emissiveIntensity:0.4,
+    shading:THREE.FlatShading
+  });
+  var blueMat = new THREE.MeshPhongMaterial({
+    color:0x4488FF,
+    emissive:0x2266DD,
+    emissiveIntensity:0.3,
+    shading:THREE.FlatShading
+  });
+
+  // === FUSELAGE (main body - cylindrical, front tapers) ===
+  var bodyGeom = new THREE.BoxGeometry(100, 28, 28);
+  var body = new THREE.Mesh(bodyGeom, whiteMat);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  this.mesh.add(body);
+
+  // Nose cone (front taper)
+  var noseGeom = new THREE.BoxGeometry(40, 24, 24, 1, 1, 1);
+  for (var vi = 0; vi < noseGeom.vertices.length; vi++) {
+    if (noseGeom.vertices[vi].x > 0) {
+      noseGeom.vertices[vi].x = 28;
+      noseGeom.vertices[vi].y *= 0.3;
+      noseGeom.vertices[vi].z *= 0.3;
+    }
+  }
+  noseGeom.computeFaceNormals();
+  noseGeom.computeVertexNormals();
+  var nose = new THREE.Mesh(noseGeom, whiteMat);
+  nose.position.set(60, 0, 0);
+  nose.castShadow = true;
+  this.mesh.add(nose);
+
+  // Cockpit windows (dark strip on top-front)
+  var windowGeom = new THREE.BoxGeometry(20, 3, 22);
+  var windows = new THREE.Mesh(windowGeom, darkMat);
+  windows.position.set(45, 14, 0);
+  this.mesh.add(windows);
+
+  // Belly heat shield (dark underside)
+  var bellyGeom = new THREE.BoxGeometry(90, 4, 26);
+  var belly = new THREE.Mesh(bellyGeom, heatMat);
+  belly.position.set(0, -14, 0);
+  this.mesh.add(belly);
+
+  // === DELTA WINGS (large triangular wings) ===
+  var wingGeom = new THREE.BoxGeometry(50, 4, 45, 1, 1, 1);
+  // Taper trailing edge 
+  for (var vi = 0; vi < wingGeom.vertices.length; vi++) {
+    if (wingGeom.vertices[vi].x < 0 && Math.abs(wingGeom.vertices[vi].z) > 20) {
+      wingGeom.vertices[vi].z *= 0.4;
+    }
+  }
+  wingGeom.computeFaceNormals();
+  wingGeom.computeVertexNormals();
+
+  var wingR = new THREE.Mesh(wingGeom, whiteMat);
+  wingR.position.set(-15, -4, 28);
+  wingR.castShadow = true;
+  this.mesh.add(wingR);
+
+  var wingL = new THREE.Mesh(wingGeom.clone(), whiteMat);
+  wingL.position.set(-15, -4, -28);
+  wingL.castShadow = true;
+  this.mesh.add(wingL);
+
+  // Wing leading edge stripe (dark)
+  var wingStripeGeom = new THREE.BoxGeometry(52, 5, 4);
+  var wingStripeR = new THREE.Mesh(wingStripeGeom, heatMat);
+  wingStripeR.position.set(-15, -4, 48);
+  wingStripeR.rotation.y = 0.4;
+  this.mesh.add(wingStripeR);
+  var wingStripeL = new THREE.Mesh(wingStripeGeom, heatMat);
+  wingStripeL.position.set(-15, -4, -48);
+  wingStripeL.rotation.y = -0.4;
+  this.mesh.add(wingStripeL);
+
+  // === VERTICAL TAIL FIN ===
+  var tailGeom = new THREE.BoxGeometry(30, 35, 5, 1, 1, 1);
+  // Sweep back the top
+  for (var vi = 0; vi < tailGeom.vertices.length; vi++) {
+    if (tailGeom.vertices[vi].y > 0) {
+      tailGeom.vertices[vi].x -= 12;
+    }
+  }
+  tailGeom.computeFaceNormals();
+  tailGeom.computeVertexNormals();
+  var tail = new THREE.Mesh(tailGeom, whiteMat);
+  tail.position.set(-38, 22, 0);
+  tail.castShadow = true;
+  this.mesh.add(tail);
+
+  // Tail tip black
+  var tailTipGeom = new THREE.BoxGeometry(8, 4, 6);
+  var tailTip = new THREE.Mesh(tailTipGeom, darkMat);
+  tailTip.position.set(-50, 38, 0);
+  this.mesh.add(tailTip);
+
+  // === ENGINE SECTION (3 engine nozzles at the back) ===
+  var engineBaseGeom = new THREE.BoxGeometry(12, 24, 26);
+  var engineBase = new THREE.Mesh(engineBaseGeom, grayMat);
+  engineBase.position.set(-52, 0, 0);
+  this.mesh.add(engineBase);
+
+  // 3 engine nozzles
+  var nozzleMat = new THREE.MeshPhongMaterial({color:0x444444, shininess:60, shading:THREE.FlatShading});
+  var nozzlePositions = [[0, 6, 0], [0, -4, 8], [0, -4, -8]];
+  this.engineFlames = [];
+
+  for (var n = 0; n < 3; n++){
+    var nozzleGeom = new THREE.CylinderGeometry(4, 5, 8, 6, 1);
+    nozzleGeom.applyMatrix(new THREE.Matrix4().makeRotationZ(Math.PI/2));
+    var nozzle = new THREE.Mesh(nozzleGeom, nozzleMat);
+    nozzle.position.set(-58 + nozzlePositions[n][0], nozzlePositions[n][1], nozzlePositions[n][2]);
+    this.mesh.add(nozzle);
+
+    // Engine flame blocks
+    for (var fi = 0; fi < 3; fi++){
+      var flameSize = 4 + Math.random() * 4;
+      var flameGeom = new THREE.BoxGeometry(flameSize, flameSize * 0.7, flameSize * 0.7);
+      var flameMat = (fi < 2) ? orangeMat.clone() : blueMat.clone();
+      var flame = new THREE.Mesh(flameGeom, flameMat);
+      flame.position.set(
+        -63 - Math.random() * 15,
+        nozzlePositions[n][1] + (-1 + Math.random() * 2) * 3,
+        nozzlePositions[n][2] + (-1 + Math.random() * 2) * 3
+      );
+      this.mesh.add(flame);
+      this.engineFlames.push({
+        mesh: flame,
+        baseX: flame.position.x,
+        baseY: flame.position.y,
+        baseZ: flame.position.z,
+        speed: 0.5 + Math.random() * 1.5,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  // "USA" text block (simple colored stripe on side)
+  var usaStripeGeom = new THREE.BoxGeometry(25, 3, 1);
+  var usaStripeMat = new THREE.MeshPhongMaterial({color:0x1155BB, shading:THREE.FlatShading});
+  var usaStripeR = new THREE.Mesh(usaStripeGeom, usaStripeMat);
+  usaStripeR.position.set(10, 8, 15);
+  this.mesh.add(usaStripeR);
+  var usaStripeL = usaStripeR.clone();
+  usaStripeL.position.z = -15;
+  this.mesh.add(usaStripeL);
+
+  // Flag stripe (red)
+  var flagGeom = new THREE.BoxGeometry(12, 2, 1);
+  var flagMat = new THREE.MeshPhongMaterial({color:0xCC2222, shading:THREE.FlatShading});
+  var flagR = new THREE.Mesh(flagGeom, flagMat);
+  flagR.position.set(10, 5, 15);
+  this.mesh.add(flagR);
+  var flagL = flagR.clone();
+  flagL.position.z = -15;
+  this.mesh.add(flagL);
+
+  // Shadows
+  this.mesh.traverse(function(child) {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  // Dummy propeller
+  this.propeller = new THREE.Object3D();
+  this.mesh.add(this.propeller);
+
+  // Dummy pilot
+  this.pilot = {
+    mesh: new THREE.Object3D(),
+    updateHairs: function(){}
+  };
+  this.mesh.add(this.pilot.mesh);
+};
+
+SpaceShuttle.prototype.updateWings = function(){
+  var time = Date.now() * 0.003;
+  // Animate engine flames
+  for (var i = 0; i < this.engineFlames.length; i++){
+    var f = this.engineFlames[i];
+    var m = f.mesh;
+    m.position.x = f.baseX + Math.sin(time * f.speed + f.phase) * 4 - Math.random() * 2;
+    m.position.y = f.baseY + Math.sin(time * f.speed * 1.3 + f.phase) * 2;
+    m.position.z = f.baseZ + Math.cos(time * f.speed * 0.9 + f.phase) * 2;
+    var s = 0.6 + Math.sin(time * f.speed * 2 + f.phase) * 0.4;
+    m.scale.set(s, s, s);
+    m.material.emissiveIntensity = 0.2 + Math.sin(time * f.speed * 3) * 0.3;
+  }
+};
+
+
+// -------- UFO (Level 14 vehicle) --------
+var UFO = function(){
+  this.mesh = new THREE.Object3D();
+  this.mesh.name = "ufo";
+
+  // Materials
+  var silverMat = new THREE.MeshPhongMaterial({color:0xC0C0C0, shininess:80, specular:0xFFFFFF, shading:THREE.FlatShading});
+  var darkSilverMat = new THREE.MeshPhongMaterial({color:0x888899, shininess:60, shading:THREE.FlatShading});
+  var domeMat = new THREE.MeshPhongMaterial({
+    color:0x88CCFF,
+    transparent:true,
+    opacity:0.55,
+    shininess:100,
+    specular:0xFFFFFF,
+    shading:THREE.FlatShading
+  });
+  var glowGreenMat = new THREE.MeshPhongMaterial({
+    color:0x44FF88,
+    emissive:0x22CC66,
+    emissiveIntensity:0.6,
+    shading:THREE.FlatShading
+  });
+  var glowBlueMat = new THREE.MeshPhongMaterial({
+    color:0x4488FF,
+    emissive:0x2266DD,
+    emissiveIntensity:0.5,
+    shading:THREE.FlatShading
+  });
+  var beamMat = new THREE.MeshPhongMaterial({
+    color:0x88FFCC,
+    emissive:0x44DD88,
+    emissiveIntensity:0.7,
+    transparent:true,
+    opacity:0.25,
+    side:THREE.DoubleSide,
+    shading:THREE.FlatShading
+  });
+
+  // === MAIN SAUCER DISC (flat cylinder - NO rotationZ so it stays horizontal) ===
+  var discGeom = new THREE.CylinderGeometry(55, 50, 14, 12, 1);
+  var disc = new THREE.Mesh(discGeom, silverMat);
+  disc.castShadow = true;
+  disc.receiveShadow = true;
+  this.mesh.add(disc);
+
+  // Upper rim (slightly wider)
+  var rimTopGeom = new THREE.CylinderGeometry(58, 56, 4, 12, 1);
+  var rimTop = new THREE.Mesh(rimTopGeom, darkSilverMat);
+  rimTop.position.set(0, 4, 0);
+  this.mesh.add(rimTop);
+
+  // Lower rim
+  var rimBotGeom = new THREE.CylinderGeometry(56, 58, 4, 12, 1);
+  var rimBot = new THREE.Mesh(rimBotGeom, darkSilverMat);
+  rimBot.position.set(0, -4, 0);
+  this.mesh.add(rimBot);
+
+  // === DOME (transparent cockpit on top) ===
+  var domeGeom = new THREE.SphereGeometry(22, 8, 6, 0, Math.PI*2, 0, Math.PI/2);
+  var dome = new THREE.Mesh(domeGeom, domeMat);
+  dome.position.set(0, 7, 0);
+  dome.castShadow = true;
+  this.mesh.add(dome);
+
+  // Inner dome highlight
+  var innerDomeMat = new THREE.MeshPhongMaterial({
+    color:0xAADDFF,
+    transparent:true,
+    opacity:0.2,
+    shininess:120,
+    specular:0xFFFFFF
+  });
+  var innerDome = new THREE.Mesh(new THREE.SphereGeometry(18, 8, 6, 0, Math.PI*2, 0, Math.PI/2), innerDomeMat);
+  innerDome.position.set(0, 7, 0);
+  this.mesh.add(innerDome);
+
+  // === RING LIGHTS around the saucer rim (on XZ plane) ===
+  this.ringLights = [];
+  var lightCount = 10;
+  for (var i = 0; i < lightCount; i++){
+    var angle = (i / lightCount) * Math.PI * 2;
+    var lightGeom = new THREE.BoxGeometry(5, 4, 5);
+    var lightMat = (i % 2 === 0) ? glowGreenMat.clone() : glowBlueMat.clone();
+    var light = new THREE.Mesh(lightGeom, lightMat);
+    light.position.set(
+      Math.cos(angle) * 52,
+      0,
+      Math.sin(angle) * 52
+    );
+    light.castShadow = false;
+    this.mesh.add(light);
+    this.ringLights.push({
+      mesh: light,
+      phase: i * (Math.PI * 2 / lightCount)
+    });
+  }
+
+  // === BOTTOM BEAM (abduction beam cone) ===
+  var beamGeom = new THREE.CylinderGeometry(8, 35, 50, 8, 1, true);
+  this.beam = new THREE.Mesh(beamGeom, beamMat);
+  this.beam.position.set(0, -32, 0);
+  this.mesh.add(this.beam);
+
+  // Bottom glow disc
+  var glowDiscMat = new THREE.MeshPhongMaterial({
+    color:0x66FFAA,
+    emissive:0x44DD88,
+    emissiveIntensity:0.5,
+    transparent:true,
+    opacity:0.35,
+    side:THREE.DoubleSide,
+    shading:THREE.FlatShading
+  });
+  this.bottomGlow = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 2, 10, 1), glowDiscMat);
+  this.bottomGlow.position.set(0, -8, 0);
+  this.mesh.add(this.bottomGlow);
+
+  // === ANTENNA on top of dome ===
+  var antenna = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 2),
+    new THREE.MeshPhongMaterial({color:0x999999, shading:THREE.FlatShading}));
+  antenna.position.set(0, 32, 0);
+  this.mesh.add(antenna);
+
+  // Antenna tip (red blinking light)
+  var tipMat = new THREE.MeshPhongMaterial({
+    color:0xFF3333,
+    emissive:0xFF0000,
+    emissiveIntensity:0.8,
+    shading:THREE.FlatShading
+  });
+  this.antennaTip = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), tipMat);
+  this.antennaTip.position.set(0, 38, 0);
+  this.mesh.add(this.antennaTip);
+
+  // Shadows
+  this.mesh.traverse(function(child) {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  // Dummy propeller
+  this.propeller = new THREE.Object3D();
+  this.mesh.add(this.propeller);
+
+  // Dummy pilot
+  this.pilot = {
+    mesh: new THREE.Object3D(),
+    updateHairs: function(){}
+  };
+  this.mesh.add(this.pilot.mesh);
+};
+
+UFO.prototype.updateWings = function(){
+  var time = Date.now() * 0.003;
+
+  // Ring lights chase pattern
+  for (var i = 0; i < this.ringLights.length; i++){
+    var rl = this.ringLights[i];
+    var intensity = 0.3 + 0.7 * Math.max(0, Math.sin(time * 3 + rl.phase));
+    rl.mesh.material.emissiveIntensity = intensity;
+    var s = 0.8 + intensity * 0.4;
+    rl.mesh.scale.set(s, s, s);
+  }
+
+  // Beam pulse
+  if (this.beam) {
+    this.beam.material.opacity = 0.15 + Math.sin(time * 2) * 0.1;
+    this.beam.rotation.y = time * 0.8;
+  }
+
+  // Bottom glow pulse
+  if (this.bottomGlow) {
+    this.bottomGlow.material.opacity = 0.25 + Math.sin(time * 2.5) * 0.1;
+    var gs = 1 + Math.sin(time * 1.5) * 0.08;
+    this.bottomGlow.scale.set(gs, 1, gs);
+  }
+
+  // Antenna tip blink
+  if (this.antennaTip) {
+    this.antennaTip.material.emissiveIntensity = 0.4 + 0.6 * Math.max(0, Math.sin(time * 5));
+  }
+};
