@@ -338,6 +338,13 @@ function handleMouseMove(event) {
   mousePos = {x:tx, y:ty};
 }
 
+function handleTouchStart(event) {
+    event.preventDefault();
+    var tx = -1 + (event.touches[0].pageX / WIDTH)*2;
+    var ty = 1 - (event.touches[0].pageY / HEIGHT)*2;
+    mousePos = {x:tx, y:ty};
+}
+
 function handleTouchMove(event) {
     event.preventDefault();
     var tx = -1 + (event.touches[0].pageX / WIDTH)*2;
@@ -1857,7 +1864,7 @@ var bgmStarted = false;
 function initBGM() {
   bgm = new Audio('music/Townsong.mp3');
   bgm.loop = true;
-  bgm.volume = 0.05;
+  bgm.volume = isMobile ? 0.02 : 0.05;
   // 모바일 Safari 대응: 미리 load 호출
   bgm.load();
   // 브라우저 자동재생 정책 대응: 첫 인터랙션 후 재생
@@ -1918,7 +1925,8 @@ function init(event){
   createInvincibleFruits();
 
   document.addEventListener('mousemove', handleMouseMove, false);
-  document.addEventListener('touchmove', handleTouchMove, false);
+  document.addEventListener('touchstart', handleTouchStart, { passive: false });
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
   document.addEventListener('mouseup', handleMouseUp, false);
   document.addEventListener('touchend', handleTouchEnd, false);
   document.addEventListener('keydown', handleKeyDown, false);
