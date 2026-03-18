@@ -275,6 +275,9 @@ var scene,
 var HEIGHT, WIDTH,
     mousePos = { x: 0, y: 0 };
 
+// 모바일 감지
+var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
+
 //INIT THREE JS, SCREEN AND MOUSE EVENTS
 
 function createScene() {
@@ -295,7 +298,7 @@ function createScene() {
     );
   scene.fog = new THREE.Fog(0x87CEEB, 100,950);
   camera.position.x = 0;
-  camera.position.z = 200;
+  camera.position.z = isMobile ? 150 : 200;
   camera.position.y = game.planeDefaultHeight;
   //camera.lookAt(new THREE.Vector3(0, 400, 0));
 
@@ -1621,7 +1624,11 @@ function updatePlane(){
   airplane.mesh.rotation.z = (targetY-airplane.mesh.position.y)*deltaTime*game.planeRotXSensivity;
   airplane.mesh.rotation.x = (airplane.mesh.position.y-targetY)*deltaTime*game.planeRotZSensivity;
   var targetCameraZ = normalize(game.planeSpeed, game.planeMinSpeed, game.planeMaxSpeed, game.cameraNearPos, game.cameraFarPos);
-  camera.fov = normalize(mousePos.x,-1,1,40, 80);
+  if (isMobile) {
+    camera.fov = normalize(mousePos.x,-1,1,28, 55);
+  } else {
+    camera.fov = normalize(mousePos.x,-1,1,40, 80);
+  }
   camera.updateProjectionMatrix ()
   camera.position.y += (airplane.mesh.position.y - camera.position.y)*deltaTime*game.cameraSensivity;
 
@@ -1850,7 +1857,7 @@ var bgmStarted = false;
 function initBGM() {
   bgm = new Audio('music/Townsong.mp3');
   bgm.loop = true;
-  bgm.volume = 0.08;
+  bgm.volume = 0.05;
   // 모바일 Safari 대응: 미리 load 호출
   bgm.load();
   // 브라우저 자동재생 정책 대응: 첫 인터랙션 후 재생
