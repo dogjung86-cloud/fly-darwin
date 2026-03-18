@@ -1846,20 +1846,46 @@ var fieldDistance, energyBar, replayMessage, fieldLevel, levelCircle;
 
 // BGM
 var bgm = null;
+var bgmStarted = false;
 function initBGM() {
   bgm = new Audio('music/Townsong.mp3');
   bgm.loop = true;
   bgm.volume = 0.08;
+  // 모바일 Safari 대응: 미리 load 호출
+  bgm.load();
   // 브라우저 자동재생 정책 대응: 첫 인터랙션 후 재생
-  var startBGM = function() {
-    if (bgm && bgm.paused) {
-      bgm.play().catch(function(){});
-    }
+  var removeBGMListeners = function() {
     document.removeEventListener('click', startBGM);
     document.removeEventListener('touchstart', startBGM);
+    document.removeEventListener('touchend', startBGM);
+    document.removeEventListener('pointerdown', startBGM);
+  };
+  var startBGM = function() {
+    if (bgmStarted) return;
+    if (bgm && bgm.paused) {
+      var playPromise = bgm.play();
+      if (playPromise !== undefined) {
+        playPromise.then(function() {
+          bgmStarted = true;
+          removeBGMListeners();
+        }).catch(function() {
+          // 재생 실패 시 리스너 유지 → 다음 인터랙션에서 재시도
+        });
+      } else {
+        // play()가 promise를 반환하지 않는 구형 브라우저
+        bgmStarted = true;
+        removeBGMListeners();
+      }
+    }
+    // AudioContext도 함께 resume (효과음 + BGM 동시 해결)
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
   };
   document.addEventListener('click', startBGM);
   document.addEventListener('touchstart', startBGM);
+  document.addEventListener('touchend', startBGM);
+  document.addEventListener('pointerdown', startBGM);
 }
 
 function init(event){
