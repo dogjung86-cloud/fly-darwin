@@ -298,7 +298,7 @@ function createScene() {
     );
   scene.fog = new THREE.Fog(0x87CEEB, 100,950);
   camera.position.x = 0;
-  camera.position.z = isMobile ? 150 : 200;
+  camera.position.z = isMobile ? 180 : 200;
   camera.position.y = game.planeDefaultHeight;
   //camera.lookAt(new THREE.Vector3(0, 400, 0));
 
@@ -1891,8 +1891,11 @@ function initBGM() {
         removeBGMListeners();
       }
     }
-    // AudioContext도 함께 resume (효과음 + BGM 동시 해결)
-    if (audioCtx && audioCtx.state === 'suspended') {
+    // AudioContext를 사용자 제스처 내에서 미리 생성 + resume (Safari 효과음 해결)
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
       audioCtx.resume();
     }
   };

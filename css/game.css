@@ -442,6 +442,40 @@
 	font-size: 1.2em;
 }
 
+/* ===== Mobile Pause Button ===== */
+.mobile-pause-btn {
+	display: none;
+	position: fixed;
+	top: 12px;
+	right: 12px;
+	z-index: 900;
+	width: 44px;
+	height: 44px;
+	border: none;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.25);
+	backdrop-filter: blur(4px);
+	-webkit-backdrop-filter: blur(4px);
+	color: rgba(255, 255, 255, 0.75);
+	font-size: 20px;
+	line-height: 44px;
+	text-align: center;
+	padding: 0;
+	cursor: pointer;
+	transition: background 0.2s ease;
+	-webkit-tap-highlight-color: transparent;
+}
+
+.mobile-pause-btn:active {
+	background: rgba(0, 0, 0, 0.45);
+}
+
+@media screen and (max-width: 768px) {
+	.mobile-pause-btn {
+		display: block;
+	}
+}
+
 /* Responsive */
 @media screen and (max-width: 520px) {
 	.gameover-panel {
