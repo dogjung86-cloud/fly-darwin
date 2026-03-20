@@ -1668,8 +1668,8 @@ var MAX_RANKINGS = 100;
 var currentPlayerRankIndex = -1;
 
 // Supabase 클라이언트 초기화
-var SUPABASE_URL = 'https://tehpoogybirkvcaeioge.supabase.co';
-var SUPABASE_ANON_KEY = 'sb_publishable_C1sw8jDhbbMzzTPBgGlS9g_eIsGxm2a';
+var SUPABASE_URL = 'https://tehpoogyhjrkvcaeioge.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlaHBvb2d5aGpya3ZjYWVpb2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NzQxOTQsImV4cCI6MjA4OTU1MDE5NH0.saInJOZuegHGaEW-D0sikBAU-XwoHZkjMYvUWw4t4sE';
 var supabaseClient = null;
 
 function getSupabase() {
