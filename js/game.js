@@ -1661,13 +1661,26 @@ function hideReplay(){
   // Legacy - no longer used
 }
 
-// ===== RANKING SYSTEM =====
+// ===== RANKING SYSTEM (Supabase) =====
 
-var RANKING_KEY = 'flyDarwinRankings';
+var RANKING_KEY = 'flyDarwinRankings'; // localStorage 폴백용
 var MAX_RANKINGS = 100;
 var currentPlayerRankIndex = -1;
 
-function getRankings() {
+// Supabase 클라이언트 초기화
+var SUPABASE_URL = 'https://tehpoogybirkvcaeioge.supabase.co';
+var SUPABASE_ANON_KEY = 'sb_publishable_C1sw8jDhbbMzzTPBgGlS9g_eIsGxm2a';
+var supabaseClient = null;
+
+function getSupabase() {
+  if (!supabaseClient && window.supabase) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return supabaseClient;
+}
+
+// localStorage 폴백 함수들
+function getLocalRankings() {
   try {
     var data = localStorage.getItem(RANKING_KEY);
     return data ? JSON.parse(data) : [];
@@ -1676,49 +1689,104 @@ function getRankings() {
   }
 }
 
-function saveRanking(name, distance, level, form) {
-  var rankings = getRankings();
+function saveLocalRanking(name, distance, level, form) {
+  var rankings = getLocalRankings();
   var entry = {
     name: name,
     distance: Math.floor(distance),
     level: Math.floor(level),
     form: form,
-    date: new Date().toISOString().slice(0, 10)
+    created_at: new Date().toISOString()
   };
   rankings.push(entry);
   rankings.sort(function(a, b) { return b.distance - a.distance; });
   if (rankings.length > MAX_RANKINGS) rankings = rankings.slice(0, MAX_RANKINGS);
+  localStorage.setItem(RANKING_KEY, JSON.stringify(rankings));
+  return rankings;
+}
+
+// Supabase 랭킹 함수들 (비동기)
+async function getRankingsFromDB() {
+  var sb = getSupabase();
+  if (!sb) return getLocalRankings();
   
-  // Find current player's rank index
-  currentPlayerRankIndex = -1;
-  for (var i = 0; i < rankings.length; i++) {
-    if (rankings[i] === entry) {
-      currentPlayerRankIndex = i;
-      break;
-    }
+  try {
+    var { data, error } = await sb
+      .from('rankings')
+      .select('name, distance, level, form, created_at')
+      .order('distance', { ascending: false })
+      .limit(MAX_RANKINGS);
+    
+    if (error) throw error;
+    return data || [];
+  } catch(e) {
+    console.warn('Supabase 조회 실패, localStorage 폴백:', e.message);
+    return getLocalRankings();
   }
-  // Fallback: find by matching all fields
-  if (currentPlayerRankIndex === -1) {
+}
+
+async function saveRankingToDB(name, distance, level, form) {
+  var entry = {
+    name: name,
+    distance: Math.floor(distance),
+    level: Math.floor(level),
+    form: form
+  };
+  
+  var sb = getSupabase();
+  if (!sb) {
+    // Supabase 사용 불가 → localStorage 폴백
+    var rankings = saveLocalRanking(name, entry.distance, entry.level, form);
+    currentPlayerRankIndex = -1;
     for (var i = 0; i < rankings.length; i++) {
-      if (rankings[i].name === entry.name && 
-          rankings[i].distance === entry.distance && 
-          rankings[i].date === entry.date) {
+      if (rankings[i].name === name && rankings[i].distance === entry.distance) {
         currentPlayerRankIndex = i;
         break;
       }
     }
+    return rankings;
   }
   
-  localStorage.setItem(RANKING_KEY, JSON.stringify(rankings));
-  return currentPlayerRankIndex;
+  try {
+    // 1) Supabase에 새 기록 삽입
+    var { error: insertError } = await sb
+      .from('rankings')
+      .insert(entry);
+    
+    if (insertError) throw insertError;
+    
+    // 2) 전체 랭킹 다시 조회
+    var rankings = await getRankingsFromDB();
+    
+    // 3) 방금 등록한 플레이어의 순위 찾기
+    currentPlayerRankIndex = -1;
+    for (var i = 0; i < rankings.length; i++) {
+      if (rankings[i].name === name && rankings[i].distance === entry.distance) {
+        currentPlayerRankIndex = i;
+        break;
+      }
+    }
+    
+    return rankings;
+  } catch(e) {
+    console.warn('Supabase 저장 실패, localStorage 폴백:', e.message);
+    var localRankings = saveLocalRanking(name, entry.distance, entry.level, form);
+    currentPlayerRankIndex = -1;
+    for (var i = 0; i < localRankings.length; i++) {
+      if (localRankings[i].name === name && localRankings[i].distance === entry.distance) {
+        currentPlayerRankIndex = i;
+        break;
+      }
+    }
+    return localRankings;
+  }
 }
 
-function renderRankingBoard() {
-  var rankings = getRankings();
+function renderRankingBoard(rankings) {
   var tbody = document.getElementById('rankingBody');
   tbody.innerHTML = '';
   
-  if (rankings.length === 0) {
+  if (!rankings || rankings.length === 0) {
     var tr = document.createElement('tr');
     tr.innerHTML = '<td colspan="5" style="color:rgba(255,255,255,0.3); padding:20px;">기록이 없습니다</td>';
     tbody.appendChild(tr);
@@ -1775,8 +1843,9 @@ function hideGameOver() {
   document.getElementById('gameOverOverlay').style.display = 'none';
 }
 
-function submitScore() {
+async function submitScore() {
   var nameInput = document.getElementById('playerNameInput');
+  var submitBtn = document.getElementById('submitScoreBtn');
   var name = nameInput.value.trim();
   if (!name) {
     nameInput.style.borderColor = '#f25346';
@@ -1786,19 +1855,25 @@ function submitScore() {
     return;
   }
   
-  var rankIndex = saveRanking(name, game.distance, game.level, game.currentForm);
+  // 로딩 상태 (중복 클릭 방지)
+  submitBtn.disabled = true;
+  submitBtn.textContent = '등록 중...';
   
-  // Switch to ranking board
-  document.getElementById('gameOverScore').style.display = 'none';
-  document.getElementById('rankingBoard').style.display = 'block';
-  
-  if (rankIndex === -1) {
-    // 랭킹 진입 실패
-    document.querySelector('#rankingBoard .gameover-title').textContent = '😢 아쉽지만, 랭킹 진입 실패!';
-  } else {
+  try {
+    var rankings = await saveRankingToDB(name, game.distance, game.level, game.currentForm);
+    
+    // Switch to ranking board
+    document.getElementById('gameOverScore').style.display = 'none';
+    document.getElementById('rankingBoard').style.display = 'block';
+    
     document.querySelector('#rankingBoard .gameover-title').textContent = '🏆 랭킹';
+    renderRankingBoard(rankings);
+  } catch(e) {
+    console.error('점수 등록 오류:', e);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '등록';
   }
-  renderRankingBoard();
 }
 
 function startReplay() {
