@@ -30,10 +30,8 @@
 	</head>
 	<body>
 		<div class="game-holder" id="gameHolder">
-			<div class="header">
-				<h1>Fly Darwin</h1>
-				<h2>fly in to the evolution</h2>
-				<div class="score" id="score">
+			<div class="header"><div class="header__title-wrap"><h1>Fly Darwin</h1>
+				<h2>fly in to the evolution</h2></div><div class="score" id="score">
 					<div class="score__content" id="level">
 						<div class="score__label">level</div>
 						<div class="score__value score__value--level" id="levelValue">1</div>
@@ -42,19 +40,25 @@
 							<circle id="levelCircleStroke" r="80" cx="100" cy="100" fill="none" stroke="#D4762C" stroke-width="14px" stroke-dasharray="502" />
 						</svg>
 					</div>
-					<div class="score__content" id="dist">
+					<div class="score__content score__content--bordered" id="dist">
 						<div class="score__label">distance</div>
-						<div class="score__value score__value--dist" id="distValue">000</div>
+						<div class="score__value score__value--dist" id="distValue">000</div><div class="score__unit">m</div>
 					</div>
-					<div class="score__content" id="energy">
-						<div class="score__label">energy</div>
-						<div class="score__value score__value--energy" id="energyValue">
-							<div class="energy-bar" id="energyBar"></div>
-						</div>
-					</div>
+					<div class="score__content score__content--bordered" id="coins"><div class="score__label">coins</div><div class="score__value score__value--dist" id="coinsValue">0</div></div><div class="score__content" id="energy">
+<div class="score__label">life</div>
+<div class="score__value score__value--hearts" id="heartsValue">
+<span class="heart active" id="heart1">&#x2764;&#xFE0F;</span>
+<span class="heart active" id="heart2">&#x2764;&#xFE0F;</span>
+<span class="heart active" id="heart3">&#x2764;&#xFE0F;</span>
+<span class="heart" id="heart4">&#x1F5A4;</span>
+<span class="heart" id="heart5">&#x1F5A4;</span>
+</div>
+</div>
 				</div>
 			</div>
 			<div class="world" id="world"></div>
+<!-- Level업 텍스트 -->
+<div id="levelUpText" class="level-up-text"></div>
 		<!-- Game Over Overlay -->
 		<div id="gameOverOverlay" class="gameover-overlay">
 			<div class="gameover-panel">
@@ -63,28 +67,34 @@
 					<h2 class="gameover-title">GAME OVER</h2>
 					<div class="gameover-stats">
 						<div class="gameover-stat">
-							<span class="gameover-stat-label">최종 거리</span>
+							<span class="gameover-stat-label">Distance</span>
 							<span class="gameover-stat-value" id="finalDistance">0</span>
 						</div>
 						<div class="gameover-stat">
-							<span class="gameover-stat-label">레벨</span>
+							<span class="gameover-stat-label">Level</span>
 							<span class="gameover-stat-value" id="finalLevel">1</span>
 						</div>
 						<div class="gameover-stat">
-							<span class="gameover-stat-label">진화 형태</span>
+							<span class="gameover-stat-label">Final Form</span>
 							<span class="gameover-stat-value gameover-stat-form" id="finalForm">Amoeba</span>
 						</div>
+<div class="gameover-stat">
+<span class="gameover-stat-label">Coins</span>
+<span class="gameover-stat-value" id="finalCoins" style="color:#FFD700;">0</span>
+</div>
+</div>
+
 					</div>
 					<div class="gameover-input-group">
-						<input type="text" id="playerNameInput" class="gameover-input" maxlength="20" placeholder="닉네임 입력 (최대 20자)" autocomplete="off" />
-						<button id="submitScoreBtn" class="gameover-btn gameover-btn--submit">등록</button>
+						<input type="text" id="playerNameInput" class="gameover-input" maxlength="20" placeholder="User Name (Max 20)" autocomplete="off" />
+						<button id="submitScoreBtn" class="gameover-btn gameover-btn--submit">Submit</button>
 					</div>
-					<button id="skipRankBtn" class="gameover-btn gameover-btn--skip">건너뛰고 다시 플레이</button>
+					<button id="skipRankBtn" class="gameover-btn gameover-btn--skip">SKIP and Replay</button> <button class="gameover-btn gameover-btn--ranking" onclick="showRankingFromGameOver()">Ranking</button>
 				</div>
 
 				<!-- Phase 2: Ranking Board -->
 				<div id="rankingBoard" class="gameover-section" style="display:none;">
-					<h2 class="gameover-title">🏆 랭킹</h2>
+					<h2 class="gameover-title">🏆 Ranking</h2>
 					<div class="ranking-table-wrap">
 						<table class="ranking-table">
 							<thead>
@@ -92,14 +102,14 @@
 									<th>순위</th>
 									<th>닉네임</th>
 									<th>거리</th>
-									<th>레벨</th>
+									<th>Level</th>
 									<th>형태</th>
 								</tr>
 							</thead>
 							<tbody id="rankingBody"></tbody>
 						</table>
 					</div>
-					<button id="replayFromRankBtn" class="gameover-btn gameover-btn--replay">다시 플레이</button>
+					<button id="replayFromRankBtn" class="gameover-btn gameover-btn--replay">Replay</button>
 				</div>
 			</div>
 		</div>

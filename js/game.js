@@ -179,17 +179,20 @@ function resetGame(){
           targetBaseSpeed:.00035,
           incrementSpeedByTime:.0000025,
           incrementSpeedByLevel:.000005,
+          maxSpeed:.00085,
           distanceForSpeedUpdate:100,
           speedLastUpdate:0,
 
           distance:0,
           ratioSpeedDistance:50,
-          energy:100,
-          ratioSpeedEnergy:3,
+          hearts:3,
+          maxHearts:5,
+          coins: parseInt(localStorage.getItem('totalCoins') || '0'),
+          coinsEarnedThisRound: 0,
 
           level:1,
           levelLastUpdate:0,
-          distanceForLevelUpdate:1000,
+          distanceForLevelUpdate:1500,
 
           planeDefaultHeight:100,
           planeAmpHeight:80,
@@ -220,7 +223,7 @@ function resetGame(){
           cameraSensivity:0.002,
 
           coinDistanceTolerance:15,
-          coinValue:3,
+          coinValue:1,
           coinsSpeed:.5,
           coinLastSpawn:0,
           distanceForCoinsSpawn:100,
@@ -231,22 +234,32 @@ function resetGame(){
           ennemyLastSpawn:0,
           distanceForEnnemiesSpawn:50,
 
+          // 특수 장애물 스폰 추적
+          fireWallLastSpawn:0,
+          distanceForFireWallSpawn:200,
+          blackHoleActive:false,
+          blackHoleSlowFactor:1.0,
+          flyingAsteroidLastSpawn:0,
+          distanceForFlyingAsteroidSpawn:120,
+          waterPillarLastSpawn:0,
+          distanceForWaterPillarSpawn:150,
+
           status : "playing",
           
           // Transformation parameters
-          transformDistance1 : 1000,
-          transformDistance2 : 2000,
-          transformDistance3 : 3000,
-          transformDistance4 : 4000,
-          transformDistance5 : 5000,
-          transformDistance6 : 6000,
-          transformDistance7 : 7000,
-          transformDistance8 : 8000,
-          transformDistance9 : 9000,
-          transformDistance10 : 10000,
-          transformDistance11 : 11000,
-          transformDistance12 : 12000,
-          transformDistance13 : 13000,
+          transformDistance1 : 1500,
+          transformDistance2 : 3000,
+          transformDistance3 : 4500,
+          transformDistance4 : 6000,
+          transformDistance5 : 7500,
+          transformDistance6 : 9000,
+          transformDistance7 : 10500,
+          transformDistance8 : 12000,
+          transformDistance9 : 13500,
+          transformDistance10 : 15000,
+          transformDistance11 : 16500,
+          transformDistance12 : 18000,
+          transformDistance13 : 19500,
           currentForm : "Amoeba", // Stage 1
           transforming : false,
 
@@ -258,8 +271,13 @@ function resetGame(){
           invincibleFruitSpeed : 0.4,
           invincibleFruitLastSpawn : 0,
           distanceForInvincibleSpawn : 800, // 코인(100)의 8배 간격
+
+          heartItemLastSpawn : 0,
+          distanceForHeartItemSpawn : 800, // 무적열매와 동일 간격
          };
   fieldLevel.innerHTML = Math.floor(game.level);
+  var coinsEl = document.getElementById('coinsValue');
+  if (coinsEl) coinsEl.textContent = game.coins;
 }
 
 //THREEJS RELATED VARIABLES
@@ -786,6 +804,482 @@ Ennemy = function(){
   this.mesh.castShadow = true;
   this.angle = 0;
   this.dist = 0;
+  this.type = 'mace';
+}
+
+// 소행성 장애물 (레벨 3+)
+Asteroid = function(){
+  this.mesh = new THREE.Object3D();
+
+  // 불규칙한 바위 덩어리
+  var rockMat = new THREE.MeshPhongMaterial({
+    color: 0x8B7355,
+    shininess: 10,
+    specular: 0x444444,
+    shading: THREE.FlatShading
+  });
+
+  // 큰 중앙 바위
+  var mainGeom = new THREE.BoxGeometry(18, 16, 18, 1, 1, 1);
+  // 꼭짓점을 랜덤하게 변형하여 불규칙한 형태 생성
+  for (var i = 0; i < mainGeom.vertices.length; i++) {
+    mainGeom.vertices[i].x += (Math.random() - 0.5) * 4;
+    mainGeom.vertices[i].y += (Math.random() - 0.5) * 4;
+    mainGeom.vertices[i].z += (Math.random() - 0.5) * 4;
+  }
+  var mainRock = new THREE.Mesh(mainGeom, rockMat);
+  this.mesh.add(mainRock);
+
+  // 작은 바위 돌기들
+  var smallRockMat = new THREE.MeshPhongMaterial({
+    color: 0x9B8765,
+    shininess: 5,
+    shading: THREE.FlatShading
+  });
+  for (var j = 0; j < 5; j++) {
+    var sGeom = new THREE.BoxGeometry(6 + Math.random()*4, 5 + Math.random()*4, 6 + Math.random()*4);
+    var sRock = new THREE.Mesh(sGeom, smallRockMat);
+    sRock.position.set(
+      (Math.random() - 0.5) * 16,
+      (Math.random() - 0.5) * 14,
+      (Math.random() - 0.5) * 16
+    );
+    sRock.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+    sRock.castShadow = true;
+    this.mesh.add(sRock);
+  }
+
+  // 붉은 빛나는 균열 효과
+  var crackMat = new THREE.MeshPhongMaterial({
+    color: 0xFF4500,
+    emissive: 0xFF2000,
+    emissiveIntensity: 0.3,
+    shading: THREE.FlatShading
+  });
+  var crackGeom = new THREE.BoxGeometry(2, 12, 2);
+  var crack = new THREE.Mesh(crackGeom, crackMat);
+  crack.rotation.z = Math.random() * Math.PI;
+  this.mesh.add(crack);
+
+  this.mesh.castShadow = true;
+  this.angle = 0;
+  this.dist = 0;
+  this.type = 'asteroid';
+}
+
+// 번개구름 장애물 (레벨 2+) - 복셀 스타일
+ThunderCloud = function(){
+  this.mesh = new THREE.Object3D();
+
+  // 먹구름 본체 - 여러 겹으로 두텁게
+  var darkMat = new THREE.MeshPhongMaterial({
+    color: 0x3D3D3D,
+    shininess: 5,
+    shading: THREE.FlatShading
+  });
+  var midMat = new THREE.MeshPhongMaterial({
+    color: 0x555555,
+    shininess: 5,
+    shading: THREE.FlatShading
+  });
+  var lightMat = new THREE.MeshPhongMaterial({
+    color: 0x6B6B6B,
+    shininess: 5,
+    shading: THREE.FlatShading
+  });
+
+  // 아래층 (넓은 어두운 바닥)
+  var mats = [darkMat, midMat, lightMat];
+  var layers = [
+    { y: 0, count: 8, sizeRange: [8, 14], spread: 30, mat: darkMat },
+    { y: 6, count: 10, sizeRange: [7, 13], spread: 28, mat: darkMat },
+    { y: 12, count: 8, sizeRange: [8, 12], spread: 22, mat: midMat },
+    { y: 18, count: 6, sizeRange: [6, 10], spread: 16, mat: lightMat },
+    { y: 22, count: 3, sizeRange: [5, 8], spread: 10, mat: lightMat }
+  ];
+
+  for (var l = 0; l < layers.length; l++) {
+    var layer = layers[l];
+    for (var i = 0; i < layer.count; i++) {
+      var s = layer.sizeRange[0] + Math.random() * (layer.sizeRange[1] - layer.sizeRange[0]);
+      var bGeom = new THREE.BoxGeometry(s, s * 0.6, s);
+      var block = new THREE.Mesh(bGeom, layer.mat);
+      block.position.set(
+        (Math.random() - 0.5) * layer.spread,
+        layer.y + Math.random() * 3,
+        (Math.random() - 0.5) * layer.spread * 0.6
+      );
+      block.rotation.set(Math.random()*0.2, Math.random()*0.2, Math.random()*0.2);
+      block.castShadow = true;
+      this.mesh.add(block);
+    }
+  }
+
+  // 번개 발광 중심부 (구름 아래쪽에 노란 빛)
+  var glowMat = new THREE.MeshPhongMaterial({
+    color: 0xFFFF88,
+    emissive: 0xFFDD44,
+    emissiveIntensity: 0.8,
+    transparent: true,
+    opacity: 0.7,
+    shading: THREE.FlatShading
+  });
+  var glowGeom = new THREE.BoxGeometry(8, 3, 8);
+  var glow = new THREE.Mesh(glowGeom, glowMat);
+  glow.position.set(0, -2, 0);
+  this.mesh.add(glow);
+
+  // 번개 볼트 (여러 갈래 지그재그)
+  var boltMat = new THREE.MeshPhongMaterial({
+    color: 0xFFFF00,
+    emissive: 0xFFCC00,
+    emissiveIntensity: 0.8,
+    shading: THREE.FlatShading,
+    transparent: true,
+    opacity: 0.9
+  });
+
+  this.bolts = [];
+
+  // 3갈래 번개
+  for (var b = 0; b < 3; b++) {
+    var boltGroup = new THREE.Object3D();
+    var offsetX = (b - 1) * 8 + (Math.random() - 0.5) * 4;
+    var segments = 3 + Math.floor(Math.random() * 2);
+    var curY = -5;
+    for (var s = 0; s < segments; s++) {
+      var len = 6 + Math.random() * 5;
+      var w = 3 - s * 0.4;
+      if (w < 1) w = 1;
+      var segGeom = new THREE.BoxGeometry(w, len, w);
+      var seg = new THREE.Mesh(segGeom, boltMat);
+      seg.position.set(
+        offsetX + (Math.random() - 0.5) * 6,
+        curY - len/2,
+        (Math.random() - 0.5) * 3
+      );
+      seg.rotation.z = (Math.random() - 0.5) * 0.6;
+      boltGroup.add(seg);
+      curY -= len * 0.75;
+    }
+    this.mesh.add(boltGroup);
+    this.bolts.push(boltGroup);
+  }
+
+  // 떨어지는 작은 파편 블록
+  var debrisMat = new THREE.MeshPhongMaterial({ color: 0x4D4D4D, shading: THREE.FlatShading });
+  for (var d = 0; d < 4; d++) {
+    var dGeom = new THREE.BoxGeometry(2 + Math.random()*2, 2 + Math.random()*2, 2 + Math.random()*2);
+    var debris = new THREE.Mesh(dGeom, debrisMat);
+    debris.position.set(
+      (Math.random() - 0.5) * 35,
+      Math.random() * 10 - 8,
+      (Math.random() - 0.5) * 15
+    );
+    debris.castShadow = true;
+    this.mesh.add(debris);
+  }
+
+  this.mesh.castShadow = true;
+  this.angle = 0;
+  this.dist = 0;
+  this.type = 'thunder';
+  this.flashTimer = 0;
+}
+
+// 날아오는 소행성 (레벨 3+) — 오른쪽에서 왼쪽으로 빠르게 날아옴
+FlyingAsteroid = function(){
+  this.mesh = new THREE.Object3D();
+
+  // 둥근 암석 바디 (SphereGeometry + vertex 변형)
+  var rockMat = new THREE.MeshPhongMaterial({
+    color: 0xA08050,
+    shininess: 8,
+    specular: 0x554433,
+    shading: THREE.FlatShading
+  });
+
+  var mainGeom = new THREE.SphereGeometry(8, 6, 5);
+  for (var i = 0; i < mainGeom.vertices.length; i++) {
+    mainGeom.vertices[i].x += (Math.random() - 0.5) * 3;
+    mainGeom.vertices[i].y += (Math.random() - 0.5) * 3;
+    mainGeom.vertices[i].z += (Math.random() - 0.5) * 3;
+  }
+  mainGeom.computeFaceNormals();
+  var mainRock = new THREE.Mesh(mainGeom, rockMat);
+  mainRock.castShadow = true;
+  this.mesh.add(mainRock);
+
+  // 표면 돌기 (작은 구체들)
+  var bumpMat = new THREE.MeshPhongMaterial({
+    color: 0x8B6F47,
+    shininess: 5,
+    shading: THREE.FlatShading
+  });
+  for (var j = 0; j < 5; j++) {
+    var bGeom = new THREE.SphereGeometry(2 + Math.random()*2, 4, 3);
+    var bump = new THREE.Mesh(bGeom, bumpMat);
+    bump.position.set(
+      (Math.random() - 0.5) * 12,
+      (Math.random() - 0.5) * 10,
+      (Math.random() - 0.5) * 12
+    );
+    bump.castShadow = true;
+    this.mesh.add(bump);
+  }
+
+  // 빛나는 꼬리 (화염 효과)
+  var tailMat = new THREE.MeshPhongMaterial({
+    color: 0xFF6600,
+    emissive: 0xFF4400,
+    emissiveIntensity: 0.5,
+    transparent: true,
+    opacity: 0.6,
+    shading: THREE.FlatShading
+  });
+  for (var t = 0; t < 3; t++) {
+    var tGeom = new THREE.BoxGeometry(3 - t*0.5, 2, 2);
+    var tail = new THREE.Mesh(tGeom, tailMat);
+    tail.position.set(-10 - t*4, (Math.random()-0.5)*3, (Math.random()-0.5)*3);
+    this.mesh.add(tail);
+  }
+
+  this.mesh.castShadow = true;
+  this.type = 'flyingAsteroid';
+  // 비행 관련 속성
+  this.speed = 4 + Math.random() * 2; // 수평 이동속도
+  this.alive = true;
+}
+
+// 물기둥 (레벨 4+) — 원기둥 분수, 상단 버섯형 퍼짐
+WaterPillar = function(){
+  this.mesh = new THREE.Object3D();
+
+  var pillarHeight = 50 + Math.random() * 40;
+
+  var waterMat = new THREE.MeshPhongMaterial({
+    color: 0x68C8A8, transparent: true, opacity: 0.7,
+    shininess: 80, specular: 0x88DDBB, shading: THREE.FlatShading
+  });
+  var waterDarkMat = new THREE.MeshPhongMaterial({
+    color: 0x4DB08A, transparent: true, opacity: 0.6, shading: THREE.FlatShading
+  });
+
+  // 메인 원기둥 (굵은 중심 + 주변 얇은 기둥들)
+  this.pillars = [];
+  var centerGeom = new THREE.CylinderGeometry(4, 5, pillarHeight, 6);
+  var center = new THREE.Mesh(centerGeom, waterMat);
+  center.position.y = pillarHeight / 2;
+  center.castShadow = true;
+  this.mesh.add(center);
+  this.pillars.push(center);
+
+  for (var i = 0; i < 6; i++) {
+    var a = (i / 6) * Math.PI * 2;
+    var h = pillarHeight * (0.5 + Math.random() * 0.4);
+    var r = 1.5 + Math.random() * 1.5;
+    var cGeom = new THREE.CylinderGeometry(r, r + 0.5, h, 5);
+    var mat = Math.random() > 0.5 ? waterMat : waterDarkMat;
+    var col = new THREE.Mesh(cGeom, mat);
+    col.position.set(Math.cos(a) * 5, h / 2, Math.sin(a) * 5);
+    col.castShadow = true;
+    this.mesh.add(col);
+    this.pillars.push(col);
+  }
+
+  // 상단 버섯형 퍼짐 (넓은 원반 + 아래로 흘러내리는 블록)
+  var capMat = new THREE.MeshPhongMaterial({
+    color: 0x90E8C8, transparent: true, opacity: 0.5, shading: THREE.FlatShading
+  });
+  var capGeom = new THREE.CylinderGeometry(6, 18, 8, 8);
+  var cap = new THREE.Mesh(capGeom, capMat);
+  cap.position.y = pillarHeight + 2;
+  cap.castShadow = true;
+  this.mesh.add(cap);
+
+  // 버섯 모자 아래 흘러내리는 물줄기
+  for (var j = 0; j < 10; j++) {
+    var ja = (j / 10) * Math.PI * 2;
+    var jDist = 12 + Math.random() * 8;
+    var jh = pillarHeight * 0.3 + Math.random() * pillarHeight * 0.5;
+    var jGeom = new THREE.CylinderGeometry(0.8, 0.3, jh, 4);
+    var jet = new THREE.Mesh(jGeom, waterDarkMat);
+    jet.position.set(Math.cos(ja) * jDist, jh / 2, Math.sin(ja) * jDist);
+    this.mesh.add(jet);
+  }
+
+  // 바닥 스플래시
+  var splashMat = new THREE.MeshPhongMaterial({
+    color: 0xB0F0D8, transparent: true, opacity: 0.4, shading: THREE.FlatShading
+  });
+  for (var s = 0; s < 8; s++) {
+    var sa = (s / 8) * Math.PI * 2;
+    var sGeom = new THREE.CylinderGeometry(4, 5, 2, 5);
+    var splash = new THREE.Mesh(sGeom, splashMat);
+    splash.position.set(Math.cos(sa) * (10 + Math.random()*5), 1, Math.sin(sa) * (10 + Math.random()*5));
+    this.mesh.add(splash);
+  }
+
+  this.mesh.castShadow = true;
+  this.angle = 0;
+  this.dist = 0;
+  this.type = 'waterPillar';
+  this.animTimer = 0;
+}
+
+// 화염벽 (레벨 5+) — 작은 블록 벽 + 가운데 통과 구멍 (메시 원점 기준)
+FireWall = function(){
+  this.mesh = new THREE.Object3D();
+
+  var colors = [
+    new THREE.MeshPhongMaterial({ color: 0xCC3300, emissive: 0x881100, emissiveIntensity: 0.3, shading: THREE.FlatShading }),
+    new THREE.MeshPhongMaterial({ color: 0xFF4500, emissive: 0xCC2200, emissiveIntensity: 0.4, shading: THREE.FlatShading }),
+    new THREE.MeshPhongMaterial({ color: 0xFF6600, emissive: 0xDD4400, emissiveIntensity: 0.3, shading: THREE.FlatShading }),
+    new THREE.MeshPhongMaterial({ color: 0xFF8C00, emissive: 0xCC6600, emissiveIntensity: 0.3, shading: THREE.FlatShading }),
+    new THREE.MeshPhongMaterial({ color: 0xFFAA33, emissive: 0xDD8800, emissiveIntensity: 0.2, shading: THREE.FlatShading })
+  ];
+
+  // 구멍 중심 (메시 원점 기준, -15 ~ +15 범위)
+  var gapCenter = (Math.random() - 0.5) * 30;
+  var gapSize = 50;
+  this.gapCenter = gapCenter;
+  this.gapSize = gapSize;
+
+  // 위쪽 벽 (구멍 위) - 빽빽한 블록
+  var topStart = gapCenter + gapSize / 2;
+  for (var i = 0; i < 80; i++) {
+    var s = 1 + Math.random() * 2.5;
+    var bGeom = new THREE.BoxGeometry(s, s, s);
+    var mat = colors[Math.floor(Math.random() * 5)];
+    var block = new THREE.Mesh(bGeom, mat);
+    block.position.set(
+      (Math.random() - 0.5) * 12,
+      topStart + Math.random() * 80,
+      (Math.random() - 0.5) * 12
+    );
+    block.rotation.set(Math.random() * 0.5, Math.random() * 0.5, Math.random() * 0.5);
+    block.castShadow = true;
+    this.mesh.add(block);
+  }
+
+  // 아래쪽 벽 (구멍 아래) - 빽빽한 블록
+  var botStart = gapCenter - gapSize / 2;
+  for (var j = 0; j < 80; j++) {
+    var s2 = 1 + Math.random() * 2.5;
+    var bGeom2 = new THREE.BoxGeometry(s2, s2, s2);
+    var mat2 = colors[Math.floor(Math.random() * 5)];
+    var block2 = new THREE.Mesh(bGeom2, mat2);
+    block2.position.set(
+      (Math.random() - 0.5) * 12,
+      botStart - Math.random() * 80,
+      (Math.random() - 0.5) * 12
+    );
+    block2.rotation.set(Math.random() * 0.5, Math.random() * 0.5, Math.random() * 0.5);
+    block2.castShadow = true;
+    this.mesh.add(block2);
+  }
+
+  // 구멍 경계 노란 발광 블록
+  var edgeMat = new THREE.MeshPhongMaterial({
+    color: 0xFFFF44, emissive: 0xFFCC00, emissiveIntensity: 0.7, shading: THREE.FlatShading
+  });
+  for (var k = 0; k < 20; k++) {
+    var s3 = 1 + Math.random() * 1.5;
+    var bGeom3 = new THREE.BoxGeometry(s3, s3, s3);
+    var debris = new THREE.Mesh(bGeom3, edgeMat);
+    var isTop = k < 10;
+    var edgeY = isTop ? (topStart + Math.random()*3) : (botStart - Math.random()*3);
+    debris.position.set(
+      (Math.random() - 0.5) * 14,
+      edgeY,
+      (Math.random() - 0.5) * 14
+    );
+    debris.rotation.set(Math.random(), Math.random(), Math.random());
+    this.mesh.add(debris);
+  }
+
+  this.mesh.castShadow = true;
+  this.angle = 0;
+  this.dist = 0;
+  this.type = 'fireWall';
+}
+
+// 블랙홀 (레벨 6+) — 소용돌이 + 등장 시 30% 감속
+BlackHole = function(){
+  this.mesh = new THREE.Object3D();
+
+  // 중심 코어 (검은 구체)
+  var coreMat = new THREE.MeshPhongMaterial({
+    color: 0x000000,
+    shininess: 100,
+    specular: 0x111111,
+    shading: THREE.FlatShading
+  });
+  var coreGeom = new THREE.BoxGeometry(10, 10, 10, 1, 1, 1);
+  var core = new THREE.Mesh(coreGeom, coreMat);
+  this.mesh.add(core);
+
+  // 강착원반 (오렌지+노란 회전 링)
+  var ringColors = [0xFF8C00, 0xFFA500, 0xFFCC44, 0xFF6600];
+  this.rings = [];
+  for (var r = 0; r < 4; r++) {
+    var ringMat = new THREE.MeshPhongMaterial({
+      color: ringColors[r],
+      emissive: ringColors[r],
+      emissiveIntensity: 0.4 - r * 0.08,
+      transparent: true,
+      opacity: 0.7 - r * 0.1,
+      shading: THREE.FlatShading
+    });
+    var radius = 14 + r * 6;
+    var ringGroup = new THREE.Object3D();
+    var segments = 12 + r * 4;
+    for (var s = 0; s < segments; s++) {
+      var angle = (s / segments) * Math.PI * 2;
+      var bw = 3 + Math.random() * 2;
+      var bh = 1.5 + Math.random();
+      var bd = 3 + Math.random() * 2;
+      var segGeom = new THREE.BoxGeometry(bw, bh, bd);
+      var seg = new THREE.Mesh(segGeom, ringMat);
+      seg.position.set(
+        Math.cos(angle) * radius,
+        (Math.random() - 0.5) * 2,
+        Math.sin(angle) * radius
+      );
+      seg.lookAt(new THREE.Vector3(0, 0, 0));
+      ringGroup.add(seg);
+    }
+    ringGroup.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+    this.mesh.add(ringGroup);
+    this.rings.push(ringGroup);
+  }
+
+  // 주변에 흩날리는 파편
+  var debrisMat = new THREE.MeshPhongMaterial({
+    color: 0xCC7700,
+    emissive: 0x884400,
+    emissiveIntensity: 0.2,
+    shading: THREE.FlatShading
+  });
+  for (var d = 0; d < 8; d++) {
+    var da = Math.random() * Math.PI * 2;
+    var dr = 30 + Math.random() * 15;
+    var dGeom = new THREE.BoxGeometry(2 + Math.random()*2, 2 + Math.random()*2, 2 + Math.random()*2);
+    var debr = new THREE.Mesh(dGeom, debrisMat);
+    debr.position.set(
+      Math.cos(da) * dr,
+      (Math.random() - 0.5) * 5,
+      Math.sin(da) * dr
+    );
+    this.mesh.add(debr);
+  }
+
+  this.mesh.castShadow = true;
+  this.angle = 0;
+  this.dist = 0;
+  this.type = 'blackHole';
+  this.rotTimer = 0;
+  this.hasAppliedSlow = false;
 }
 
 EnnemiesHolder = function (){
@@ -794,14 +1288,62 @@ EnnemiesHolder = function (){
 }
 
 EnnemiesHolder.prototype.spawnEnnemies = function(){
-  var nEnnemies = game.level;
+  var nEnnemies = 3; // 개수는 고정, 종류가 레벨별로 증가
 
   for (var i=0; i<nEnnemies; i++){
     var ennemy;
-    if (ennemiesPool.length) {
-      ennemy = ennemiesPool.pop();
-    }else{
-      ennemy = new Ennemy();
+
+    // 레벨별 장애물 종류 결정 (가중치 기반)
+    var roll = Math.random();
+    var chosenType = 'mace';
+
+    if (game.level >= 6 && roll < 0.03) {
+      chosenType = 'blackHole'; // 3% 확률
+    } else {
+      var availableTypes = [];
+      if (game.level >= 5) {
+        // Lv5+: 철퇴 30%, 기타 70%
+        if (Math.random() < 0.3) availableTypes.push('mace');
+        availableTypes.push('thunder');
+        availableTypes.push('waterPillar');
+        availableTypes.push('fireWall');
+      } else if (game.level >= 4) {
+        availableTypes = ['mace', 'thunder', 'waterPillar'];
+      } else if (game.level >= 2) {
+        availableTypes = ['mace', 'thunder'];
+      } else {
+        availableTypes = ['mace'];
+      }
+      chosenType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    }
+
+    switch(chosenType) {
+      case 'thunder':
+        ennemy = new ThunderCloud();
+        break;
+      case 'waterPillar':
+        ennemy = new WaterPillar();
+        break;
+      case 'fireWall':
+        // 화염벽 최소 간격 체크
+        if (Math.floor(game.distance) - game.fireWallLastSpawn < game.distanceForFireWallSpawn) {
+          ennemy = new Ennemy(); // 간격 부족하면 철퇴
+          ennemy.type = 'mace';
+        } else {
+          ennemy = new FireWall();
+          game.fireWallLastSpawn = Math.floor(game.distance);
+        }
+        break;
+      case 'blackHole':
+        ennemy = new BlackHole();
+        break;
+      default:
+        if (ennemiesPool.length) {
+          ennemy = ennemiesPool.pop();
+        } else {
+          ennemy = new Ennemy();
+        }
+        break;
     }
 
     ennemy.angle = - (i*0.1);
@@ -821,40 +1363,220 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
 
     if (ennemy.angle > Math.PI*2) ennemy.angle -= Math.PI*2;
 
+    // 물기둥은 지면(바다 표면)에 고정
+    if (ennemy.type === 'waterPillar') {
+      ennemy.distance = game.seaRadius + 5;
+    }
     ennemy.mesh.position.y = -game.seaRadius + Math.sin(ennemy.angle)*ennemy.distance;
     ennemy.mesh.position.x = Math.cos(ennemy.angle)*ennemy.distance;
-    ennemy.mesh.rotation.z += Math.random()*.1;
-    ennemy.mesh.rotation.y += Math.random()*.1;
+    // 화염벽/물기둥은 회전하지 않고 고정 자세 유지
+    if (ennemy.type !== 'fireWall' && ennemy.type !== 'waterPillar') {
+      ennemy.mesh.rotation.z += Math.random()*.1;
+      ennemy.mesh.rotation.y += Math.random()*.1;
+    }
 
-    //var globalEnnemyPosition =  ennemy.mesh.localToWorld(new THREE.Vector3());
+    // 번개구름 깜빡임 + 상하 이동 효과
+    if (ennemy.type === 'thunder') {
+      ennemy.flashTimer = (ennemy.flashTimer || 0) + deltaTime;
+      // 상하 이동
+      ennemy.distance = (game.seaRadius + game.planeDefaultHeight) + Math.sin(ennemy.flashTimer * 0.004) * 30;
+      if (ennemy.bolts) {
+        var flash = Math.sin(ennemy.flashTimer * 0.01) > 0.3;
+        for (var b = 0; b < ennemy.bolts.length; b++) {
+          ennemy.bolts[b].visible = flash;
+        }
+      }
+    }
+
+    // 블랙홀 강착원반 회전 + 슬로우 적용
+    if (ennemy.type === 'blackHole') {
+      ennemy.rotTimer = (ennemy.rotTimer || 0) + deltaTime;
+      if (ennemy.rings) {
+        for (var r = 0; r < ennemy.rings.length; r++) {
+          ennemy.rings[r].rotation.z += 0.002 * deltaTime * (1 + r * 0.3);
+        }
+      }
+      // 화면에 보이면 슬로우 적용
+      if (!ennemy.hasAppliedSlow && ennemy.angle > 0 && ennemy.angle < Math.PI) {
+        game.blackHoleSlowFactor = 0.7;
+        game.blackHoleActive = true;
+        ennemy.hasAppliedSlow = true;
+      }
+    }
+
+    // 물기둥 기둥 높이 애니메이션
+    if (ennemy.type === 'waterPillar' && ennemy.pillars) {
+      ennemy.animTimer = (ennemy.animTimer || 0) + deltaTime;
+      for (var p = 0; p < ennemy.pillars.length; p++) {
+        var scaleY = 0.8 + Math.sin(ennemy.animTimer * 0.003 + p * 0.5) * 0.3;
+        ennemy.pillars[p].scale.y = scaleY;
+      }
+    }
+
+    // 화염벽 블록 흘러내림 애니메이션
+    if (ennemy.type === 'fireWall') {
+      ennemy.fireTimer = (ennemy.fireTimer || 0) + deltaTime;
+      var children = ennemy.mesh.children;
+      for (var f = 0; f < children.length; f++) {
+        children[f].position.y += Math.sin(ennemy.fireTimer * 0.005 + f * 0.7) * 0.15;
+        children[f].position.x += Math.sin(ennemy.fireTimer * 0.003 + f * 1.2) * 0.05;
+      }
+    }
+
+    // 충돌 체크
     var diffPos = airplane.mesh.position.clone().sub(ennemy.mesh.position.clone());
     var d = diffPos.length();
-    if (d<game.ennemyDistanceTolerance){
+
+    // 물기둥은 수평 거리 + 높이 범위 체크 (물기둥 위를 넘어가면 통과)
+    if (ennemy.type === 'waterPillar') {
+      var planeRelY = airplane.mesh.position.y - ennemy.mesh.position.y;
+      if (planeRelY > 90) {
+        d = 9999; // 물기둥 위를 지나감 - 충돌 없음
+      } else {
+        d = Math.sqrt(diffPos.x * diffPos.x + diffPos.z * diffPos.z);
+      }
+    }
+
+    // 화염벽은 수평 거리로 충돌 판정 (위아래로 넓게 펼쳐진 벽)
+    if (ennemy.type === 'fireWall') {
+      d = Math.sqrt(diffPos.x * diffPos.x + diffPos.z * diffPos.z);
+    }
+
+    var collisionDist = game.ennemyDistanceTolerance;
+    if (ennemy.type === 'fireWall') collisionDist = 15;
+    if (ennemy.type === 'thunder') collisionDist = 18;
+    if (ennemy.type === 'waterPillar') collisionDist = 20;
+    if (ennemy.type === 'blackHole') collisionDist = 15;
+
+    if (d < collisionDist){
+      // 화염벽: 구멍 안이면 통과 (로컬 좌표 비교)
+      if (ennemy.type === 'fireWall') {
+        var planeLocalY = airplane.mesh.position.y - ennemy.mesh.position.y;
+        if (Math.abs(planeLocalY - ennemy.gapCenter) < ennemy.gapSize / 2) {
+          continue; // 구멍을 통과!
+        }
+      }
+
       if (game.invincible) {
-        // 무적 상태: 장애물 파괴하고 그대로 전진
-        particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 20, 0xFFD700, 2);
-        ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
+        var colors = { thunder: 0xFFFF00, asteroid: 0xFF4500, waterPillar: 0x6B9DAD, fireWall: 0xFF4500, blackHole: 0xFF8C00 };
+        var pColor = colors[ennemy.type] || 0xFFD700;
+        particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 20, pColor, 2);
+        // 블랙홀 파괴 시 슬로우 해제
+        if (ennemy.type === 'blackHole') {
+          game.blackHoleSlowFactor = 1.0;
+          game.blackHoleActive = false;
+        }
+        this.ennemiesInUse.splice(i,1);
         this.mesh.remove(ennemy.mesh);
         playInvincibleSmashSound();
         i--;
       } else {
-        // 일반 상태: 기존 동작 (튕겨남 + 에너지 감소)
-        particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, 0x333333, 3);
-        ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
+        var hitColors = { thunder: 0xFFFF00, asteroid: 0x8B7355, waterPillar: 0x6B9DAD, fireWall: 0xFF4500, blackHole: 0xFF8C00 };
+        var hColor = hitColors[ennemy.type] || 0x333333;
+        particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, hColor, 3);
+        // 블랙홀 파괴 시 슬로우 해제
+        if (ennemy.type === 'blackHole') {
+          game.blackHoleSlowFactor = 1.0;
+          game.blackHoleActive = false;
+        }
+        this.ennemiesInUse.splice(i,1);
         this.mesh.remove(ennemy.mesh);
+        // 물기둥/화염벽은 넉백을 약하게 (수평 거리 체크라 Y차이가 큼)
+        if (ennemy.type === 'waterPillar' || ennemy.type === 'fireWall') {
+          game.planeCollisionSpeedX = 30 * diffPos.x / d;
+          game.planeCollisionSpeedY = 20;
+        } else {
+          game.planeCollisionSpeedX = 100 * diffPos.x / d;
+          game.planeCollisionSpeedY = 100 * diffPos.y / d;
+        }
+        ambientLight.intensity = 2;
+
+        // 번개구름/화염벽은 에너지 2배 감소
+        if (ennemy.type === 'thunder' || ennemy.type === 'fireWall') {
+          playDestroySound();
+          removeEnergy();
+          removeEnergy();
+        } else {
+          playDestroySound();
+          removeEnergy();
+        }
+        i--;
+      }
+    }else if (ennemy.angle > Math.PI){
+      // 블랙홀이 사라지면 슬로우 해제
+      if (ennemy.type === 'blackHole' && ennemy.hasAppliedSlow) {
+        game.blackHoleSlowFactor = 1.0;
+        game.blackHoleActive = false;
+      }
+      this.ennemiesInUse.splice(i,1);
+      this.mesh.remove(ennemy.mesh);
+      i--;
+    }
+  }
+}
+
+// ===== 날아오는 소행성 전용 관리 (직선 이동) =====
+var flyingAsteroids = [];
+
+function spawnFlyingAsteroid() {
+  var asteroid = new FlyingAsteroid();
+  // 화면 오른쪽 밖에서 시작
+  asteroid.mesh.position.x = 250;
+  // 비행체 높이 근처 랜덤 y
+  asteroid.mesh.position.y = game.planeDefaultHeight + (Math.random() - 0.5) * game.planeAmpHeight;
+  asteroid.mesh.position.z = -50 + Math.random() * 100;
+  scene.add(asteroid.mesh);
+  flyingAsteroids.push(asteroid);
+}
+
+function updateFlyingAsteroids() {
+  for (var i = flyingAsteroids.length - 1; i >= 0; i--) {
+    var a = flyingAsteroids[i];
+    // 오른쪽에서 왼쪽으로 빠르게 이동
+    a.mesh.position.x -= a.speed * deltaTime * 0.1;
+    a.mesh.rotation.z += 0.02 * deltaTime * 0.1;
+    a.mesh.rotation.y += 0.015 * deltaTime * 0.1;
+
+    // 비행체와 충돌 체크
+    var diffPos = airplane.mesh.position.clone().sub(a.mesh.position.clone());
+    var d = diffPos.length();
+
+    if (d < 15) {
+      if (game.invincible) {
+        particlesHolder.spawnParticles(a.mesh.position.clone(), 20, 0xD4A843, 2);
+        playInvincibleSmashSound();
+      } else {
+        particlesHolder.spawnParticles(a.mesh.position.clone(), 15, 0xD4A843, 3);
         game.planeCollisionSpeedX = 100 * diffPos.x / d;
         game.planeCollisionSpeedY = 100 * diffPos.y / d;
         ambientLight.intensity = 2;
         playDestroySound();
         removeEnergy();
-        i--;
       }
-    }else if (ennemy.angle > Math.PI){
-      ennemiesPool.unshift(this.ennemiesInUse.splice(i,1)[0]);
-      this.mesh.remove(ennemy.mesh);
-      i--;
+      scene.remove(a.mesh);
+      flyingAsteroids.splice(i, 1);
+      continue;
+    }
+
+    // 화면 밖으로 나가면 제거
+    if (a.mesh.position.x < -300) {
+      scene.remove(a.mesh);
+      flyingAsteroids.splice(i, 1);
     }
   }
+}
+
+// ===== 레벨업 텍스트 표시 =====
+function showLevelUpText(level) {
+  var el = document.getElementById('levelUpText');
+  if (!el) return;
+  el.innerHTML = '<p class="level-label">Level</p><p class="level-number">' + level + '</p>';
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  setTimeout(function() {
+    el.classList.remove('show');
+  }, 1600);
 }
 
 Particle = function(){
@@ -911,33 +1633,15 @@ ParticlesHolder.prototype.spawnParticles = function(pos, density, color, scale){
 }
 
 Coin = function(){
-  this.mesh = new THREE.Object3D();
-
-  // Almond shape using sphere stretched into oval
-  var almondGeom = new THREE.SphereGeometry(5, 6, 4);
-  // Stretch into almond shape (tall and slightly wide)
-  almondGeom.applyMatrix(new THREE.Matrix4().makeScale(0.6, 1.2, 0.5));
-  var almondMat = new THREE.MeshPhongMaterial({
-    color:0xC4883A,
-    shininess:15,
-    specular:0xFFDDAA,
-    shading:THREE.FlatShading
+  // TheAviator2 스타일 동전 (금색 원통)
+  var geom = new THREE.CylinderGeometry(4, 4, 1, 10);
+  var mat = new THREE.MeshPhongMaterial({
+    color: 0xFFD700,
+    shininess: 80,
+    specular: 0xFFFFFF,
+    shading: THREE.FlatShading
   });
-  var almond = new THREE.Mesh(almondGeom, almondMat);
-  this.mesh.add(almond);
-
-  // Light line on almond side
-  var lineGeom = new THREE.BoxGeometry(0.5,9,1.5);
-  var lineMat = new THREE.MeshPhongMaterial({
-    color:0xDDA855,
-    shininess:5,
-    specular:0xFFEECC,
-    shading:THREE.FlatShading
-  });
-  var line = new THREE.Mesh(lineGeom, lineMat);
-  line.position.set(2.8,0,0);
-  this.mesh.add(line);
-
+  this.mesh = new THREE.Mesh(geom, mat);
   this.mesh.castShadow = true;
   this.angle = 0;
   this.dist = 0;
@@ -992,7 +1696,7 @@ CoinsHolder.prototype.rotateCoins = function(){
       this.coinsPool.unshift(this.coinsInUse.splice(i,1)[0]);
       this.mesh.remove(coin.mesh);
       particlesHolder.spawnParticles(coin.mesh.position.clone(), 5, 0xC4883A, .8);
-      addEnergy();
+      addCoin();
       i--;
     }else if (coin.angle > Math.PI){
       this.coinsPool.unshift(this.coinsInUse.splice(i,1)[0]);
@@ -1115,6 +1819,103 @@ InvincibleFruitHolder.prototype.rotateFruits = function(){
     } else if (fruit.angle > Math.PI){
       this.fruitsPool.unshift(this.fruitsInUse.splice(i, 1)[0]);
       this.mesh.remove(fruit.mesh);
+      i--;
+    }
+  }
+}
+
+// ===== HEART ITEM =====
+
+HeartItem = function(){
+  this.mesh = new THREE.Object3D();
+
+  // THREE.Shape으로 실제 하트 곡선 생성
+  var heartShape = new THREE.Shape();
+  heartShape.moveTo(0, 0);
+  heartShape.bezierCurveTo(0, -3, -5, -8, -10, -8);
+  heartShape.bezierCurveTo(-18, -8, -18, 2, -18, 2);
+  heartShape.bezierCurveTo(-18, 8, -10, 14, 0, 18);
+  heartShape.bezierCurveTo(10, 14, 18, 8, 18, 2);
+  heartShape.bezierCurveTo(18, 2, 18, -8, 10, -8);
+  heartShape.bezierCurveTo(5, -8, 0, -3, 0, 0);
+
+  var extrudeSettings = {
+    amount: 4,
+    bevelEnabled: true,
+    bevelSegments: 2,
+    steps: 1,
+    bevelSize: 1,
+    bevelThickness: 1
+  };
+
+  var heartGeom = new THREE.ExtrudeGeometry(heartShape, extrudeSettings);
+  var heartMat = new THREE.MeshPhongMaterial({
+    color: 0xFF2255,
+    emissive: 0xFF0033,
+    emissiveIntensity: 0.3,
+    shininess: 60,
+    shading: THREE.FlatShading
+  });
+  var heart = new THREE.Mesh(heartGeom, heartMat);
+  heart.scale.set(0.5, 0.5, 0.5);
+  heart.rotation.z = Math.PI; // 뒤집어서 하트 모양
+  heart.position.set(0, 5, -1);
+  this.mesh.add(heart);
+
+  this.mesh.castShadow = true;
+  this.angle = 0;
+  this.dist = 0;
+}
+
+HeartItemHolder = function(n){
+  this.mesh = new THREE.Object3D();
+  this.itemsInUse = [];
+  this.itemsPool = [];
+  for (var i = 0; i < n; i++){
+    this.itemsPool.push(new HeartItem());
+  }
+}
+
+HeartItemHolder.prototype.spawnItem = function(){
+  // 하트가 이미 최대면 스폰하지 않음
+  if (game.hearts >= game.maxHearts) return;
+
+  var item;
+  if (this.itemsPool.length){
+    item = this.itemsPool.pop();
+  } else {
+    item = new HeartItem();
+  }
+  this.mesh.add(item.mesh);
+  this.itemsInUse.push(item);
+  item.angle = 0;
+  item.distance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight - 20);
+  item.mesh.position.y = -game.seaRadius + Math.sin(item.angle) * item.distance;
+  item.mesh.position.x = Math.cos(item.angle) * item.distance;
+}
+
+HeartItemHolder.prototype.rotateItems = function(){
+  for (var i = 0; i < this.itemsInUse.length; i++){
+    var item = this.itemsInUse[i];
+    item.angle += game.speed * deltaTime * game.invincibleFruitSpeed;
+    if (item.angle > Math.PI * 2) item.angle -= Math.PI * 2;
+    item.mesh.position.y = -game.seaRadius + Math.sin(item.angle) * item.distance;
+    item.mesh.position.x = Math.cos(item.angle) * item.distance;
+    item.mesh.rotation.y += 0.06;
+    item.mesh.rotation.z = Math.sin(Date.now() * 0.003) * 0.2;
+
+    var diffPos = airplane.mesh.position.clone().sub(item.mesh.position.clone());
+    var d = diffPos.length();
+    if (d < 18){
+      this.itemsPool.unshift(this.itemsInUse.splice(i, 1)[0]);
+      this.mesh.remove(item.mesh);
+      particlesHolder.spawnParticles(item.mesh.position.clone(), 10, 0xFF4466, 1.2);
+      addHeart();
+      playPowerupSound();
+      i--;
+    } else if (item.angle > Math.PI){
+      this.itemsPool.unshift(this.itemsInUse.splice(i, 1)[0]);
+      this.mesh.remove(item.mesh);
       i--;
     }
   }
@@ -1246,10 +2047,39 @@ function getLocalTransform(mesh, rootParent) {
   };
 }
 
+function showEvolutionText() {
+  var existing = document.getElementById('evolutionText');
+  if (existing) existing.remove();
+  
+  var div = document.createElement('div');
+  div.id = 'evolutionText';
+  div.textContent = '✦ Evolution ✦';
+  div.style.cssText = 'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%) scale(0.5);font-family:Playfair Display,serif;font-size:28px;font-weight:700;color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,0.8),0 0 40px rgba(255,215,0,0.4);pointer-events:none;z-index:1500;opacity:0;letter-spacing:3px;';
+  document.body.appendChild(div);
+  
+  requestAnimationFrame(function() {
+    div.style.transition = 'all 0.5s ease-out';
+    div.style.opacity = '1';
+    div.style.transform = 'translate(-50%,-50%) scale(1)';
+    
+    setTimeout(function() {
+      div.style.transition = 'all 0.6s ease-in';
+      div.style.opacity = '0';
+      div.style.transform = 'translate(-50%,-70%) scale(1.3)';
+      setTimeout(function() {
+        if (div.parentNode) div.parentNode.removeChild(div);
+      }, 700);
+    }, 1200);
+  });
+}
+
 function transformPlane(newFormString) {
   // 이미 변신 중이면 무시
   if (game.transforming) return;
   game.transforming = true;
+  
+  // 비행체 진화 텍스트 표시
+  showEvolutionText();
   
   var oldAirplane = airplane;
   var oldPos = airplane.mesh.position.clone();
@@ -1460,6 +2290,13 @@ function createInvincibleFruits(){
   scene.add(invincibleFruitHolder.mesh);
 }
 
+var heartItemHolder;
+
+function createHeartItems(){
+  heartItemHolder = new HeartItemHolder(3);
+  scene.add(heartItemHolder.mesh);
+}
+
 function loop(){
 
   if (paused) {
@@ -1485,6 +2322,12 @@ function loop(){
       invincibleFruitHolder.spawnFruit();
     }
 
+    // Spawn heart item
+    if (Math.floor(game.distance)%game.distanceForHeartItemSpawn == 0 && Math.floor(game.distance) > game.heartItemLastSpawn){
+      game.heartItemLastSpawn = Math.floor(game.distance);
+      heartItemHolder.spawnItem();
+    }
+
     if (Math.floor(game.distance)%game.distanceForSpeedUpdate == 0 && Math.floor(game.distance) > game.speedLastUpdate){
       game.speedLastUpdate = Math.floor(game.distance);
       game.targetBaseSpeed += game.incrementSpeedByTime*deltaTime;
@@ -1496,10 +2339,20 @@ function loop(){
       ennemiesHolder.spawnEnnemies();
     }
 
-    if (Math.floor(game.distance)%game.distanceForLevelUpdate == 0 && Math.floor(game.distance) > game.levelLastUpdate){
-      game.levelLastUpdate = Math.floor(game.distance);
-      game.level++;
+    // 날아오는 소행성 스폰 (Lv3+)
+    if (game.level >= 3 && Math.floor(game.distance) - game.flyingAsteroidLastSpawn >= game.distanceForFlyingAsteroidSpawn){
+      game.flyingAsteroidLastSpawn = Math.floor(game.distance);
+      spawnFlyingAsteroid();
+    }
+
+    // 날아오는 소행성 업데이트
+    updateFlyingAsteroids();
+
+    var expectedLevel = Math.floor(game.distance / game.distanceForLevelUpdate) + 1;
+    if (expectedLevel > game.level){
+      game.level = expectedLevel;
       fieldLevel.innerHTML = Math.floor(game.level);
+      showLevelUpText(game.level);
 
       game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel*game.level
     }
@@ -1535,9 +2388,11 @@ function loop(){
 
     updatePlane();
     updateDistance();
-    updateEnergy();
+    updateHearts();
     game.baseSpeed += (game.targetBaseSpeed - game.baseSpeed) * deltaTime * 0.02;
-    game.speed = game.baseSpeed * game.planeSpeed;
+    if (game.baseSpeed > game.maxSpeed) game.baseSpeed = game.maxSpeed;
+    // 블랙홀 슬로우모션 적용
+    game.speed = game.baseSpeed * game.planeSpeed * game.blackHoleSlowFactor;
 
   }else if(game.status=="gameover"){
     game.speed *= .99;
@@ -1567,6 +2422,7 @@ function loop(){
   coinsHolder.rotateCoins();
   ennemiesHolder.rotateEnnemies();
   invincibleFruitHolder.rotateFruits();
+  heartItemHolder.rotateItems();
   updateInvincible();
 
   sky.moveClouds();
@@ -1584,35 +2440,79 @@ function updateDistance(){
 
 }
 
-var blinkEnergy=false;
-
-function updateEnergy(){
-  game.energy -= game.speed*deltaTime*game.ratioSpeedEnergy;
-  game.energy = Math.max(0, game.energy);
-  energyBar.style.right = (100-game.energy)+"%";
-  energyBar.style.backgroundColor = (game.energy<50)? "#D4762C" : "#2E8B57";
-
-  if (game.energy<30){
-    energyBar.style.animationName = "blinking";
-  }else{
-    energyBar.style.animationName = "none";
+function updateHearts(){
+  // 하트 UI 업데이트
+  for (var i = 1; i <= 5; i++) {
+    var el = document.getElementById('heart' + i);
+    if (!el) continue;
+    if (i <= game.hearts) {
+      el.textContent = '❤️';
+      el.className = 'heart active';
+    } else {
+      el.textContent = '🖤';
+      el.className = 'heart lost';
+    }
   }
 
-  if (game.energy <1){
+  if (game.hearts <= 0){
     game.status = "gameover";
   }
 }
 
-function addEnergy(){
-  game.energy += game.coinValue;
-  game.energy = Math.min(game.energy, 100);
+function addCoin(){
+  game.coins += game.coinValue;
+  game.coinsEarnedThisRound += game.coinValue;
+  localStorage.setItem('totalCoins', game.coins);
+  document.getElementById('coinsValue').textContent = game.coins;
   playCoinSound();
 }
 
+function addHeart(){
+  if (game.hearts < game.maxHearts) {
+    game.hearts++;
+    var el = document.getElementById('heart' + game.hearts);
+    if (el) {
+      el.textContent = '❤️';
+      el.className = 'heart active gain';
+    }
+    // 화면 중앙에 하트 표시 효과
+    showHeartPickup();
+  }
+}
+
+function showHeartPickup() {
+  var existing = document.getElementById('heartPickupDisplay');
+  if (existing) existing.remove();
+  
+  var div = document.createElement('div');
+  div.id = 'heartPickupDisplay';
+  div.textContent = '❤️';
+  div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.3);font-size:120px;pointer-events:none;z-index:1500;opacity:0;transition:none;';
+  document.body.appendChild(div);
+  
+  // 애니메이션: 크게 나타났다 사라짐
+  requestAnimationFrame(function() {
+    div.style.transition = 'all 0.4s ease-out';
+    div.style.opacity = '1';
+    div.style.transform = 'translate(-50%,-50%) scale(1.2)';
+    
+    setTimeout(function() {
+      div.style.transition = 'all 0.3s ease-in';
+      div.style.opacity = '0';
+      div.style.transform = 'translate(-50%,-70%) scale(0.5)';
+      
+      setTimeout(function() {
+        if (div.parentNode) div.parentNode.removeChild(div);
+      }, 350);
+    }, 500);
+  });
+}
+
 function removeEnergy(){
-  if (game.invincible) return; // 무적 상태에서는 에너지 감소 안 함
-  game.energy -= game.ennemyValue;
-  game.energy = Math.max(0, game.energy);
+  if (game.invincible) return;
+  game.hearts--;
+  game.hearts = Math.max(0, game.hearts);
+  updateHearts();
 }
 
 
@@ -1815,15 +2715,58 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function animateCoinCount(el, from, to, duration) {
+  var startTime = null;
+  function step(timestamp) {
+    if (!startTime) startTime = timestamp;
+    var progress = Math.min((timestamp - startTime) / duration, 1);
+    // ease-out 효과
+    var eased = 1 - Math.pow(1 - progress, 3);
+    var current = Math.floor(from + (to - from) * eased);
+    el.textContent = current;
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.textContent = to;
+    }
+  }
+  el.textContent = from;
+  requestAnimationFrame(step);
+}
+
+async function showRankingFromGameOver() {
+  var scoreSection = document.getElementById('gameOverScore');
+  var rankSection = document.getElementById('rankingBoard');
+  if (scoreSection) scoreSection.style.display = 'none';
+  if (rankSection) {
+    rankSection.style.display = 'block';
+    try {
+      var rankings = await getRankingsFromDB();
+      renderRankingBoard(rankings);
+    } catch(e) {
+      // Supabase 실패 시 로컬 랭킹
+      var local = JSON.parse(localStorage.getItem('flyDarwinRankings') || '[]');
+      renderRankingBoard(local);
+    }
+  }
+}
+
 function showGameOver() {
   var overlay = document.getElementById('gameOverOverlay');
   var scoreSection = document.getElementById('gameOverScore');
   var rankSection = document.getElementById('rankingBoard');
   
   // Fill final stats
-  document.getElementById('finalDistance').textContent = Math.floor(game.distance).toLocaleString();
+  document.getElementById('finalDistance').textContent = Math.floor(game.distance).toLocaleString() + 'm';
   document.getElementById('finalLevel').textContent = Math.floor(game.level);
   document.getElementById('finalForm').textContent = game.currentForm;
+  
+  // 코인 카운트업 애니메이션 (이번 라운드 획득분)
+  var finalCoinsEl = document.getElementById('finalCoins');
+  if (finalCoinsEl) {
+    var startCoins = game.coins - game.coinsEarnedThisRound;
+    animateCoinCount(finalCoinsEl, startCoins, game.coins, 1200);
+  }
   
   // Reset UI state
   document.getElementById('playerNameInput').value = '';
@@ -1936,7 +2879,7 @@ function normalize(v,vmin,vmax,tmin, tmax){
   return tv;
 }
 
-var fieldDistance, energyBar, replayMessage, fieldLevel, levelCircle;
+var fieldDistance, replayMessage, fieldLevel, levelCircle;
 
 // BGM
 var bgm = null;
@@ -1990,7 +2933,6 @@ function init(event){
   // UI
 
   fieldDistance = document.getElementById("distValue");
-  energyBar = document.getElementById("energyBar");
   replayMessage = document.getElementById("replayMessage");
   fieldLevel = document.getElementById("levelValue");
   levelCircle = document.getElementById("levelCircleStroke");
@@ -2006,6 +2948,7 @@ function init(event){
   createEnnemies();
   createParticles();
   createInvincibleFruits();
+  createHeartItems();
 
   document.addEventListener('mousemove', handleMouseMove, false);
   document.addEventListener('touchstart', handleTouchStart, { passive: false });
