@@ -244,7 +244,23 @@ function resetGame(){
           waterPillarLastSpawn:0,
           distanceForWaterPillarSpawn:150,
 
-          status : "playing",
+          // Turbulence (난기류)
+          turbulenceActive: false,
+          turbulenceLevel: 0,       // 0: 없음, 1~3: 강도
+          turbulenceTimer: 0,
+          turbulenceDuration: 4000,  // 4초간 지속
+          turbulenceTriggered: [],   // 이미 트리거된 거리 목록
+          turbulenceCamShake: {x:0, y:0},
+
+          // Bird Strike (버드스트라이크)
+          birdStrikeActive: false,
+          birdStrikePhase: '', // 'warning', 'dodging', 'result'
+          birdStrikeTimer: 0,
+          birdStrikeTriggered: [],
+          birdStrikeHit: false,
+          birdStrikeSavedSpeed: 0,
+
+          status : "waiting",
           
           // Transformation parameters
           transformDistance1 : 1500,
@@ -270,10 +286,10 @@ function resetGame(){
           invincibleFruitDistanceTolerance : 18,
           invincibleFruitSpeed : 0.4,
           invincibleFruitLastSpawn : 0,
-          distanceForInvincibleSpawn : 800, // 코인(100)의 8배 간격
+          distanceForInvincibleSpawn : 900,
 
           heartItemLastSpawn : 0,
-          distanceForHeartItemSpawn : 800, // 무적열매와 동일 간격
+          distanceForHeartItemSpawn : 800,
          };
   fieldLevel.innerHTML = Math.floor(game.level);
   var coinsEl = document.getElementById('coinsValue');
@@ -1388,7 +1404,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
       }
     }
 
-    // 블랙홀 강착원반 회전 + 슬로우 적용
+    // 블랙홀 강착원반 회전 + 근접 슬로우 모션
     if (ennemy.type === 'blackHole') {
       ennemy.rotTimer = (ennemy.rotTimer || 0) + deltaTime;
       if (ennemy.rings) {
@@ -1396,11 +1412,25 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
           ennemy.rings[r].rotation.z += 0.002 * deltaTime * (1 + r * 0.3);
         }
       }
-      // 화면에 보이면 슬로우 적용
-      if (!ennemy.hasAppliedSlow && ennemy.angle > 0 && ennemy.angle < Math.PI) {
-        game.blackHoleSlowFactor = 0.7;
+      // 비행기와 블랙홀 사이의 거리 계산
+      var bhWorldPos = ennemy.mesh.position.clone();
+      ennemiesHolder.mesh.updateMatrixWorld();
+      bhWorldPos.applyMatrix4(ennemiesHolder.mesh.matrixWorld);
+      var distToPlane = airplane.mesh.position.distanceTo(bhWorldPos);
+
+      var slowRadius = 200; // 슬로우 효과 범위
+      var maxSlow = 0.12;   // 최대 슬로우 (가장 가까울 때, 원래의 12% 속도)
+
+      if (distToPlane < slowRadius) {
+        // 거리에 비례: 가까울수록 더 느려짐 (1.0 → maxSlow)
+        var ratio = distToPlane / slowRadius; // 0(매우가까움) ~ 1(경계)
+        game.blackHoleSlowFactor = maxSlow + (1.0 - maxSlow) * ratio;
         game.blackHoleActive = true;
         ennemy.hasAppliedSlow = true;
+      } else if (ennemy.hasAppliedSlow) {
+        // 범위를 벗어나면 즉시 해제
+        game.blackHoleSlowFactor = 1.0;
+        game.blackHoleActive = false;
       }
     }
 
@@ -1449,11 +1479,21 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     if (ennemy.type === 'blackHole') collisionDist = 15;
 
     if (d < collisionDist){
-      // 화염벽: 구멍 안이면 통과 (로컬 좌표 비교)
+      // 블랙홀은 충돌 없이 통과 (슬로우 모션만 적용)
+      if (ennemy.type === 'blackHole') {
+        continue;
+      }
+      // 화염벽: 구멍 안이거나 벽 위쪽 위를 넘으면 통과
       if (ennemy.type === 'fireWall') {
         var planeLocalY = airplane.mesh.position.y - ennemy.mesh.position.y;
+        // 구멍 안을 통과
         if (Math.abs(planeLocalY - ennemy.gapCenter) < ennemy.gapSize / 2) {
-          continue; // 구멍을 통과!
+          continue;
+        }
+        // 벽 위쪽 위를 넘어감 (위쪽 블록 최상단보다 높으면 통과)
+        var wallTopEnd = ennemy.gapCenter + ennemy.gapSize / 2 + 80;
+        if (planeLocalY > wallTopEnd) {
+          continue;
         }
       }
 
@@ -2308,6 +2348,25 @@ function loop(){
   deltaTime = newTime-oldTime;
   oldTime = newTime;
 
+  // 블랙홀 슬로우 모션: deltaTime 자체에 적용하여 전체 게임 슬로우
+  if (game.blackHoleActive) {
+    deltaTime *= game.blackHoleSlowFactor;
+  }
+
+  if (game.status=="waiting"){
+    // 시작 화면 대기: 씬만 렌더링하고, 구름/파도 애니메이션만 유지
+    sky.moveClouds();
+    sea.moveWaves();
+    sea.mesh.rotation.z += 0.0001 * deltaTime;
+    // 비행체 상하 부유 애니메이션
+    airplane.mesh.position.y = game.planeDefaultHeight + Math.sin(Date.now() * 0.0015) * 3;
+    airplane.propeller.rotation.x += 0.05;
+    if (airplane.updateWings) airplane.updateWings();
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+    return;
+  }
+
   if (game.status=="playing"){
 
     // Add energy coins every 100m;
@@ -2386,13 +2445,16 @@ function loop(){
       transformPlane("UFO");
     }
 
+    updateTurbulence();
+    checkBirdStrikeTrigger();
+    updateBirdStrike();
     updatePlane();
     updateDistance();
     updateHearts();
     game.baseSpeed += (game.targetBaseSpeed - game.baseSpeed) * deltaTime * 0.02;
     if (game.baseSpeed > game.maxSpeed) game.baseSpeed = game.maxSpeed;
     // 블랙홀 슬로우모션 적용
-    game.speed = game.baseSpeed * game.planeSpeed * game.blackHoleSlowFactor;
+    game.speed = game.baseSpeed * game.planeSpeed;
 
   }else if(game.status=="gameover"){
     game.speed *= .99;
@@ -2410,10 +2472,24 @@ function loop(){
 
   }
 
+  // 버드스트라이크 중에는 배경 요소 정지, 새떼+비행기만 업데이트
+  if (game.birdStrikeActive && game.birdStrikePhase !== 'warning') {
+    // 비행기 상하 조작만 유지 (새떼 회피용)
+    var bsMouseY = mousePos.y;
+    var bsTargetY = normalize(bsMouseY, -.75, .75, game.planeDefaultHeight - game.planeAmpHeight, game.planeDefaultHeight + game.planeAmpHeight);
+    airplane.mesh.position.y += (bsTargetY - airplane.mesh.position.y) * deltaTime * game.planeMoveSensivity;
+    airplane.mesh.rotation.z = (bsTargetY - airplane.mesh.position.y) * deltaTime * game.planeRotXSensivity;
+    camera.position.y += (airplane.mesh.position.y - camera.position.y) * deltaTime * game.cameraSensivity;
+    airplane.propeller.rotation.x += .1;
+    if (airplane.updateWings) airplane.updateWings();
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+    return;
+  }
 
   airplane.propeller.rotation.x +=.2 + game.planeSpeed * deltaTime*.005;
   if (airplane.updateWings) airplane.updateWings();
-  sea.mesh.rotation.z += game.speed*deltaTime;//*game.seaRotationSpeed;
+  sea.mesh.rotation.z += game.speed*deltaTime;
 
   if ( sea.mesh.rotation.z > 2*Math.PI)  sea.mesh.rotation.z -= 2*Math.PI;
 
@@ -2517,11 +2593,444 @@ function removeEnergy(){
 
 
 
+// ===== TURBULENCE (난기류) SYSTEM =====
+
+var turbulenceTriggerDistances = [3000, 5500, 9000, 13000, 17000, 21000];
+
+function getTurbulenceTriggerDistances() {
+  // 21000m 이후에는 4000m 간격으로 계속 추가
+  var maxDist = Math.floor(game.distance) + 5000;
+  var distances = turbulenceTriggerDistances.slice();
+  var last = distances[distances.length - 1];
+  while (last + 4000 <= maxDist) {
+    last += 4000;
+    distances.push(last);
+  }
+  return distances;
+}
+
+function updateTurbulence() {
+  // 난기류 활성 중이면 타이머 업데이트
+  if (game.turbulenceActive) {
+    game.turbulenceTimer += deltaTime;
+    if (game.turbulenceTimer >= game.turbulenceDuration) {
+      // 난기류 종료
+      game.turbulenceActive = false;
+      game.turbulenceLevel = 0;
+      game.turbulenceTimer = 0;
+    }
+    return;
+  }
+
+  // 트리거 거리 확인
+  var triggers = getTurbulenceTriggerDistances();
+  var dist = Math.floor(game.distance);
+  for (var i = 0; i < triggers.length; i++) {
+    var td = triggers[i];
+    // 거리를 지났고, 아직 트리거 안 됐으면 발동
+    if (dist >= td && game.turbulenceTriggered.indexOf(td) === -1) {
+      game.turbulenceTriggered.push(td);
+      // 레벨 1~3 랜덤
+      game.turbulenceLevel = 1 + Math.floor(Math.random() * 3);
+      game.turbulenceActive = true;
+      game.turbulenceTimer = 0;
+      showTurbulenceWarning(game.turbulenceLevel);
+      // 난기류 사운드
+      playTurbulenceSound();
+      break;
+    }
+  }
+}
+
+function showTurbulenceWarning(level) {
+  var existing = document.getElementById('turbulenceWarning');
+  if (existing) existing.remove();
+
+  var labels = ['', 'MILD', 'MODERATE', 'SEVERE'];
+  var colors = ['', '#FFD700', '#FF8C00', '#FF3333'];
+
+  var div = document.createElement('div');
+  div.id = 'turbulenceWarning';
+  div.innerHTML = '⚠️ TURBULENCE Lv.' + level + '<br><span style="font-size:0.5em;letter-spacing:0.2em;">' + labels[level] + '</span>';
+  div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
+    'font-family:Playfair Display,serif;font-size:48px;font-weight:700;color:' + colors[level] + ';' +
+    'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
+    'text-shadow:0 0 30px rgba(0,0,0,0.8),0 4px 15px rgba(0,0,0,0.5);transition:none;';
+  document.body.appendChild(div);
+
+  // 애니메이션: 나타남 → 유지 → 사라짐
+  requestAnimationFrame(function() {
+    div.style.transition = 'all 0.4s ease-out';
+    div.style.opacity = '1';
+    div.style.transform = 'translate(-50%,-50%) scale(1)';
+    setTimeout(function() {
+      div.style.transition = 'all 0.6s ease-in';
+      div.style.opacity = '0';
+      div.style.transform = 'translate(-50%,-50%) scale(1.5)';
+      setTimeout(function() {
+        if (div.parentNode) div.parentNode.removeChild(div);
+      }, 700);
+    }, 1500);
+  });
+}
+
+function playTurbulenceSound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+    // 저주파 럼블
+    var bufferSize = ctx.sampleRate * 0.5;
+    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.5;
+    }
+    var noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 400;
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.5);
+  } catch(e) {}
+}
+
+// ===== BIRD STRIKE (버드스트라이크) EVENT =====
+
+var birdStrikeTriggerDistances = [2200, 8200, 11200, 15800, 20200];
+var birdStrikeFlockMesh = null;
+var birdStrikeBirds = [];
+
+function getBirdStrikeTriggerDistances() {
+  var maxDist = Math.floor(game.distance) + 5000;
+  var distances = birdStrikeTriggerDistances.slice();
+  var last = distances[distances.length - 1];
+  while (last + 5000 <= maxDist) {
+    last += 5000;
+    distances.push(last);
+  }
+  return distances;
+}
+
+// 복셀 새 한 마리 생성
+function createBirdMesh() {
+  var bird = new THREE.Object3D();
+  var bodyMat = new THREE.MeshLambertMaterial({color: 0x2C2C2C});
+  var wingMat = new THREE.MeshLambertMaterial({color: 0x444444});
+  var beakMat = new THREE.MeshLambertMaterial({color: 0xFF8C00});
+
+  // 몸통
+  var body = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 3), bodyMat);
+  bird.add(body);
+
+  // 부리
+  var beak = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1), beakMat);
+  beak.position.set(-3.5, 0.5, 0);
+  bird.add(beak);
+
+  // 왼쪽 날개
+  var wingL = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 8), wingMat);
+  wingL.position.set(-0.5, 1, 4);
+  bird.add(wingL);
+
+  // 오른쪽 날개
+  var wingR = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 8), wingMat);
+  wingR.position.set(-0.5, 1, -4);
+  bird.add(wingR);
+
+  bird._wingL = wingL;
+  bird._wingR = wingR;
+  bird._flapTimer = Math.random() * Math.PI * 2;
+
+  return bird;
+}
+
+function checkBirdStrikeTrigger() {
+  if (game.birdStrikeActive) return;
+  var triggers = getBirdStrikeTriggerDistances();
+  var dist = Math.floor(game.distance);
+  for (var i = 0; i < triggers.length; i++) {
+    var td = triggers[i];
+    if (dist >= td && game.birdStrikeTriggered.indexOf(td) === -1) {
+      game.birdStrikeTriggered.push(td);
+      startBirdStrike();
+      break;
+    }
+  }
+}
+
+function startBirdStrike() {
+  game.birdStrikeActive = true;
+  game.birdStrikePhase = 'warning';
+  game.birdStrikeTimer = 0;
+  game.birdStrikeHit = false;
+  game.birdStrikeSavedSpeed = game.speed;
+
+  // 경고 문구 표시
+  showBirdStrikeWarning();
+
+  // 어두운 오버레이 추가
+  var overlay = document.createElement('div');
+  overlay.id = 'birdStrikeDarkOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0);z-index:500;pointer-events:none;transition:background 1s ease;';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function() {
+    overlay.style.background = 'rgba(0,0,0,0.35)';
+  });
+
+  // 경고 사운드
+  playBirdStrikeWarningSound();
+}
+
+function showBirdStrikeWarning() {
+  var existing = document.getElementById('birdStrikeWarning');
+  if (existing) existing.remove();
+
+  var div = document.createElement('div');
+  div.id = 'birdStrikeWarning';
+  div.innerHTML = '🐦 버드스트라이크 발생! 🐦<br><span style="font-size:0.45em;letter-spacing:0.15em;">위아래로 피하세요!</span>';
+  div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
+    'font-family:Playfair Display,serif;font-size:42px;font-weight:700;color:#FF4444;' +
+    'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
+    'text-shadow:0 0 30px rgba(255,0,0,0.5),0 4px 15px rgba(0,0,0,0.6);transition:none;';
+  document.body.appendChild(div);
+
+  requestAnimationFrame(function() {
+    div.style.transition = 'all 0.5s ease-out';
+    div.style.opacity = '1';
+    div.style.transform = 'translate(-50%,-50%) scale(1)';
+  });
+}
+
+function hideBirdStrikeWarning() {
+  var div = document.getElementById('birdStrikeWarning');
+  if (div) {
+    div.style.transition = 'all 0.4s ease-in';
+    div.style.opacity = '0';
+    div.style.transform = 'translate(-50%,-50%) scale(1.5)';
+    setTimeout(function() { if (div.parentNode) div.remove(); }, 500);
+  }
+}
+
+function spawnBirdFlock() {
+  // 이전 새떼 제거
+  cleanupBirdFlock();
+
+  birdStrikeFlockMesh = new THREE.Object3D();
+  birdStrikeBirds = [];
+
+  var baseY = airplane.mesh.position.y;
+
+  // 1그룹 일렬 S자: 큰 진폭으로 비행 범위 전체 커버, Z=0 고정
+  var numBirds = 100;
+  var spacing = 16;
+  var sAmplitude = 75;
+  var sFrequency = 0.025;
+
+  for (var i = 0; i < numBirds; i++) {
+    var bird = createBirdMesh();
+    var xPos = 200 + i * spacing;
+    var yPos = baseY + Math.sin(i * sFrequency * Math.PI * 2) * sAmplitude;
+    bird.position.set(xPos, yPos, 0);
+    bird._speed = 0.10;
+    bird._index = i;
+
+    birdStrikeFlockMesh.add(bird);
+    birdStrikeBirds.push(bird);
+  }
+
+  scene.add(birdStrikeFlockMesh);
+}
+
+function updateBirdStrike() {
+  if (!game.birdStrikeActive) return;
+
+  game.birdStrikeTimer += deltaTime;
+
+  // Phase 1: 경고 (1.5초)
+  if (game.birdStrikePhase === 'warning') {
+    // 비행체 서서히 감속
+    game.speed *= 0.95;
+    if (game.birdStrikeTimer >= 1500) {
+      game.birdStrikePhase = 'dodging';
+      game.birdStrikeTimer = 0;
+      game.speed = 0;
+      hideBirdStrikeWarning();
+      spawnBirdFlock();
+    }
+    return;
+  }
+
+  // Phase 2: 회피
+  if (game.birdStrikePhase === 'dodging') {
+    game.speed = 0; // 비행체 정지
+
+    var allPassed = true;
+
+    for (var i = 0; i < birdStrikeBirds.length; i++) {
+      var bird = birdStrikeBirds[i];
+      if (!bird.visible) continue;
+
+      // 오른쪽에서 왼쪽으로 이동 (소행성처럼)
+      bird.position.x -= bird._speed * deltaTime;
+
+      // 날개 퍼덕임
+      bird._flapTimer += deltaTime * 0.015;
+      if (bird._wingL) {
+        bird._wingL.rotation.x = Math.sin(bird._flapTimer) * 0.6;
+        bird._wingR.rotation.x = -Math.sin(bird._flapTimer) * 0.6;
+      }
+
+      // 아직 화면에 있는 새가 있는지
+      if (bird.position.x > -250) {
+        allPassed = false;
+      }
+
+      // 충돌 체크 (비행기와의 거리)
+      if (!game.birdStrikeHit) {
+        var dx = airplane.mesh.position.x - bird.position.x;
+        var dy = airplane.mesh.position.y - bird.position.y;
+        var dz = airplane.mesh.position.z - bird.position.z;
+        var birdDist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+        if (birdDist < 18) {
+          game.birdStrikeHit = true;
+          // 충돌 파티클
+          particlesHolder.spawnParticles(bird.position.clone(), 15, 0x2C2C2C, 3);
+          playDestroySound();
+          // 카메라 흔들림
+          game.planeCollisionSpeedY = 40;
+          game.planeCollisionSpeedX = 20;
+          removeEnergy();
+        }
+      }
+    }
+
+    // 모든 새가 지나갔거나 6초 경과
+    if (allPassed || game.birdStrikeTimer >= 6000) {
+      game.birdStrikePhase = 'result';
+      game.birdStrikeTimer = 0;
+    }
+    return;
+  }
+
+  // Phase 3: 결과 (1.5초)
+  if (game.birdStrikePhase === 'result') {
+    if (game.birdStrikeTimer < 100) {
+      // 결과 표시 (1회만)
+      cleanupBirdFlock();
+      if (!game.birdStrikeHit) {
+        // 성공! 하트 2개 보상
+        showBirdStrikeResult(true);
+        addHeart();
+        addHeart();
+        playPowerupSound();
+      } else {
+        showBirdStrikeResult(false);
+      }
+    }
+
+    // 속도 복원
+    game.speed += (game.birdStrikeSavedSpeed - game.speed) * 0.05;
+
+    if (game.birdStrikeTimer >= 1500) {
+      // 이벤트 완전 종료
+      game.birdStrikeActive = false;
+      game.birdStrikePhase = '';
+      game.speed = game.birdStrikeSavedSpeed;
+      // 어두운 오버레이 제거
+      var darkOv = document.getElementById('birdStrikeDarkOverlay');
+      if (darkOv) {
+        darkOv.style.transition = 'background 0.8s ease';
+        darkOv.style.background = 'rgba(0,0,0,0)';
+        setTimeout(function() { if (darkOv.parentNode) darkOv.remove(); }, 900);
+      }
+    }
+  }
+}
+
+function showBirdStrikeResult(success) {
+  var existing = document.getElementById('birdStrikeResult');
+  if (existing) existing.remove();
+
+  var div = document.createElement('div');
+  div.id = 'birdStrikeResult';
+  if (success) {
+    div.innerHTML = '✅ CLEAR!<br><span style="font-size:0.5em;">❤️ +2</span>';
+    div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
+      'font-family:Playfair Display,serif;font-size:52px;font-weight:700;color:#44FF44;' +
+      'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
+      'text-shadow:0 0 30px rgba(0,255,0,0.5),0 4px 15px rgba(0,0,0,0.5);transition:none;';
+  } else {
+    div.innerHTML = '💥 HIT!';
+    div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
+      'font-family:Playfair Display,serif;font-size:52px;font-weight:700;color:#FF4444;' +
+      'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
+      'text-shadow:0 0 30px rgba(255,0,0,0.5),0 4px 15px rgba(0,0,0,0.5);transition:none;';
+  }
+  document.body.appendChild(div);
+
+  requestAnimationFrame(function() {
+    div.style.transition = 'all 0.4s ease-out';
+    div.style.opacity = '1';
+    div.style.transform = 'translate(-50%,-50%) scale(1)';
+    setTimeout(function() {
+      div.style.transition = 'all 0.5s ease-in';
+      div.style.opacity = '0';
+      setTimeout(function() { if (div.parentNode) div.remove(); }, 600);
+    }, 1200);
+  });
+}
+
+function cleanupBirdFlock() {
+  if (birdStrikeFlockMesh) {
+    scene.remove(birdStrikeFlockMesh);
+    birdStrikeFlockMesh = null;
+  }
+  birdStrikeBirds = [];
+}
+
+function playBirdStrikeWarningSound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+    // 짧은 경고음 2번
+    for (var i = 0; i < 2; i++) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 800;
+      gain.gain.setValueAtTime(0.1, now + i * 0.25);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.25 + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.25);
+      osc.stop(now + i * 0.25 + 0.2);
+    }
+  } catch(e) {}
+}
+
 function updatePlane(){
 
-  game.planeSpeed = normalize(mousePos.x,-.5,.5,game.planeMinSpeed, game.planeMaxSpeed);
-  var targetY = normalize(mousePos.y,-.75,.75,game.planeDefaultHeight-game.planeAmpHeight, game.planeDefaultHeight+game.planeAmpHeight);
-  var targetX = normalize(mousePos.x,-1,1,-game.planeAmpWidth*.7, -game.planeAmpWidth);
+  // 난기류 시 마우스 입력에 노이즈 추가
+  var effMouseX = mousePos.x;
+  var effMouseY = mousePos.y;
+  if (game.turbulenceActive && game.turbulenceLevel > 0) {
+    var noiseAmp = game.turbulenceLevel * 0.08; // Lv1:0.08, Lv2:0.16, Lv3:0.24
+    var t = game.turbulenceTimer * 0.006;
+    effMouseX += Math.sin(t * 3.7) * noiseAmp + Math.sin(t * 7.1) * noiseAmp * 0.5;
+    effMouseY += Math.cos(t * 4.3) * noiseAmp + Math.cos(t * 8.9) * noiseAmp * 0.3;
+  }
+
+  game.planeSpeed = normalize(effMouseX,-.5,.5,game.planeMinSpeed, game.planeMaxSpeed);
+  var targetY = normalize(effMouseY,-.75,.75,game.planeDefaultHeight-game.planeAmpHeight, game.planeDefaultHeight+game.planeAmpHeight);
+  var targetX = normalize(effMouseX,-1,1,-game.planeAmpWidth*.7, -game.planeAmpWidth);
 
   game.planeCollisionDisplacementX += game.planeCollisionSpeedX;
   targetX += game.planeCollisionDisplacementX;
@@ -2543,6 +3052,15 @@ function updatePlane(){
   }
   camera.updateProjectionMatrix ()
   camera.position.y += (airplane.mesh.position.y - camera.position.y)*deltaTime*game.cameraSensivity;
+
+  // 난기류 카메라 흔들림
+  if (game.turbulenceActive && game.turbulenceLevel > 0) {
+    var shakeAmp = game.turbulenceLevel * 1.5; // Lv1:1.5, Lv2:3, Lv3:4.5
+    game.turbulenceCamShake.x = (Math.random() - 0.5) * shakeAmp;
+    game.turbulenceCamShake.y = (Math.random() - 0.5) * shakeAmp;
+    camera.position.x += game.turbulenceCamShake.x;
+    camera.position.y += game.turbulenceCamShake.y;
+  }
 
   game.planeCollisionSpeedX += (0-game.planeCollisionSpeedX)*deltaTime * 0.03;
   game.planeCollisionDisplacementX += (0-game.planeCollisionDisplacementX)*deltaTime *0.01;
@@ -2822,6 +3340,8 @@ async function submitScore() {
 function startReplay() {
   hideGameOver();
   resetGame();
+  game.status = "playing";
+  oldTime = new Date().getTime();
   // Reset plane to initial form
   var oldPos = airplane.mesh.position.clone();
   scene.remove(airplane.mesh);
@@ -2960,10 +3480,45 @@ function init(event){
   initRankingUI();
   initBGM();
   initPauseUI();
+  initStartScreen();
   loop();
 }
 
 window.addEventListener('load', init, false);
+
+function initStartScreen() {
+  var overlay = document.getElementById('startOverlay');
+  var playBtn = document.getElementById('playBtn');
+  if (!playBtn || !overlay) return;
+
+  function startGame() {
+    if (game.status !== 'waiting') return;
+    game.status = 'playing';
+    overlay.classList.add('hidden');
+    oldTime = new Date().getTime();
+    // BGM 시작 (사용자 제스처 내)
+    if (typeof initBGM === 'function') {
+      if (bgm && bgm.paused) bgm.play().catch(function(){});
+    }
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    setTimeout(function() {
+      if (overlay.parentNode) overlay.style.display = 'none';
+    }, 700);
+  }
+
+  playBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    startGame();
+  });
+  playBtn.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    startGame();
+  });
+}
 
 function handleKeyDown(event) {
   if (event.key === 'Escape' || event.key === 'p' || event.key === 'P') {

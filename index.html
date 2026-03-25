@@ -1,10 +1,12 @@
 <html>
 	<head>
-		<script>
-			if (window.self === window.top) {
-				window.location.href = 'https://www.finch.co.kr';
-			}
-		</script>
+		<!-- [DEV] 로컬 개발 시 주석 처리 - 배포 시 아래 주석 해제 필요
+	<script>
+		if (window.self === window.top) {
+			window.location.href = 'https://www.finch.co.kr';
+		}
+	</script>
+	-->
 		<meta charset="UTF-8" />
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -29,6 +31,17 @@
 		<![endif]-->
 	</head>
 	<body>
+		<!-- Start Screen Overlay -->
+		<div id="startOverlay" class="start-overlay">
+			<div class="start-content">
+				<h1 class="start-title">Fly Darwin</h1>
+				<p class="start-subtitle">Fly In To The Evolution</p>
+	
+				<button id="playBtn" class="start-play-btn">▶ PLAY</button>
+				<p class="start-hint">Mouse or Touch to control</p>
+			</div>
+		</div>
+
 		<div class="game-holder" id="gameHolder">
 			<div class="header"><div class="header__title-wrap"><h1>Fly Darwin</h1>
 				<h2>fly in to the evolution</h2></div><div class="score" id="score">
@@ -74,7 +87,7 @@
 							<span class="gameover-stat-label">Level</span>
 							<span class="gameover-stat-value" id="finalLevel">1</span>
 						</div>
-						<div class="gameover-stat">
+						<div class="gameover-stat gameover-stat--wide">
 							<span class="gameover-stat-label">Final Form</span>
 							<span class="gameover-stat-value gameover-stat-form" id="finalForm">Amoeba</span>
 						</div>

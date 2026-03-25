@@ -1,3 +1,121 @@
+/* ===== Start Screen Overlay ===== */
+.start-overlay {
+	position: fixed;
+	top: 0; left: 0;
+	width: 100%; height: 100%;
+	background: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+	z-index: 3000;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	animation: fadeInOverlay 0.8s ease;
+}
+
+.start-overlay.hidden {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.6s ease;
+}
+
+.start-content {
+	text-align: center;
+	animation: slideUp 0.8s ease;
+}
+
+.start-title {
+	font-family: 'Playfair Display', serif;
+	font-size: 5em;
+	font-weight: 700;
+	color: #fff;
+	margin: 0;
+	text-shadow:
+		0 0 30px rgba(212, 118, 44, 0.6),
+		0 4px 20px rgba(0, 0, 0, 0.5);
+	letter-spacing: -0.02em;
+}
+
+.start-subtitle {
+	font-family: 'Playfair Display', serif;
+	font-size: 1.1em;
+	letter-spacing: 0.4em;
+	text-transform: uppercase;
+	color: #D4762C;
+	margin: 0.3em 0 1.5em 0;
+	text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+}
+
+.start-dna {
+	font-size: 4em;
+	margin-bottom: 1.2em;
+	animation: dnaFloat 3s ease-in-out infinite;
+}
+
+@keyframes dnaFloat {
+	0%, 100% { transform: translateY(0) rotate(0deg); }
+	50% { transform: translateY(-15px) rotate(15deg); }
+}
+
+.start-play-btn {
+	margin-top: 80px;
+	font-family: 'Playfair Display', serif;
+	font-size: 1.4em;
+	font-weight: 700;
+	letter-spacing: 0.15em;
+	color: #fff;
+	background: linear-gradient(135deg, #D4762C, #E8943A);
+	border: none;
+	border-radius: 50px;
+	padding: 18px 64px;
+	cursor: pointer;
+	box-shadow:
+		0 6px 25px rgba(212, 118, 44, 0.5),
+		0 0 60px rgba(212, 118, 44, 0.2);
+	transition: transform 0.3s ease, box-shadow 0.3s ease;
+	animation: btnPulse 2s ease-in-out infinite;
+}
+
+.start-play-btn:hover {
+	transform: translateY(-3px) scale(1.05);
+	box-shadow:
+		0 10px 35px rgba(212, 118, 44, 0.6),
+		0 0 80px rgba(212, 118, 44, 0.3);
+	animation: none;
+}
+
+.start-play-btn:active {
+	transform: translateY(0) scale(0.98);
+}
+
+@keyframes btnPulse {
+	0%, 100% { box-shadow: 0 6px 25px rgba(212, 118, 44, 0.5), 0 0 60px rgba(212, 118, 44, 0.2); }
+	50% { box-shadow: 0 6px 30px rgba(212, 118, 44, 0.7), 0 0 80px rgba(212, 118, 44, 0.35); }
+}
+
+.start-hint {
+	font-family: 'Playfair Display', serif;
+	font-size: 0.85em;
+	color: rgba(255, 255, 255, 0.45);
+	margin-top: 1.5em;
+	letter-spacing: 0.15em;
+}
+
+@media screen and (max-width: 768px) {
+	.start-title {
+		font-size: 2.8em;
+	}
+	.start-subtitle {
+		font-size: 0.7em;
+		letter-spacing: 0.25em;
+	}
+	.start-dna {
+		font-size: 2.5em;
+	}
+	.start-play-btn {
+		font-size: 1.1em;
+		padding: 14px 48px;
+	}
+}
+
 .game-holder {
 	position: absolute;
 	width: 100%;
@@ -289,10 +407,9 @@
 	background: rgba(255, 255, 255, 0.05);
 	border: 1px solid rgba(255, 255, 255, 0.08);
 	border-radius: 12px;
-	padding: 14px 10px;
-	min-width: 80px;
+	padding: 14px 16px;
+	min-width: 100px;
 	flex: 1;
-	overflow: hidden;
 	transition: transform 0.2s ease;
 }
 
@@ -306,6 +423,7 @@
 	letter-spacing: 2px;
 	color: rgba(255, 255, 255, 0.5);
 	margin-bottom: 6px;
+	white-space: nowrap;
 }
 
 .gameover-stat-value {
@@ -316,11 +434,16 @@
 }
 
 .gameover-stat-form {
-	font-size: 0.95em;
+	font-size: 1.2em;
 	color: #87CEEB;
-	word-break: break-word;
+	word-break: normal;
+	white-space: nowrap;
 	text-align: center;
 	line-height: 1.2;
+}
+
+.gameover-stat--wide {
+	flex: 2;
 }
 
 .gameover-stat--full {
