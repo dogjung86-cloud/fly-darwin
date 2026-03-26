@@ -10,6 +10,68 @@ var Colors = {
 
 };
 
+var environmentThemes = [
+  { distance: 0, clearColor: 0x87CEEB },
+  { distance: 3000, clearColor: 0xE7BC8A },
+  { distance: 7000, clearColor: 0x29455B },
+  { distance: 11000, clearColor: 0x0B1026 }
+];
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function lerpNumber(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function lerpHexColor(a, b, t) {
+  var color = new THREE.Color(a);
+  color.lerp(new THREE.Color(b), t);
+  return color;
+}
+
+function getEnvironmentThemeState(distance) {
+  var d = Math.max(0, distance || 0);
+  var from = environmentThemes[0];
+  var to = environmentThemes[environmentThemes.length - 1];
+
+  for (var i = 0; i < environmentThemes.length - 1; i++) {
+    if (d >= environmentThemes[i].distance && d < environmentThemes[i + 1].distance) {
+      from = environmentThemes[i];
+      to = environmentThemes[i + 1];
+      break;
+    }
+  }
+
+  var range = Math.max(1, to.distance - from.distance);
+  var t = clamp01((d - from.distance) / range);
+
+  var state = {
+    clearColor: lerpHexColor(from.clearColor, to.clearColor, t)
+  };
+
+  if (typeof bossState !== 'undefined' && bossState.active) {
+    state.clearColor.lerp(new THREE.Color(0x120b18), 0.45);
+  }
+
+  return state;
+}
+
+function applyEnvironmentTheme() {
+  if (typeof THREE === 'undefined') return;
+
+  var state = getEnvironmentThemeState(game ? game.distance : 0);
+
+  if (scene) {
+    scene.background = state.clearColor.clone();
+  }
+
+  if (renderer) {
+    renderer.setClearColor(state.clearColor, 1);
+  }
+}
+
 ///////////////
 
 // SOUND EFFECTS (Web Audio API - no external files needed)
@@ -124,6 +186,45 @@ var oldTime = new Date().getTime();
 var ennemiesPool = [];
 var particlesPool = [];
 var particlesInUse = [];
+var thunderHeightBag = [];
+
+function refillThunderHeightBag() {
+  thunderHeightBag = [0, 1, 2, 3, 4];
+  for (var i = thunderHeightBag.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = thunderHeightBag[i];
+    thunderHeightBag[i] = thunderHeightBag[j];
+    thunderHeightBag[j] = temp;
+  }
+}
+
+function getThunderSpawnDistance() {
+  var laneCount = 5;
+  var minOffset = -(game.planeAmpHeight - 20);
+  var maxOffset = game.planeAmpHeight - 20;
+  var laneSpan = (maxOffset - minOffset) / laneCount;
+
+  if (!thunderHeightBag.length) refillThunderHeightBag();
+
+  var lane = thunderHeightBag.pop();
+  var laneMin = minOffset + lane * laneSpan;
+  var offset = laneMin + Math.random() * laneSpan;
+  offset = Math.max(minOffset + 4, Math.min(maxOffset - 4, offset));
+
+  return game.seaRadius + game.planeDefaultHeight + offset;
+}
+
+function getEnemyDestroyColor(type) {
+  var colors = {
+    mace: 0xC62828,
+    thunder: 0xFFFF00,
+    asteroid: 0x8B7355,
+    waterPillar: 0x6B9DAD,
+    fireWall: 0xFF4500,
+    blackHole: 0xFF8C00
+  };
+  return colors[type] || 0x666666;
+}
 
 function resetGame(){
   game = {speed:0,
@@ -244,6 +345,7 @@ function resetGame(){
 
           splashPlayed : false,
          };
+  refillThunderHeightBag();
   fieldLevel.innerHTML = Math.floor(game.level);
   var coinsEl = document.getElementById('coinsValue');
   if (coinsEl) coinsEl.textContent = game.coins;
@@ -291,6 +393,7 @@ function createScene() {
 
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(WIDTH, HEIGHT);
+  renderer.setClearColor(0x87CEEB, 1);
 
   renderer.shadowMap.enabled = true;
 
@@ -430,6 +533,7 @@ function createLights() {
   scene.add(hemisphereLight);
   scene.add(shadowLight);
   scene.add(ambientLight);
+  applyEnvironmentTheme();
 
 }
 
@@ -784,37 +888,40 @@ Cloud.prototype.rotate = function(){
 Ennemy = function(){
   this.mesh = new THREE.Object3D();
 
-  // Mace ball (dark iron sphere)
-  var ballGeom = new THREE.BoxGeometry(14,14,14,1,1,1);
+  // Mace ball (round iron core)
+  var ballGeom = new THREE.SphereGeometry(9, 8, 7);
   var ballMat = new THREE.MeshPhongMaterial({
-    color:0x333333,
-    shininess:30,
-    specular:0x666666,
+    color:0x2A1A1A,
+    emissive:0x220000,
+    shininess:35,
+    specular:0x885555,
     shading:THREE.FlatShading
   });
   var ball = new THREE.Mesh(ballGeom, ballMat);
+  ball.castShadow = true;
   this.mesh.add(ball);
 
-  // Spikes (sharp cones around the ball)
+  // Spikes wrapped around the ball
   var spikeMat = new THREE.MeshPhongMaterial({
-    color:0x555555,
-    shininess:40,
-    specular:0x999999,
+    color:0xC62828,
+    emissive:0x5A0A0A,
+    emissiveIntensity:0.45,
+    shininess:55,
+    specular:0xFF9A9A,
     shading:THREE.FlatShading
   });
   var spikePositions = [
-    [10,0,0], [-10,0,0], [0,10,0], [0,-10,0], [0,0,10], [0,0,-10],
-    [7,7,0], [-7,7,0], [7,-7,0], [-7,-7,0], [0,7,7], [0,-7,-7]
+    [11,0,0], [-11,0,0], [0,11,0], [0,-11,0], [0,0,11], [0,0,-11],
+    [8,8,0], [-8,8,0], [8,-8,0], [-8,-8,0],
+    [8,0,8], [-8,0,8], [8,0,-8], [-8,0,-8],
+    [0,8,8], [0,-8,8], [0,8,-8], [0,-8,-8]
   ];
   for (var i=0; i<spikePositions.length; i++){
-    var spikeGeom = new THREE.BoxGeometry(3,8,3,1,1,1);
-    spikeGeom.vertices[4].x = 0; spikeGeom.vertices[4].z = 0;
-    spikeGeom.vertices[5].x = 0; spikeGeom.vertices[5].z = 0;
-    spikeGeom.vertices[6].x = 0; spikeGeom.vertices[6].z = 0;
-    spikeGeom.vertices[7].x = 0; spikeGeom.vertices[7].z = 0;
+    var spikeGeom = new THREE.CylinderGeometry(0, 2.8, 10, 4);
     var spike = new THREE.Mesh(spikeGeom, spikeMat);
     spike.position.set(spikePositions[i][0], spikePositions[i][1], spikePositions[i][2]);
     spike.lookAt(new THREE.Vector3(spikePositions[i][0]*2, spikePositions[i][1]*2, spikePositions[i][2]*2));
+    spike.rotateX(Math.PI / 2);
     spike.castShadow = true;
     this.mesh.add(spike);
   }
@@ -909,11 +1016,11 @@ ThunderCloud = function(){
   //
   var mats = [darkMat, midMat, lightMat];
   var layers = [
-    { y: 0, count: 8, sizeRange: [8, 14], spread: 30, mat: darkMat },
-    { y: 6, count: 10, sizeRange: [7, 13], spread: 28, mat: darkMat },
-    { y: 12, count: 8, sizeRange: [8, 12], spread: 22, mat: midMat },
-    { y: 18, count: 6, sizeRange: [6, 10], spread: 16, mat: lightMat },
-    { y: 22, count: 3, sizeRange: [5, 8], spread: 10, mat: lightMat }
+    { y: 0, count: 8, sizeRange: [7, 12], spread: 25, mat: darkMat },
+    { y: 5, count: 9, sizeRange: [6, 11], spread: 23, mat: darkMat },
+    { y: 10, count: 7, sizeRange: [7, 10], spread: 18, mat: midMat },
+    { y: 15, count: 5, sizeRange: [5, 8], spread: 13, mat: lightMat },
+    { y: 18, count: 3, sizeRange: [4, 6], spread: 8, mat: lightMat }
   ];
 
   for (var l = 0; l < layers.length; l++) {
@@ -942,9 +1049,9 @@ ThunderCloud = function(){
     opacity: 0.7,
     shading: THREE.FlatShading
   });
-  var glowGeom = new THREE.BoxGeometry(8, 3, 8);
+  var glowGeom = new THREE.BoxGeometry(6, 2.5, 6);
   var glow = new THREE.Mesh(glowGeom, glowMat);
-  glow.position.set(0, -2, 0);
+  glow.position.set(0, -1.5, 0);
   this.mesh.add(glow);
 
   //
@@ -962,9 +1069,9 @@ ThunderCloud = function(){
   //
   for (var b = 0; b < 3; b++) {
     var boltGroup = new THREE.Object3D();
-    var offsetX = (b - 1) * 8 + (Math.random() - 0.5) * 4;
+    var offsetX = (b - 1) * 6 + (Math.random() - 0.5) * 2.5;
     var segments = 3 + Math.floor(Math.random() * 2);
-    var curY = -5;
+    var curY = -4;
     for (var s = 0; s < segments; s++) {
       var len = 6 + Math.random() * 5;
       var w = 3 - s * 0.4;
@@ -972,13 +1079,13 @@ ThunderCloud = function(){
       var segGeom = new THREE.BoxGeometry(w, len, w);
       var seg = new THREE.Mesh(segGeom, boltMat);
       seg.position.set(
-        offsetX + (Math.random() - 0.5) * 6,
+        offsetX + (Math.random() - 0.5) * 2,
         curY - len/2,
-        (Math.random() - 0.5) * 3
+        (Math.random() - 0.5) * 1.5
       );
-      seg.rotation.z = (Math.random() - 0.5) * 0.6;
+      seg.rotation.z = (Math.random() - 0.5) * 0.18;
       boltGroup.add(seg);
-      curY -= len * 0.75;
+      curY -= len * 0.82;
     }
     this.mesh.add(boltGroup);
     this.bolts.push(boltGroup);
@@ -999,6 +1106,7 @@ ThunderCloud = function(){
   }
 
   this.mesh.castShadow = true;
+  this.mesh.scale.set(0.88, 0.88, 0.88);
   this.angle = 0;
   this.dist = 0;
   this.type = 'thunder';
@@ -1365,7 +1473,11 @@ EnnemiesHolder.prototype.spawnEnnemies = function(){
     }
 
     ennemy.angle = - (i*0.1);
-    ennemy.distance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight-20);
+    if (ennemy.type === 'thunder') {
+      ennemy.distance = getThunderSpawnDistance();
+    } else {
+      ennemy.distance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight-20);
+    }
     ennemy.mesh.position.y = -game.seaRadius + Math.sin(ennemy.angle)*ennemy.distance;
     ennemy.mesh.position.x = Math.cos(ennemy.angle)*ennemy.distance;
 
@@ -1388,7 +1500,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     ennemy.mesh.position.y = -game.seaRadius + Math.sin(ennemy.angle)*ennemy.distance;
     ennemy.mesh.position.x = Math.cos(ennemy.angle)*ennemy.distance;
     //
-    if (ennemy.type !== 'fireWall' && ennemy.type !== 'waterPillar') {
+    if (ennemy.type !== 'fireWall' && ennemy.type !== 'waterPillar' && ennemy.type !== 'thunder') {
       ennemy.mesh.rotation.z += Math.random()*.1;
       ennemy.mesh.rotation.y += Math.random()*.1;
     }
@@ -1396,8 +1508,8 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     //
     if (ennemy.type === 'thunder') {
       ennemy.flashTimer = (ennemy.flashTimer || 0) + deltaTime;
-      //
-      ennemy.distance = (game.seaRadius + game.planeDefaultHeight) + Math.sin(ennemy.flashTimer * 0.004) * 30;
+      ennemy.mesh.rotation.set(0, 0, 0);
+      ennemy.mesh.position.y += Math.sin(ennemy.flashTimer * 0.004) * 24;
       if (ennemy.bolts) {
         var flash = Math.sin(ennemy.flashTimer * 0.01) > 0.3;
         for (var b = 0; b < ennemy.bolts.length; b++) {
@@ -1500,8 +1612,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
       }
 
       if (game.invincible) {
-        var colors = { thunder: 0xFFFF00, asteroid: 0xFF4500, waterPillar: 0x6B9DAD, fireWall: 0xFF4500, blackHole: 0xFF8C00 };
-        var pColor = colors[ennemy.type] || 0xFFD700;
+        var pColor = getEnemyDestroyColor(ennemy.type);
         particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 20, pColor, 2);
         //
         if (ennemy.type === 'blackHole') {
@@ -1513,8 +1624,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
         playInvincibleSmashSound();
         i--;
       } else {
-        var hitColors = { thunder: 0xFFFF00, asteroid: 0x8B7355, waterPillar: 0x6B9DAD, fireWall: 0xFF4500, blackHole: 0xFF8C00 };
-        var hColor = hitColors[ennemy.type] || 0x333333;
+        var hColor = getEnemyDestroyColor(ennemy.type);
         particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, hColor, 3);
         //
         if (ennemy.type === 'blackHole') {
@@ -2297,6 +2407,7 @@ function createSea(){
   sea = new Sea();
   sea.mesh.position.y = -game.seaRadius;
   scene.add(sea.mesh);
+  applyEnvironmentTheme();
 }
 
 function createSky(){
@@ -2355,6 +2466,7 @@ function loop(){
   newTime = new Date().getTime();
   deltaTime = newTime-oldTime;
   oldTime = newTime;
+  applyEnvironmentTheme();
 
   // 釉붾옓? ?щ줈??紐⑥뀡: deltaTime ?먯껜???곸슜?섏뿬 ?꾩껜 寃뚯엫 ?щ줈??
   if (game.blackHoleActive) {
@@ -2507,8 +2619,6 @@ function loop(){
 
   if ( sea.mesh.rotation.z > 2*Math.PI)  sea.mesh.rotation.z -= 2*Math.PI;
 
-  ambientLight.intensity += (.5 - ambientLight.intensity)*deltaTime*0.005;
-
   coinsHolder.rotateCoins();
   ennemiesHolder.rotateEnnemies();
   invincibleFruitHolder.rotateFruits();
@@ -2587,7 +2697,7 @@ function addHeart(){
     game.hearts++;
     var el = document.getElementById('heart' + game.hearts);
     if (el) {
-      el.textContent = '?ㅿ툘';
+      el.textContent = '❤️';
       el.className = 'heart active gain';
     }
     //
@@ -2601,7 +2711,7 @@ function showHeartPickup() {
   
   var div = document.createElement('div');
   div.id = 'heartPickupDisplay';
-  div.textContent = '?ㅿ툘';
+  div.textContent = '❤️';
   div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.3);font-size:120px;pointer-events:none;z-index:1500;opacity:0;transition:none;';
   document.body.appendChild(div);
   
@@ -2690,7 +2800,7 @@ function showTurbulenceWarning(level) {
 
   var div = document.createElement('div');
   div.id = 'turbulenceWarning';
-  div.innerHTML = '?좑툘 TURBULENCE Lv.' + level + '<br><span style="font-size:0.5em;letter-spacing:0.2em;">' + labels[level] + '</span>';
+  div.innerHTML = '⚠ TURBULENCE Lv.' + level + '<br><span style="font-size:0.5em;letter-spacing:0.2em;">' + labels[level] + '</span>';
   div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
     'font-family:Playfair Display,serif;font-size:48px;font-weight:700;color:' + colors[level] + ';' +
     'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
@@ -2930,12 +3040,12 @@ function renderRankingBoard(rankings) {
   
   if (!rankings || rankings.length === 0) {
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="5" style="color:rgba(255,255,255,0.3); padding:20px;">湲곕줉???놁뒿?덈떎</td>';
+    tr.innerHTML = '<td colspan="5" style="color:rgba(255,255,255,0.3); padding:20px;">기록이 없습니다</td>';
     tbody.appendChild(tr);
     return;
   }
   
-  var medals = ['?쪍', '?쪎', '?쪏'];
+  var medals = ['🥇', '🥈', '🥉'];
   for (var i = 0; i < rankings.length; i++) {
     var r = rankings[i];
     var tr = document.createElement('tr');
@@ -3150,14 +3260,14 @@ async function submitScore() {
   if (!name) {
     nameInput.style.borderColor = '#f25346';
     nameInput.style.boxShadow = '0 0 16px rgba(242, 83, 70, 0.3)';
-    nameInput.placeholder = '?됰꽕?꾩쓣 ?낅젰?댁＜?몄슂!';
+    nameInput.placeholder = '닉네임을 입력해주세요!';
     nameInput.focus();
     return;
   }
   
   //
   submitBtn.disabled = true;
-  submitBtn.textContent = '?깅줉 以?..';
+  submitBtn.textContent = '등록 중...';
   
   try {
     var rankings = await saveRankingToDB(name, game.distance, game.level, game.currentForm);
@@ -3166,13 +3276,13 @@ async function submitScore() {
     document.getElementById('gameOverScore').style.display = 'none';
     document.getElementById('rankingBoard').style.display = 'block';
     
-    document.querySelector('#rankingBoard .gameover-title').textContent = '?룇 ??궧';
+    document.querySelector('#rankingBoard .gameover-title').textContent = '🏆 랭킹';
     renderRankingBoard(rankings);
   } catch(e) {
-    console.error('?먯닔 ?깅줉 ?ㅻ쪟:', e);
+    console.error('점수 등록 오류:', e);
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = '?깅줉';
+    submitBtn.textContent = '등록';
   }
 }
 
@@ -4363,12 +4473,13 @@ function checkProjectileCollision(proj) {
       if (dist < 30) {
         //
         var destroyPos = enemyWorldPos.clone();
+        var destroyColor = getEnemyDestroyColor(ennemy.type);
         ennemiesHolder.mesh.remove(ennemy.mesh);
         ennemiesHolder.ennemiesInUse.splice(i, 1);
         proj.life = 0;
-        spawnDestroyParticles(destroyPos, 0x666666);
+        spawnDestroyParticles(destroyPos, destroyColor);
         playShatterSound();
-        return;
+        return true;
       }
     }
   }
@@ -4388,12 +4499,14 @@ function checkProjectileCollision(proj) {
         scene.remove(asteroid.mesh);
         flyingAsteroids.splice(j, 1);
         proj.life = 0;
-        spawnDestroyParticles(destroyPos2, 0x996633);
+        spawnDestroyParticles(destroyPos2, getEnemyDestroyColor('asteroid'));
         playShatterSound();
-        return;
+        return true;
       }
     }
   }
+
+  return false;
 }
 
 // Get the speed multiplier for slow motion
@@ -4571,9 +4684,10 @@ function destroyNearbyEnemies() {
 
       if (dist < destroyRange) {
         var dpos = wp.clone();
+        var destroyColor = getEnemyDestroyColor(ennemy.type);
         ennemiesHolder.mesh.remove(ennemy.mesh);
         ennemiesHolder.ennemiesInUse.splice(i, 1);
-        spawnDestroyParticles(dpos, 0x666666);
+        spawnDestroyParticles(dpos, destroyColor);
         playShatterSound();
       }
     }
@@ -4591,7 +4705,7 @@ function destroyNearbyEnemies() {
         var dpos2 = ast.mesh.position.clone();
         scene.remove(ast.mesh);
         flyingAsteroids.splice(j, 1);
-        spawnDestroyParticles(dpos2, 0x996633);
+        spawnDestroyParticles(dpos2, getEnemyDestroyColor('asteroid'));
         playShatterSound();
       }
     }
@@ -4956,7 +5070,7 @@ function spawnBoss(config, typeIndex) {
   var ui = document.getElementById('bossUI');
   if (ui) ui.style.display = 'block';
   var nameEl = document.getElementById('bossName');
-  if (nameEl) nameEl.textContent = '??' + config.name;
+  if (nameEl) nameEl.textContent = 'BOSS ' + config.name;
   //
   var fireUI = document.getElementById('bossFireUI');
   if (fireUI) fireUI.style.display = 'flex';
@@ -5011,6 +5125,12 @@ function updateBoss(dt) {
     var m = bossState.missiles[i];
     m.mesh.position.x += m.speed;
     m.life -= dt;
+
+    if (checkProjectileCollision(m)) {
+      scene.remove(m.mesh);
+      bossState.missiles.splice(i, 1);
+      continue;
+    }
 
     if (m.life <= 0) {
       scene.remove(m.mesh);
@@ -5183,7 +5303,7 @@ function cleanupBoss() {
 function showBossReward(amount) {
   var el = document.getElementById('levelUpText');
   if (el) {
-    el.innerHTML = '<p class="level-label">?뮗 Coin Bomb!</p><p class="level-number">+' + amount + '</p>';
+    el.innerHTML = '<p class="level-label">💰 Coin Bomb!</p><p class="level-number">+' + amount + '</p>';
     el.classList.add('show');
     setTimeout(function() {
       el.classList.remove('show');
