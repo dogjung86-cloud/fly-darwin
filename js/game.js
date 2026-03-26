@@ -1,4 +1,4 @@
-//COLORS
+﻿//COLORS
 var Colors = {
     red:0xf25346,
     white:0xd8d0d1,
@@ -18,7 +18,7 @@ function getAudioCtx() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
-  // 브라우저 자동재생 정책 대응: suspended 상태이면 resume
+  // 釉뚮씪?곗? ?먮룞?ъ깮 ?뺤콉 ??? suspended ?곹깭?대㈃ resume
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
@@ -30,7 +30,7 @@ function playPowerupSound() {
     var ctx = getAudioCtx();
     var now = ctx.currentTime;
 
-    // 상승하는 음계 (파워업 느낌)
+    // ?곸듅?섎뒗 ?뚭퀎 (?뚯썙???먮굦)
     var frequencies = [523, 659, 784, 1047]; // C5, E5, G5, C6
     for (var i = 0; i < frequencies.length; i++) {
       var osc = ctx.createOscillator();
@@ -52,7 +52,7 @@ function playDestroySound() {
     var ctx = getAudioCtx();
     var now = ctx.currentTime;
 
-    // 임팩트 톤
+    // ?꾪뙥????
     var osc = ctx.createOscillator();
     var oscGain = ctx.createGain();
     osc.type = 'triangle';
@@ -65,7 +65,7 @@ function playDestroySound() {
     osc.start(now);
     osc.stop(now + 0.3);
 
-    // 크래시 노이즈
+    // ?щ옒???몄씠利?
     var bufferSize = ctx.sampleRate * 0.25;
     var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     var data = buffer.getChannelData(0);
@@ -89,7 +89,7 @@ function playDestroySound() {
 }
 
 function playInvincibleSmashSound() {
-  // 미사일/부스터 파괴와 동일한 효과음 사용
+  // 誘몄궗??遺?ㅽ꽣 ?뚭눼? ?숈씪???④낵???ъ슜
   if (typeof playShatterSound === 'function') {
     playShatterSound();
   }
@@ -100,7 +100,7 @@ function playCoinSound() {
     var ctx = getAudioCtx();
     var now = ctx.currentTime;
 
-    // 짧은 "딩!" 동전 사운드
+    // 吏㏃? "??" ?숈쟾 ?ъ슫??
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
     osc.type = 'sine';
@@ -192,7 +192,7 @@ function resetGame(){
           ennemyLastSpawn:0,
           distanceForEnnemiesSpawn:50,
 
-          // 특수 장애물 스폰 추적
+          // ?뱀닔 ?μ븷臾??ㅽ룿 異붿쟻
           fireWallLastSpawn:0,
           distanceForFireWallSpawn:200,
           blackHoleActive:false,
@@ -202,21 +202,14 @@ function resetGame(){
           waterPillarLastSpawn:0,
           distanceForWaterPillarSpawn:150,
 
-          // Turbulence (난기류)
+          // Turbulence (?쒓린瑜?
           turbulenceActive: false,
-          turbulenceLevel: 0,       // 0: 없음, 1~3: 강도
+          turbulenceLevel: 0,       // 0: ?놁쓬, 1~3: 媛뺣룄
           turbulenceTimer: 0,
-          turbulenceDuration: 4000,  // 4초간 지속
-          turbulenceTriggered: [],   // 이미 트리거된 거리 목록
+          turbulenceDuration: 4000,  // 4珥덇컙 吏??
+          turbulenceTriggered: [],   // ?대? ?몃━嫄곕맂 嫄곕━ 紐⑸줉
           turbulenceCamShake: {x:0, y:0},
 
-          // Bird Strike (버드스트라이크)
-          birdStrikeActive: false,
-          birdStrikePhase: '', // 'warning', 'dodging', 'result'
-          birdStrikeTimer: 0,
-          birdStrikeTriggered: [],
-          birdStrikeHit: false,
-          birdStrikeSavedSpeed: 0,
 
           status : "waiting",
           
@@ -240,7 +233,7 @@ function resetGame(){
           // Invincibility
           invincible : false,
           invincibleTime : 0,
-          invincibleDuration : 5000, // 5초
+          invincibleDuration : 5000, // 5珥?
           invincibleFruitDistanceTolerance : 18,
           invincibleFruitSpeed : 0.4,
           invincibleFruitLastSpawn : 0,
@@ -269,7 +262,7 @@ var scene,
 var HEIGHT, WIDTH,
     mousePos = { x: 0, y: 0 };
 
-// 모바일 감지
+// 紐⑤컮??媛먯?
 var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768);
 
 //INIT THREE JS, SCREEN AND MOUSE EVENTS
@@ -334,7 +327,7 @@ function handleMouseMove(event) {
 
 function handleTouchStart(event) {
     var target = event.target;
-    // 일시정지 버튼/오버레이 터치 시에는 preventDefault 하지 않음
+    // ?쇱떆?뺤? 踰꾪듉/?ㅻ쾭?덉씠 ?곗튂 ?쒖뿉??preventDefault ?섏? ?딆쓬
     if (target.id === 'mobilePauseBtn' || target.id === 'pauseOverlay' || target.closest('#pauseOverlay')) {
       return;
     }
@@ -359,7 +352,7 @@ function handleMouseDown(event) {
 
   if (game.status !== 'playing') return;
 
-  // 보스전: 보스가 활성이면 바로 미사일 발사
+  // 蹂댁뒪?? 蹂댁뒪媛 ?쒖꽦?대㈃ 諛붾줈 誘몄궗??諛쒖궗
   if (typeof bossState !== 'undefined' && bossState.active) {
     fireBossMissile();
     clearInterval(mouseHoldInterval);
@@ -374,13 +367,13 @@ function handleMouseDown(event) {
     return;
   }
 
-  // 일반 능력 발동
+  // ?쇰컲 ?λ젰 諛쒕룞
   if (!abilityState || !abilityState.type) return;
 
-  // 즉시 1회 발사
+  // 利됱떆 1??諛쒖궗
   activateAbility();
 
-  // 연사 가능한 능력(미사일, 레이저)은 홀드 시 반복 발사
+  // ?곗궗 媛?ν븳 ?λ젰(誘몄궗?? ?덉씠?)? ?????諛섎났 諛쒖궗
   var isRapidFire = (abilityState.type === 'missile' || abilityState.type === 'ufo');
   if (isRapidFire) {
     clearInterval(mouseHoldInterval);
@@ -406,7 +399,7 @@ function handleMouseUp(event){
 
 
 function handleTouchEnd(event){
-  // 모바일은 하단 능력 버튼으로만 발동 (터치 이동과 충돌 방지)
+  // 紐⑤컮?쇱? ?섎떒 ?λ젰 踰꾪듉?쇰줈留?諛쒕룞 (?곗튂 ?대룞怨?異⑸룎 諛⑹?)
 }
 
 // LIGHTS
@@ -832,11 +825,11 @@ Ennemy = function(){
   this.type = 'mace';
 }
 
-// 소행성 장애물 (레벨 3+)
+// ?뚰뻾???μ븷臾?(?덈꺼 3+)
 Asteroid = function(){
   this.mesh = new THREE.Object3D();
 
-  // 불규칙한 바위 덩어리
+  // 遺덇퇋移숉븳 諛붿쐞 ?⑹뼱由?
   var rockMat = new THREE.MeshPhongMaterial({
     color: 0x8B7355,
     shininess: 10,
@@ -844,9 +837,9 @@ Asteroid = function(){
     shading: THREE.FlatShading
   });
 
-  // 큰 중앙 바위
+  // ??以묒븰 諛붿쐞
   var mainGeom = new THREE.BoxGeometry(18, 16, 18, 1, 1, 1);
-  // 꼭짓점을 랜덤하게 변형하여 불규칙한 형태 생성
+  // 瑗?쭞?먯쓣 ?쒕뜡?섍쾶 蹂?뺥븯??遺덇퇋移숉븳 ?뺥깭 ?앹꽦
   for (var i = 0; i < mainGeom.vertices.length; i++) {
     mainGeom.vertices[i].x += (Math.random() - 0.5) * 4;
     mainGeom.vertices[i].y += (Math.random() - 0.5) * 4;
@@ -855,7 +848,7 @@ Asteroid = function(){
   var mainRock = new THREE.Mesh(mainGeom, rockMat);
   this.mesh.add(mainRock);
 
-  // 작은 바위 돌기들
+  // ?묒? 諛붿쐞 ?뚭린??
   var smallRockMat = new THREE.MeshPhongMaterial({
     color: 0x9B8765,
     shininess: 5,
@@ -874,7 +867,7 @@ Asteroid = function(){
     this.mesh.add(sRock);
   }
 
-  // 붉은 빛나는 균열 효과
+  // 遺됱? 鍮쏅굹??洹좎뿴 ?④낵
   var crackMat = new THREE.MeshPhongMaterial({
     color: 0xFF4500,
     emissive: 0xFF2000,
@@ -892,11 +885,11 @@ Asteroid = function(){
   this.type = 'asteroid';
 }
 
-// 번개구름 장애물 (레벨 2+) - 복셀 스타일
+// 踰덇컻援щ쫫 ?μ븷臾?(?덈꺼 2+) - 蹂듭? ?ㅽ???
 ThunderCloud = function(){
   this.mesh = new THREE.Object3D();
 
-  // 먹구름 본체 - 여러 겹으로 두텁게
+  // 癒밴뎄由?蹂몄껜 - ?щ윭 寃뱀쑝濡??먰뀅寃?
   var darkMat = new THREE.MeshPhongMaterial({
     color: 0x3D3D3D,
     shininess: 5,
@@ -913,7 +906,7 @@ ThunderCloud = function(){
     shading: THREE.FlatShading
   });
 
-  // 아래층 (넓은 어두운 바닥)
+  // ?꾨옒痢?(?볦? ?대몢??諛붾떏)
   var mats = [darkMat, midMat, lightMat];
   var layers = [
     { y: 0, count: 8, sizeRange: [8, 14], spread: 30, mat: darkMat },
@@ -940,7 +933,7 @@ ThunderCloud = function(){
     }
   }
 
-  // 번개 발광 중심부 (구름 아래쪽에 노란 빛)
+  // 踰덇컻 諛쒓킅 以묒떖遺 (援щ쫫 ?꾨옒履쎌뿉 ?몃? 鍮?
   var glowMat = new THREE.MeshPhongMaterial({
     color: 0xFFFF88,
     emissive: 0xFFDD44,
@@ -954,7 +947,7 @@ ThunderCloud = function(){
   glow.position.set(0, -2, 0);
   this.mesh.add(glow);
 
-  // 번개 볼트 (여러 갈래 지그재그)
+  // 踰덇컻 蹂쇳듃 (?щ윭 媛덈옒 吏洹몄옱洹?
   var boltMat = new THREE.MeshPhongMaterial({
     color: 0xFFFF00,
     emissive: 0xFFCC00,
@@ -966,7 +959,7 @@ ThunderCloud = function(){
 
   this.bolts = [];
 
-  // 3갈래 번개
+  // 3媛덈옒 踰덇컻
   for (var b = 0; b < 3; b++) {
     var boltGroup = new THREE.Object3D();
     var offsetX = (b - 1) * 8 + (Math.random() - 0.5) * 4;
@@ -991,7 +984,7 @@ ThunderCloud = function(){
     this.bolts.push(boltGroup);
   }
 
-  // 떨어지는 작은 파편 블록
+  // ?⑥뼱吏???묒? ?뚰렪 釉붾줉
   var debrisMat = new THREE.MeshPhongMaterial({ color: 0x4D4D4D, shading: THREE.FlatShading });
   for (var d = 0; d < 4; d++) {
     var dGeom = new THREE.BoxGeometry(2 + Math.random()*2, 2 + Math.random()*2, 2 + Math.random()*2);
@@ -1012,11 +1005,11 @@ ThunderCloud = function(){
   this.flashTimer = 0;
 }
 
-// 날아오는 소행성 (레벨 3+) — 오른쪽에서 왼쪽으로 빠르게 날아옴
+// ?좎븘?ㅻ뒗 ?뚰뻾??(?덈꺼 3+) ???ㅻⅨ履쎌뿉???쇱そ?쇰줈 鍮좊Ⅴ寃??좎븘??
 FlyingAsteroid = function(){
   this.mesh = new THREE.Object3D();
 
-  // 둥근 암석 바디 (SphereGeometry + vertex 변형)
+  // ?κ렐 ?붿꽍 諛붾뵒 (SphereGeometry + vertex 蹂??
   var rockMat = new THREE.MeshPhongMaterial({
     color: 0xA08050,
     shininess: 8,
@@ -1035,7 +1028,7 @@ FlyingAsteroid = function(){
   mainRock.castShadow = true;
   this.mesh.add(mainRock);
 
-  // 표면 돌기 (작은 구체들)
+  // ?쒕㈃ ?뚭린 (?묒? 援ъ껜??
   var bumpMat = new THREE.MeshPhongMaterial({
     color: 0x8B6F47,
     shininess: 5,
@@ -1053,7 +1046,7 @@ FlyingAsteroid = function(){
     this.mesh.add(bump);
   }
 
-  // 빛나는 꼬리 (화염 효과)
+  // 鍮쏅굹??瑗щ━ (?붿뿼 ?④낵)
   var tailMat = new THREE.MeshPhongMaterial({
     color: 0xFF6600,
     emissive: 0xFF4400,
@@ -1071,12 +1064,12 @@ FlyingAsteroid = function(){
 
   this.mesh.castShadow = true;
   this.type = 'flyingAsteroid';
-  // 비행 관련 속성
-  this.speed = 4 + Math.random() * 2; // 수평 이동속도
+  // 鍮꾪뻾 愿???띿꽦
+  this.speed = 4 + Math.random() * 2; // ?섑룊 ?대룞?띾룄
   this.alive = true;
 }
 
-// 물기둥 (레벨 4+) — 원기둥 분수, 상단 버섯형 퍼짐
+// 臾쇨린??(?덈꺼 4+) ???먭린??遺꾩닔, ?곷떒 踰꾩꽢???쇱쭚
 WaterPillar = function(){
   this.mesh = new THREE.Object3D();
 
@@ -1090,7 +1083,7 @@ WaterPillar = function(){
     color: 0x4DB08A, transparent: true, opacity: 0.6, shading: THREE.FlatShading
   });
 
-  // 메인 원기둥 (굵은 중심 + 주변 얇은 기둥들)
+  // 硫붿씤 ?먭린??(援듭? 以묒떖 + 二쇰? ?뉗? 湲곕뫁??
   this.pillars = [];
   var centerGeom = new THREE.CylinderGeometry(4, 5, pillarHeight, 6);
   var center = new THREE.Mesh(centerGeom, waterMat);
@@ -1112,7 +1105,7 @@ WaterPillar = function(){
     this.pillars.push(col);
   }
 
-  // 상단 버섯형 퍼짐 (넓은 원반 + 아래로 흘러내리는 블록)
+  // ?곷떒 踰꾩꽢???쇱쭚 (?볦? ?먮컲 + ?꾨옒濡??섎윭?대━??釉붾줉)
   var capMat = new THREE.MeshPhongMaterial({
     color: 0x90E8C8, transparent: true, opacity: 0.5, shading: THREE.FlatShading
   });
@@ -1122,7 +1115,7 @@ WaterPillar = function(){
   cap.castShadow = true;
   this.mesh.add(cap);
 
-  // 버섯 모자 아래 흘러내리는 물줄기
+  // 踰꾩꽢 紐⑥옄 ?꾨옒 ?섎윭?대━??臾쇱쨪湲?
   for (var j = 0; j < 10; j++) {
     var ja = (j / 10) * Math.PI * 2;
     var jDist = 12 + Math.random() * 8;
@@ -1133,7 +1126,7 @@ WaterPillar = function(){
     this.mesh.add(jet);
   }
 
-  // 바닥 스플래시
+  // 諛붾떏 ?ㅽ뵆?섏떆
   var splashMat = new THREE.MeshPhongMaterial({
     color: 0xB0F0D8, transparent: true, opacity: 0.4, shading: THREE.FlatShading
   });
@@ -1152,7 +1145,7 @@ WaterPillar = function(){
   this.animTimer = 0;
 }
 
-// 화염벽 (레벨 5+) — 작은 블록 벽 + 가운데 통과 구멍 (메시 원점 기준)
+// ?붿뿼踰?(?덈꺼 5+) ???묒? 釉붾줉 踰?+ 媛?대뜲 ?듦낵 援щ찉 (硫붿떆 ?먯젏 湲곗?)
 FireWall = function(){
   this.mesh = new THREE.Object3D();
 
@@ -1164,13 +1157,13 @@ FireWall = function(){
     new THREE.MeshPhongMaterial({ color: 0xFFAA33, emissive: 0xDD8800, emissiveIntensity: 0.2, shading: THREE.FlatShading })
   ];
 
-  // 구멍 중심 (메시 원점 기준, -15 ~ +15 범위)
+  // 援щ찉 以묒떖 (硫붿떆 ?먯젏 湲곗?, -15 ~ +15 踰붿쐞)
   var gapCenter = (Math.random() - 0.5) * 30;
   var gapSize = 50;
   this.gapCenter = gapCenter;
   this.gapSize = gapSize;
 
-  // 위쪽 벽 (구멍 위) - 빽빽한 블록
+  // ?꾩そ 踰?(援щ찉 ?? - 鍮쎈뭣??釉붾줉
   var topStart = gapCenter + gapSize / 2;
   for (var i = 0; i < 80; i++) {
     var s = 1 + Math.random() * 2.5;
@@ -1187,7 +1180,7 @@ FireWall = function(){
     this.mesh.add(block);
   }
 
-  // 아래쪽 벽 (구멍 아래) - 빽빽한 블록
+  // ?꾨옒履?踰?(援щ찉 ?꾨옒) - 鍮쎈뭣??釉붾줉
   var botStart = gapCenter - gapSize / 2;
   for (var j = 0; j < 80; j++) {
     var s2 = 1 + Math.random() * 2.5;
@@ -1204,7 +1197,7 @@ FireWall = function(){
     this.mesh.add(block2);
   }
 
-  // 구멍 경계 노란 발광 블록
+  // 援щ찉 寃쎄퀎 ?몃? 諛쒓킅 釉붾줉
   var edgeMat = new THREE.MeshPhongMaterial({
     color: 0xFFFF44, emissive: 0xFFCC00, emissiveIntensity: 0.7, shading: THREE.FlatShading
   });
@@ -1229,11 +1222,11 @@ FireWall = function(){
   this.type = 'fireWall';
 }
 
-// 블랙홀 (레벨 6+) — 소용돌이 + 등장 시 30% 감속
+// 釉붾옓? (?덈꺼 6+) ???뚯슜?뚯씠 + ?깆옣 ??30% 媛먯냽
 BlackHole = function(){
   this.mesh = new THREE.Object3D();
 
-  // 중심 코어 (검은 구체)
+  // 以묒떖 肄붿뼱 (寃? 援ъ껜)
   var coreMat = new THREE.MeshPhongMaterial({
     color: 0x000000,
     shininess: 100,
@@ -1244,7 +1237,7 @@ BlackHole = function(){
   var core = new THREE.Mesh(coreGeom, coreMat);
   this.mesh.add(core);
 
-  // 강착원반 (오렌지+노란 회전 링)
+  // 媛뺤갑?먮컲 (?ㅻ젋吏+?몃? ?뚯쟾 留?
   var ringColors = [0xFF8C00, 0xFFA500, 0xFFCC44, 0xFF6600];
   this.rings = [];
   for (var r = 0; r < 4; r++) {
@@ -1279,7 +1272,7 @@ BlackHole = function(){
     this.rings.push(ringGroup);
   }
 
-  // 주변에 흩날리는 파편
+  // 二쇰????⑸궇由щ뒗 ?뚰렪
   var debrisMat = new THREE.MeshPhongMaterial({
     color: 0xCC7700,
     emissive: 0x884400,
@@ -1313,21 +1306,21 @@ EnnemiesHolder = function (){
 }
 
 EnnemiesHolder.prototype.spawnEnnemies = function(){
-  var nEnnemies = 3; // 개수는 고정, 종류가 레벨별로 증가
+  var nEnnemies = 3; // 媛쒖닔??怨좎젙, 醫낅쪟媛 ?덈꺼蹂꾨줈 利앷?
 
   for (var i=0; i<nEnnemies; i++){
     var ennemy;
 
-    // 레벨별 장애물 종류 결정 (가중치 기반)
+    // ?덈꺼蹂??μ븷臾?醫낅쪟 寃곗젙 (媛以묒튂 湲곕컲)
     var roll = Math.random();
     var chosenType = 'mace';
 
     if (game.level >= 6 && roll < 0.03) {
-      chosenType = 'blackHole'; // 3% 확률
+      chosenType = 'blackHole'; // 3% ?뺣쪧
     } else {
       var availableTypes = [];
       if (game.level >= 5) {
-        // Lv5+: 철퇴 30%, 기타 70%
+        // Lv5+: 泥좏눜 30%, 湲고? 70%
         if (Math.random() < 0.3) availableTypes.push('mace');
         availableTypes.push('thunder');
         availableTypes.push('waterPillar');
@@ -1350,9 +1343,9 @@ EnnemiesHolder.prototype.spawnEnnemies = function(){
         ennemy = new WaterPillar();
         break;
       case 'fireWall':
-        // 화염벽 최소 간격 체크
+        // ?붿뿼踰?理쒖냼 媛꾧꺽 泥댄겕
         if (Math.floor(game.distance) - game.fireWallLastSpawn < game.distanceForFireWallSpawn) {
-          ennemy = new Ennemy(); // 간격 부족하면 철퇴
+          ennemy = new Ennemy(); // 媛꾧꺽 遺議깊븯硫?泥좏눜
           ennemy.type = 'mace';
         } else {
           ennemy = new FireWall();
@@ -1388,22 +1381,22 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
 
     if (ennemy.angle > Math.PI*2) ennemy.angle -= Math.PI*2;
 
-    // 물기둥은 지면(바다 표면)에 고정
+    // 臾쇨린?μ? 吏硫?諛붾떎 ?쒕㈃)??怨좎젙
     if (ennemy.type === 'waterPillar') {
       ennemy.distance = game.seaRadius + 5;
     }
     ennemy.mesh.position.y = -game.seaRadius + Math.sin(ennemy.angle)*ennemy.distance;
     ennemy.mesh.position.x = Math.cos(ennemy.angle)*ennemy.distance;
-    // 화염벽/물기둥은 회전하지 않고 고정 자세 유지
+    // ?붿뿼踰?臾쇨린?μ? ?뚯쟾?섏? ?딄퀬 怨좎젙 ?먯꽭 ?좎?
     if (ennemy.type !== 'fireWall' && ennemy.type !== 'waterPillar') {
       ennemy.mesh.rotation.z += Math.random()*.1;
       ennemy.mesh.rotation.y += Math.random()*.1;
     }
 
-    // 번개구름 깜빡임 + 상하 이동 효과
+    // 踰덇컻援щ쫫 源쒕묀??+ ?곹븯 ?대룞 ?④낵
     if (ennemy.type === 'thunder') {
       ennemy.flashTimer = (ennemy.flashTimer || 0) + deltaTime;
-      // 상하 이동
+      // ?곹븯 ?대룞
       ennemy.distance = (game.seaRadius + game.planeDefaultHeight) + Math.sin(ennemy.flashTimer * 0.004) * 30;
       if (ennemy.bolts) {
         var flash = Math.sin(ennemy.flashTimer * 0.01) > 0.3;
@@ -1413,7 +1406,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
       }
     }
 
-    // 블랙홀 강착원반 회전 + 근접 슬로우 모션
+    // 釉붾옓? 媛뺤갑?먮컲 ?뚯쟾 + 洹쇱젒 ?щ줈??紐⑥뀡
     if (ennemy.type === 'blackHole') {
       ennemy.rotTimer = (ennemy.rotTimer || 0) + deltaTime;
       if (ennemy.rings) {
@@ -1421,29 +1414,29 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
           ennemy.rings[r].rotation.z += 0.002 * deltaTime * (1 + r * 0.3);
         }
       }
-      // 비행기와 블랙홀 사이의 거리 계산
+      // 鍮꾪뻾湲곗? 釉붾옓? ?ъ씠??嫄곕━ 怨꾩궛
       var bhWorldPos = ennemy.mesh.position.clone();
       ennemiesHolder.mesh.updateMatrixWorld();
       bhWorldPos.applyMatrix4(ennemiesHolder.mesh.matrixWorld);
       var distToPlane = airplane.mesh.position.distanceTo(bhWorldPos);
 
-      var slowRadius = 200; // 슬로우 효과 범위
-      var maxSlow = 0.12;   // 최대 슬로우 (가장 가까울 때, 원래의 12% 속도)
+      var slowRadius = 200; // ?щ줈???④낵 踰붿쐞
+      var maxSlow = 0.12;   // 理쒕? ?щ줈??(媛??媛源뚯슱 ?? ?먮옒??12% ?띾룄)
 
       if (distToPlane < slowRadius) {
-        // 거리에 비례: 가까울수록 더 느려짐 (1.0 → maxSlow)
-        var ratio = distToPlane / slowRadius; // 0(매우가까움) ~ 1(경계)
+        // 嫄곕━??鍮꾨?: 媛源뚯슱?섎줉 ???먮젮吏?(1.0 ??maxSlow)
+        var ratio = distToPlane / slowRadius; // 0(留ㅼ슦媛源뚯?) ~ 1(寃쎄퀎)
         game.blackHoleSlowFactor = maxSlow + (1.0 - maxSlow) * ratio;
         game.blackHoleActive = true;
         ennemy.hasAppliedSlow = true;
       } else if (ennemy.hasAppliedSlow) {
-        // 범위를 벗어나면 즉시 해제
+        // 踰붿쐞瑜?踰쀬뼱?섎㈃ 利됱떆 ?댁젣
         game.blackHoleSlowFactor = 1.0;
         game.blackHoleActive = false;
       }
     }
 
-    // 물기둥 기둥 높이 애니메이션
+    // 臾쇨린??湲곕뫁 ?믪씠 ?좊땲硫붿씠??
     if (ennemy.type === 'waterPillar' && ennemy.pillars) {
       ennemy.animTimer = (ennemy.animTimer || 0) + deltaTime;
       for (var p = 0; p < ennemy.pillars.length; p++) {
@@ -1452,7 +1445,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
       }
     }
 
-    // 화염벽 블록 흘러내림 애니메이션
+    // ?붿뿼踰?釉붾줉 ?섎윭?대┝ ?좊땲硫붿씠??
     if (ennemy.type === 'fireWall') {
       ennemy.fireTimer = (ennemy.fireTimer || 0) + deltaTime;
       var children = ennemy.mesh.children;
@@ -1462,21 +1455,21 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
       }
     }
 
-    // 충돌 체크
+    // 異⑸룎 泥댄겕
     var diffPos = airplane.mesh.position.clone().sub(ennemy.mesh.position.clone());
     var d = diffPos.length();
 
-    // 물기둥은 수평 거리 + 높이 범위 체크 (물기둥 위를 넘어가면 통과)
+    // 臾쇨린?μ? ?섑룊 嫄곕━ + ?믪씠 踰붿쐞 泥댄겕 (臾쇨린???꾨? ?섏뼱媛硫??듦낵)
     if (ennemy.type === 'waterPillar') {
       var planeRelY = airplane.mesh.position.y - ennemy.mesh.position.y;
       if (planeRelY > 90) {
-        d = 9999; // 물기둥 위를 지나감 - 충돌 없음
+        d = 9999; // 臾쇨린???꾨? 吏?섍컧 - 異⑸룎 ?놁쓬
       } else {
         d = Math.sqrt(diffPos.x * diffPos.x + diffPos.z * diffPos.z);
       }
     }
 
-    // 화염벽은 수평 거리로 충돌 판정 (위아래로 넓게 펼쳐진 벽)
+    // ?붿뿼踰쎌? ?섑룊 嫄곕━濡?異⑸룎 ?먯젙 (?꾩븘?섎줈 ?볤쾶 ?쇱퀜吏?踰?
     if (ennemy.type === 'fireWall') {
       d = Math.sqrt(diffPos.x * diffPos.x + diffPos.z * diffPos.z);
     }
@@ -1488,18 +1481,18 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     if (ennemy.type === 'blackHole') collisionDist = 15;
 
     if (d < collisionDist){
-      // 블랙홀은 충돌 없이 통과 (슬로우 모션만 적용)
+      // 釉붾옓?? 異⑸룎 ?놁씠 ?듦낵 (?щ줈??紐⑥뀡留??곸슜)
       if (ennemy.type === 'blackHole') {
         continue;
       }
-      // 화염벽: 구멍 안이거나 벽 위쪽 위를 넘으면 통과
+      // ?붿뿼踰? 援щ찉 ?덉씠嫄곕굹 踰??꾩そ ?꾨? ?섏쑝硫??듦낵
       if (ennemy.type === 'fireWall') {
         var planeLocalY = airplane.mesh.position.y - ennemy.mesh.position.y;
-        // 구멍 안을 통과
+        // 援щ찉 ?덉쓣 ?듦낵
         if (Math.abs(planeLocalY - ennemy.gapCenter) < ennemy.gapSize / 2) {
           continue;
         }
-        // 벽 위쪽 위를 넘어감 (위쪽 블록 최상단보다 높으면 통과)
+        // 踰??꾩そ ?꾨? ?섏뼱媛?(?꾩そ 釉붾줉 理쒖긽?⑤낫???믪쑝硫??듦낵)
         var wallTopEnd = ennemy.gapCenter + ennemy.gapSize / 2 + 80;
         if (planeLocalY > wallTopEnd) {
           continue;
@@ -1510,7 +1503,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
         var colors = { thunder: 0xFFFF00, asteroid: 0xFF4500, waterPillar: 0x6B9DAD, fireWall: 0xFF4500, blackHole: 0xFF8C00 };
         var pColor = colors[ennemy.type] || 0xFFD700;
         particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 20, pColor, 2);
-        // 블랙홀 파괴 시 슬로우 해제
+        // 釉붾옓? ?뚭눼 ???щ줈???댁젣
         if (ennemy.type === 'blackHole') {
           game.blackHoleSlowFactor = 1.0;
           game.blackHoleActive = false;
@@ -1523,14 +1516,14 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
         var hitColors = { thunder: 0xFFFF00, asteroid: 0x8B7355, waterPillar: 0x6B9DAD, fireWall: 0xFF4500, blackHole: 0xFF8C00 };
         var hColor = hitColors[ennemy.type] || 0x333333;
         particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, hColor, 3);
-        // 블랙홀 파괴 시 슬로우 해제
+        // 釉붾옓? ?뚭눼 ???щ줈???댁젣
         if (ennemy.type === 'blackHole') {
           game.blackHoleSlowFactor = 1.0;
           game.blackHoleActive = false;
         }
         this.ennemiesInUse.splice(i,1);
         this.mesh.remove(ennemy.mesh);
-        // 물기둥/화염벽은 넉백을 약하게 (수평 거리 체크라 Y차이가 큼)
+        // 臾쇨린???붿뿼踰쎌? ?됰갚???쏀븯寃?(?섑룊 嫄곕━ 泥댄겕??Y李⑥씠媛 ??
         if (ennemy.type === 'waterPillar' || ennemy.type === 'fireWall') {
           game.planeCollisionSpeedX = 30 * diffPos.x / d;
           game.planeCollisionSpeedY = 20;
@@ -1540,7 +1533,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
         }
         ambientLight.intensity = 2;
 
-        // 번개구름/화염벽은 에너지 2배 감소
+        // 踰덇컻援щ쫫/?붿뿼踰쎌? ?먮꼫吏 2諛?媛먯냼
         if (ennemy.type === 'thunder' || ennemy.type === 'fireWall') {
           playDestroySound();
           removeEnergy();
@@ -1552,7 +1545,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
         i--;
       }
     }else if (ennemy.angle > Math.PI){
-      // 블랙홀이 사라지면 슬로우 해제
+      // 釉붾옓????щ씪吏硫??щ줈???댁젣
       if (ennemy.type === 'blackHole' && ennemy.hasAppliedSlow) {
         game.blackHoleSlowFactor = 1.0;
         game.blackHoleActive = false;
@@ -1564,14 +1557,14 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
   }
 }
 
-// ===== 날아오는 소행성 전용 관리 (직선 이동) =====
+// ===== ?좎븘?ㅻ뒗 ?뚰뻾???꾩슜 愿由?(吏곸꽑 ?대룞) =====
 var flyingAsteroids = [];
 
 function spawnFlyingAsteroid() {
   var asteroid = new FlyingAsteroid();
-  // 화면 오른쪽 밖에서 시작
+  // ?붾㈃ ?ㅻⅨ履?諛뽰뿉???쒖옉
   asteroid.mesh.position.x = 250;
-  // 비행체 높이 근처 랜덤 y
+  // 鍮꾪뻾泥??믪씠 洹쇱쿂 ?쒕뜡 y
   asteroid.mesh.position.y = game.planeDefaultHeight + (Math.random() - 0.5) * game.planeAmpHeight;
   asteroid.mesh.position.z = -50 + Math.random() * 100;
   scene.add(asteroid.mesh);
@@ -1581,12 +1574,12 @@ function spawnFlyingAsteroid() {
 function updateFlyingAsteroids() {
   for (var i = flyingAsteroids.length - 1; i >= 0; i--) {
     var a = flyingAsteroids[i];
-    // 오른쪽에서 왼쪽으로 빠르게 이동
+    // ?ㅻⅨ履쎌뿉???쇱そ?쇰줈 鍮좊Ⅴ寃??대룞
     a.mesh.position.x -= a.speed * deltaTime * 0.1;
     a.mesh.rotation.z += 0.02 * deltaTime * 0.1;
     a.mesh.rotation.y += 0.015 * deltaTime * 0.1;
 
-    // 비행체와 충돌 체크
+    // 鍮꾪뻾泥댁? 異⑸룎 泥댄겕
     var diffPos = airplane.mesh.position.clone().sub(a.mesh.position.clone());
     var d = diffPos.length();
 
@@ -1607,7 +1600,7 @@ function updateFlyingAsteroids() {
       continue;
     }
 
-    // 화면 밖으로 나가면 제거
+    // ?붾㈃ 諛뽰쑝濡??섍?硫??쒓굅
     if (a.mesh.position.x < -300) {
       scene.remove(a.mesh);
       flyingAsteroids.splice(i, 1);
@@ -1615,7 +1608,7 @@ function updateFlyingAsteroids() {
   }
 }
 
-// ===== 레벨업 텍스트 표시 =====
+// ===== ?덈꺼???띿뒪???쒖떆 =====
 function showLevelUpText(level) {
   var el = document.getElementById('levelUpText');
   if (!el) return;
@@ -1682,7 +1675,7 @@ ParticlesHolder.prototype.spawnParticles = function(pos, density, color, scale){
 }
 
 Coin = function(){
-  // TheAviator2 스타일 동전 (금색 원통)
+  // TheAviator2 ?ㅽ????숈쟾 (湲덉깋 ?먰넻)
   var geom = new THREE.CylinderGeometry(4, 4, 1, 10);
   var mat = new THREE.MeshPhongMaterial({
     color: 0xFFD700,
@@ -1760,7 +1753,7 @@ CoinsHolder.prototype.rotateCoins = function(){
 InvincibleFruit = function(){
   this.mesh = new THREE.Object3D();
 
-  // 별 모양 코어 (금빛 구체)
+  // 蹂?紐⑥뼇 肄붿뼱 (湲덈튆 援ъ껜)
   var coreGeom = new THREE.SphereGeometry(6, 6, 4);
   var coreMat = new THREE.MeshPhongMaterial({
     color: 0xFFD700,
@@ -1773,7 +1766,7 @@ InvincibleFruit = function(){
   var core = new THREE.Mesh(coreGeom, coreMat);
   this.mesh.add(core);
 
-  // 스파이크 (별 빛살)
+  // ?ㅽ뙆?댄겕 (蹂?鍮쏆궡)
   var spikeMat = new THREE.MeshPhongMaterial({
     color: 0xFFEE44,
     emissive: 0xFFAA00,
@@ -1786,7 +1779,7 @@ InvincibleFruit = function(){
   ];
   for (var i = 0; i < spikePositions.length; i++){
     var spikeGeom = new THREE.BoxGeometry(3, 7, 3, 1, 1, 1);
-    // 뾰족하게
+    // 毓곗”?섍쾶
     spikeGeom.vertices[4].x = 0; spikeGeom.vertices[4].z = 0;
     spikeGeom.vertices[5].x = 0; spikeGeom.vertices[5].z = 0;
     spikeGeom.vertices[6].x = 0; spikeGeom.vertices[6].z = 0;
@@ -1823,10 +1816,10 @@ InvincibleFruitHolder.prototype.spawnFruit = function(){
   this.fruitsInUse.push(fruit);
   fruit.angle = 0;
 
-  // 장애물과 겹치지 않는 위치 찾기
+  // ?μ븷臾쇨낵 寃뱀튂吏 ?딅뒗 ?꾩튂 李얘린
   var safeDistance = 0;
   var attempts = 0;
-  var minSeparation = 40; // 장애물과 최소 이격 거리
+  var minSeparation = 40; // ?μ븷臾쇨낵 理쒖냼 ?닿꺽 嫄곕━
   do {
     safeDistance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight - 20);
     var tooClose = false;
@@ -1852,7 +1845,7 @@ InvincibleFruitHolder.prototype.rotateFruits = function(){
     if (fruit.angle > Math.PI * 2) fruit.angle -= Math.PI * 2;
     fruit.mesh.position.y = -game.seaRadius + Math.sin(fruit.angle) * fruit.distance;
     fruit.mesh.position.x = Math.cos(fruit.angle) * fruit.distance;
-    // 빙글빙글 회전 + 떠다니는 효과
+    // 鍮숆?鍮숆? ?뚯쟾 + ?좊떎?덈뒗 ?④낵
     fruit.mesh.rotation.y += 0.05;
     fruit.mesh.rotation.z += 0.03;
 
@@ -1878,7 +1871,7 @@ InvincibleFruitHolder.prototype.rotateFruits = function(){
 HeartItem = function(){
   this.mesh = new THREE.Object3D();
 
-  // THREE.Shape으로 실제 하트 곡선 생성
+  // THREE.Shape?쇰줈 ?ㅼ젣 ?섑듃 怨≪꽑 ?앹꽦
   var heartShape = new THREE.Shape();
   heartShape.moveTo(0, 0);
   heartShape.bezierCurveTo(0, -3, -5, -8, -10, -8);
@@ -1907,7 +1900,7 @@ HeartItem = function(){
   });
   var heart = new THREE.Mesh(heartGeom, heartMat);
   heart.scale.set(0.5, 0.5, 0.5);
-  heart.rotation.z = Math.PI; // 뒤집어서 하트 모양
+  heart.rotation.z = Math.PI; // ?ㅼ쭛?댁꽌 ?섑듃 紐⑥뼇
   heart.position.set(0, 5, -1);
   this.mesh.add(heart);
 
@@ -1926,7 +1919,7 @@ HeartItemHolder = function(n){
 }
 
 HeartItemHolder.prototype.spawnItem = function(){
-  // 하트가 이미 최대면 스폰하지 않음
+  // ?섑듃媛 ?대? 理쒕?硫??ㅽ룿?섏? ?딆쓬
   if (game.hearts >= game.maxHearts) return;
 
   var item;
@@ -1976,7 +1969,7 @@ function activateInvincible(){
   game.invincible = true;
   game.invincibleTime = game.invincibleDuration;
 
-  // 비행체에 금빛 글로우 추가
+  // 鍮꾪뻾泥댁뿉 湲덈튆 湲濡쒖슦 異붽?
   if (!invincibleGlow){
     var glowGeom = new THREE.SphereGeometry(120, 8, 6);
     var glowMat = new THREE.MeshPhongMaterial({
@@ -2010,7 +2003,7 @@ function updateInvincible(){
   if (!game.invincible) return;
   game.invincibleTime -= deltaTime;
 
-  // 글로우 깜빡임 (마지막 1초)
+  // 湲濡쒖슦 源쒕묀??(留덉?留?1珥?
   if (invincibleGlow){
     if (game.invincibleTime < 1000){
       invincibleGlow.material.opacity = 0.15 * (0.5 + 0.5 * Math.sin(game.invincibleTime * 0.02));
@@ -2066,7 +2059,7 @@ function createNewCharacter(formString) {
   }
 }
 
-// 재귀적으로 모든 Mesh 자식을 수집
+// ?ш??곸쑝濡?紐⑤뱺 Mesh ?먯떇???섏쭛
 function collectMeshes(obj, list) {
   if (!list) list = [];
   if (obj instanceof THREE.Mesh) {
@@ -2078,13 +2071,13 @@ function collectMeshes(obj, list) {
   return list;
 }
 
-// 메시의 월드(로컬 기준) 위치를 부모 기준으로 가져오기
+// 硫붿떆???붾뱶(濡쒖뺄 湲곗?) ?꾩튂瑜?遺紐?湲곗??쇰줈 媛?몄삤湲?
 function getLocalTransform(mesh, rootParent) {
   var pos = new THREE.Vector3();
   var scale = new THREE.Vector3();
   var quat = new THREE.Quaternion();
   
-  // 임시로 월드 매트릭스를 업데이트해서 루트 기준 좌표를 구함
+  // ?꾩떆濡??붾뱶 留ㅽ듃由?뒪瑜??낅뜲?댄듃?댁꽌 猷⑦듃 湲곗? 醫뚰몴瑜?援ы븿
   rootParent.updateMatrixWorld(true);
   
   var worldMatrix = mesh.matrixWorld.clone();
@@ -2108,7 +2101,7 @@ function showEvolutionText() {
   
   var div = document.createElement('div');
   div.id = 'evolutionText';
-  div.textContent = '✦ Evolution ✦';
+  div.textContent = '??Evolution ??;
   div.style.cssText = 'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%) scale(0.5);font-family:Playfair Display,serif;font-size:28px;font-weight:700;color:#FFD700;text-shadow:0 0 20px rgba(255,215,0,0.8),0 0 40px rgba(255,215,0,0.4);pointer-events:none;z-index:1500;opacity:0;letter-spacing:3px;';
   document.body.appendChild(div);
   
@@ -2129,11 +2122,11 @@ function showEvolutionText() {
 }
 
 function transformPlane(newFormString) {
-  // 이미 변신 중이면 무시
+  // ?대? 蹂??以묒씠硫?臾댁떆
   if (game.transforming) return;
   game.transforming = true;
   
-  // 비행체 진화 텍스트 표시
+  // 鍮꾪뻾泥?吏꾪솕 ?띿뒪???쒖떆
   showEvolutionText();
   
   var oldAirplane = airplane;
@@ -2141,14 +2134,14 @@ function transformPlane(newFormString) {
   var oldRot = airplane.mesh.rotation.clone();
   var oldScale = airplane.mesh.scale.clone();
   
-  // 기존 비행체의 모든 메시 블록 수집
+  // 湲곗〈 鍮꾪뻾泥댁쓽 紐⑤뱺 硫붿떆 釉붾줉 ?섏쭛
   var oldMeshes = collectMeshes(oldAirplane.mesh);
   var oldTransforms = [];
   for (var i = 0; i < oldMeshes.length; i++) {
     oldTransforms.push(getLocalTransform(oldMeshes[i], oldAirplane.mesh));
   }
   
-  // 새 비행체 생성 (아직 씬에 추가 안 함)
+  // ??鍮꾪뻾泥??앹꽦 (?꾩쭅 ?ъ뿉 異붽? ????
   var newAirplane = createNewCharacter(newFormString);
   newAirplane.mesh.scale.copy(oldScale);
   newAirplane.mesh.position.copy(oldPos);
@@ -2160,7 +2153,7 @@ function transformPlane(newFormString) {
     newTransforms.push(getLocalTransform(newMeshes[i], newAirplane.mesh));
   }
   
-  // 변신 컨테이너: 기존 비행체를 제거하고, flat한 블록들로 구성
+  // 蹂??而⑦뀒?대꼫: 湲곗〈 鍮꾪뻾泥대? ?쒓굅?섍퀬, flat??釉붾줉?ㅻ줈 援ъ꽦
   scene.remove(oldAirplane.mesh);
   
   var morphContainer = new THREE.Object3D();
@@ -2169,13 +2162,13 @@ function transformPlane(newFormString) {
   morphContainer.scale.copy(oldScale);
   scene.add(morphContainer);
   
-  // 기존 블록들을 morphContainer의 직속 자식으로 재배치
+  // 湲곗〈 釉붾줉?ㅼ쓣 morphContainer??吏곸냽 ?먯떇?쇰줈 ?щ같移?
   var morphBlocks = [];
   for (var i = 0; i < oldMeshes.length; i++) {
     var block = oldMeshes[i];
     var t = oldTransforms[i];
     
-    // 새 메시를 만들어서 같은 geometry와 material clone 사용
+    // ??硫붿떆瑜?留뚮뱾?댁꽌 媛숈? geometry? material clone ?ъ슜
     var newMat = block.material.clone();
     var morphBlock = new THREE.Mesh(block.geometry.clone(), newMat);
     morphBlock.position.set(t.x, t.y, t.z);
@@ -2187,10 +2180,10 @@ function transformPlane(newFormString) {
     morphBlocks.push(morphBlock);
   }
   
-  // 블록 수가 다를 때 처리
+  // 釉붾줉 ?섍? ?ㅻ? ??泥섎━
   var maxBlocks = Math.max(oldTransforms.length, newTransforms.length);
   
-  // 새 형태의 블록이 더 많으면: 추가 블록을 중앙에서 생성
+  // ???뺥깭??釉붾줉????留롮쑝硫? 異붽? 釉붾줉??以묒븰?먯꽌 ?앹꽦
   while (morphBlocks.length < maxBlocks) {
     var srcIdx = morphBlocks.length % oldTransforms.length;
     var srcBlock = morphBlocks[srcIdx];
@@ -2205,7 +2198,7 @@ function transformPlane(newFormString) {
     morphBlocks.push(extraBlock);
   }
   
-  // 애니메이션 시간
+  // ?좊땲硫붿씠???쒓컙
   var morphDuration = 1.2;
   var completedCount = 0;
   
@@ -2214,31 +2207,31 @@ function transformPlane(newFormString) {
     var delay = Math.random() * 0.3;
     
     if (i < newTransforms.length) {
-      // 목표가 있는 블록: 새 위치/크기/색으로 이동
+      // 紐⑺몴媛 ?덈뒗 釉붾줉: ???꾩튂/?ш린/?됱쑝濡??대룞
       var target = newTransforms[i];
       
-      // 위치 애니메이션
+      // ?꾩튂 ?좊땲硫붿씠??
       TweenMax.to(block.position, morphDuration, {
         x: target.x, y: target.y, z: target.z,
         delay: delay,
         ease: Power2.easeInOut
       });
       
-      // 회전 애니메이션
+      // ?뚯쟾 ?좊땲硫붿씠??
       TweenMax.to(block.rotation, morphDuration, {
         x: target.rx, y: target.ry, z: target.rz,
         delay: delay,
         ease: Power2.easeInOut
       });
       
-      // 스케일 애니메이션
+      // ?ㅼ????좊땲硫붿씠??
       TweenMax.to(block.scale, morphDuration, {
         x: target.sx, y: target.sy, z: target.sz,
         delay: delay,
         ease: Power2.easeInOut
       });
       
-      // 색상 애니메이션
+      // ?됱긽 ?좊땲硫붿씠??
       var targetColor = new THREE.Color(target.color);
       TweenMax.to(block.material.color, morphDuration, {
         r: targetColor.r, g: targetColor.g, b: targetColor.b,
@@ -2248,7 +2241,7 @@ function transformPlane(newFormString) {
       });
       
     } else {
-      // 남는 블록: 축소되며 사라짐
+      // ?⑤뒗 釉붾줉: 異뺤냼?섎ŉ ?щ씪吏?
       TweenMax.to(block.scale, morphDuration * 0.6, {
         x: 0.01, y: 0.01, z: 0.01,
         delay: delay,
@@ -2256,14 +2249,14 @@ function transformPlane(newFormString) {
       });
     }
     
-    // 마지막 블록의 완료 콜백으로 전환 마무리
+    // 留덉?留?釉붾줉???꾨즺 肄쒕갚?쇰줈 ?꾪솚 留덈Т由?
     if (i === maxBlocks - 1) {
       TweenMax.to({}, morphDuration + 0.35, {
         onComplete: function() {
-          // morphContainer 제거
+          // morphContainer ?쒓굅
           scene.remove(morphContainer);
           
-          // 실제 새 비행체로 교체
+          // ?ㅼ젣 ??鍮꾪뻾泥대줈 援먯껜
           airplane = newAirplane;
           airplane.mesh.position.copy(morphContainer.position);
           airplane.mesh.rotation.copy(morphContainer.rotation);
@@ -2273,10 +2266,10 @@ function transformPlane(newFormString) {
           game.currentForm = newFormString;
           game.transforming = false;
           
-          // 파티클 이펙트 (변신 완료 강조)
+          // ?뚰떚???댄럺??(蹂???꾨즺 媛뺤“)
           particlesHolder.spawnParticles(airplane.mesh.position.clone(), 15, 0xFFFFFF, 1.2);
           
-          // 무적 상태가 활성화되어 있으면 글로우를 새 비행체에 다시 붙여줌
+          // 臾댁쟻 ?곹깭媛 ?쒖꽦?붾릺???덉쑝硫?湲濡쒖슦瑜???鍮꾪뻾泥댁뿉 ?ㅼ떆 遺숈뿬以?
           if (game.invincible && invincibleGlow) {
             invincibleGlow.visible = true;
             if (invincibleGlow.parent) {
@@ -2289,8 +2282,8 @@ function transformPlane(newFormString) {
     }
   }
   
-  // morphContainer가 airplane과 동일하게 움직이도록 임시 airplane 설정
-  // propeller와 pilot이 필요하므로 더미 설정
+  // morphContainer媛 airplane怨??숈씪?섍쾶 ?吏곸씠?꾨줉 ?꾩떆 airplane ?ㅼ젙
+  // propeller? pilot???꾩슂?섎?濡??붾? ?ㅼ젙
   airplane = {
     mesh: morphContainer,
     propeller: { rotation: { x: 0 } },
@@ -2363,17 +2356,17 @@ function loop(){
   deltaTime = newTime-oldTime;
   oldTime = newTime;
 
-  // 블랙홀 슬로우 모션: deltaTime 자체에 적용하여 전체 게임 슬로우
+  // 釉붾옓? ?щ줈??紐⑥뀡: deltaTime ?먯껜???곸슜?섏뿬 ?꾩껜 寃뚯엫 ?щ줈??
   if (game.blackHoleActive) {
     deltaTime *= game.blackHoleSlowFactor;
   }
 
   if (game.status=="waiting"){
-    // 시작 화면 대기: 씬만 렌더링하고, 구름/파도 애니메이션만 유지
+    // ?쒖옉 ?붾㈃ ?湲? ?щ쭔 ?뚮뜑留곹븯怨? 援щ쫫/?뚮룄 ?좊땲硫붿씠?섎쭔 ?좎?
     sky.moveClouds();
     sea.moveWaves();
     sea.mesh.rotation.z += 0.0001 * deltaTime;
-    // 비행체 상하 부유 애니메이션
+    // 鍮꾪뻾泥??곹븯 遺???좊땲硫붿씠??
     airplane.mesh.position.y = game.planeDefaultHeight + Math.sin(Date.now() * 0.0015) * 3;
     airplane.propeller.rotation.x += 0.05;
     if (airplane.updateWings) airplane.updateWings();
@@ -2413,13 +2406,13 @@ function loop(){
       ennemiesHolder.spawnEnnemies();
     }
 
-    // 날아오는 소행성 스폰 (Lv3+)
+    // ?좎븘?ㅻ뒗 ?뚰뻾???ㅽ룿 (Lv3+)
     if (game.level >= 3 && Math.floor(game.distance) - game.flyingAsteroidLastSpawn >= game.distanceForFlyingAsteroidSpawn){
       game.flyingAsteroidLastSpawn = Math.floor(game.distance);
       spawnFlyingAsteroid();
     }
 
-    // 날아오는 소행성 업데이트
+    // ?좎븘?ㅻ뒗 ?뚰뻾???낅뜲?댄듃
     updateFlyingAsteroids();
 
     var expectedLevel = Math.floor(game.distance / game.distanceForLevelUpdate) + 1;
@@ -2431,7 +2424,7 @@ function loop(){
       game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel*game.level
     }
 
-    // Checking for Transformation (상점 비행체 선택 시 진화 없음)
+    // Checking for Transformation (?곸젏 鍮꾪뻾泥??좏깮 ??吏꾪솕 ?놁쓬)
     if (!shopState.selectedVehicle) {
       if (game.distance > game.transformDistance1 && game.currentForm === "Amoeba") {
         transformPlane("Anomalocaris");
@@ -2456,7 +2449,7 @@ function loop(){
     }
 
     updateTurbulence();
-    // 보스전 시스템
+    // 蹂댁뒪???쒖뒪??
     try {
       if (typeof checkBossTrigger === 'function') checkBossTrigger();
       if (typeof updateBoss === 'function') updateBoss(deltaTime);
@@ -2466,11 +2459,11 @@ function loop(){
     updateHearts();
     game.baseSpeed += (game.targetBaseSpeed - game.baseSpeed) * deltaTime * 0.02;
     if (game.baseSpeed > game.maxSpeed) game.baseSpeed = game.maxSpeed;
-    // 블랙홀 슬로우모션 적용 + 능력 속도 멀티플라이어
+    // 釉붾옓? ?щ줈?곕え???곸슜 + ?λ젰 ?띾룄 硫?고뵆?쇱씠??
     var abilityMult = (typeof getAbilitySpeedMultiplier === 'function') ? getAbilitySpeedMultiplier() : 1.0;
     game.speed = game.baseSpeed * game.planeSpeed * abilityMult;
 
-    // 능력 시스템 업데이트
+    // ?λ젰 ?쒖뒪???낅뜲?댄듃
     if (typeof updateAbilities === 'function') updateAbilities(deltaTime);
     if (typeof updateDestroyParticles === 'function') updateDestroyParticles(deltaTime);
 
@@ -2481,21 +2474,21 @@ function loop(){
     game.planeFallSpeed *= 1.05;
     airplane.mesh.position.y -= game.planeFallSpeed*deltaTime;
 
-    // 바다 표면에 닿을 때 효과음 (1회만)
+    // 諛붾떎 ?쒕㈃???우쓣 ???④낵??(1?뚮쭔)
     if (airplane.mesh.position.y < 10 && !game.splashPlayed) {
       game.splashPlayed = true;
       playWaterSplashSound();
     }
 
     if (airplane.mesh.position.y <-200){
-      // 컨티뉴 가능하면 컨티뉴 선택 화면, 아니면 바로 게임오버
+      // 而⑦떚??媛?ν븯硫?而⑦떚???좏깮 ?붾㈃, ?꾨땲硫?諛붾줈 寃뚯엫?ㅻ쾭
       showContinuePrompt();
       game.status = "continuePrompt";
       if (typeof hideAbilityUI === 'function') hideAbilityUI();
       if (typeof cleanupProjectiles === 'function') cleanupProjectiles();
     }
   }else if(game.status=="continuePrompt"){
-    // 컨티뉴 선택 대기 중: 비행기 부유 + 씬 렌더링 유지
+    // 而⑦떚???좏깮 ?湲?以? 鍮꾪뻾湲?遺??+ ???뚮뜑留??좎?
     sky.moveClouds();
     sea.moveWaves();
     sea.mesh.rotation.z += 0.0001 * deltaTime;
@@ -2504,20 +2497,8 @@ function loop(){
 
   }
 
-  // 버드스트라이크 중에는 배경 요소 정지, 새떼+비행기만 업데이트
-  if (game.birdStrikeActive && game.birdStrikePhase !== 'warning') {
-    // 비행기 상하 조작만 유지 (새떼 회피용)
-    var bsMouseY = mousePos.y;
-    var bsTargetY = normalize(bsMouseY, -.75, .75, game.planeDefaultHeight - game.planeAmpHeight, game.planeDefaultHeight + game.planeAmpHeight);
-    airplane.mesh.position.y += (bsTargetY - airplane.mesh.position.y) * deltaTime * game.planeMoveSensivity;
-    airplane.mesh.rotation.z = (bsTargetY - airplane.mesh.position.y) * deltaTime * game.planeRotXSensivity;
-    camera.position.y += (airplane.mesh.position.y - camera.position.y) * deltaTime * game.cameraSensivity;
-    airplane.propeller.rotation.x += .1;
-    if (airplane.updateWings) airplane.updateWings();
-    renderer.render(scene, camera);
-    requestAnimationFrame(loop);
-    return;
-  }
+
+
 
   airplane.propeller.rotation.x +=.2 + game.planeSpeed * deltaTime*.005;
   if (airplane.updateWings) airplane.updateWings();
@@ -2549,11 +2530,11 @@ function updateDistance(){
 }
 
 function updateHearts(){
-  // 하트 UI 동적 업데이트
+  // ?섑듃 UI ?숈쟻 ?낅뜲?댄듃
   var container = document.querySelector('.score__value--hearts');
   if (!container) return;
 
-  // maxHearts가 변경되었으면 하트 요소 재생성
+  // maxHearts媛 蹂寃쎈릺?덉쑝硫??섑듃 ?붿냼 ?ъ깮??
   var currentCount = container.children.length;
   if (currentCount !== game.maxHearts) {
     container.innerHTML = '';
@@ -2569,10 +2550,10 @@ function updateHearts(){
     var el = document.getElementById('heart' + i);
     if (!el) continue;
     if (i <= game.hearts) {
-      el.textContent = '❤️';
+      el.textContent = '?ㅿ툘';
       el.className = 'heart active';
     } else {
-      el.textContent = '🖤';
+      el.textContent = '?뼡';
       el.className = 'heart lost';
     }
   }
@@ -2584,11 +2565,11 @@ function updateHearts(){
 
 function addCoin(){
   var coinMultiplier = 1;
-  // 여객기: 코인 X3
+  // ?ш컼湲? 肄붿씤 X3
   if (shopState && shopState.selectedVehicle === 'Jetliner') {
     coinMultiplier = 3;
   }
-  // 코인 부스터 업그레이드: X2
+  // 肄붿씤 遺?ㅽ꽣 ?낃렇?덉씠?? X2
   if (shopState && shopState.purchasedUpgrades && shopState.purchasedUpgrades.indexOf('coinBooster') !== -1) {
     coinMultiplier *= 2;
   }
@@ -2605,10 +2586,10 @@ function addHeart(){
     game.hearts++;
     var el = document.getElementById('heart' + game.hearts);
     if (el) {
-      el.textContent = '❤️';
+      el.textContent = '?ㅿ툘';
       el.className = 'heart active gain';
     }
-    // 화면 중앙에 하트 표시 효과
+    // ?붾㈃ 以묒븰???섑듃 ?쒖떆 ?④낵
     showHeartPickup();
   }
 }
@@ -2619,11 +2600,11 @@ function showHeartPickup() {
   
   var div = document.createElement('div');
   div.id = 'heartPickupDisplay';
-  div.textContent = '❤️';
+  div.textContent = '?ㅿ툘';
   div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.3);font-size:120px;pointer-events:none;z-index:1500;opacity:0;transition:none;';
   document.body.appendChild(div);
   
-  // 애니메이션: 크게 나타났다 사라짐
+  // ?좊땲硫붿씠?? ?ш쾶 ?섑??щ떎 ?щ씪吏?
   requestAnimationFrame(function() {
     div.style.transition = 'all 0.4s ease-out';
     div.style.opacity = '1';
@@ -2650,12 +2631,12 @@ function removeEnergy(){
 
 
 
-// ===== TURBULENCE (난기류) SYSTEM =====
+// ===== TURBULENCE (?쒓린瑜? SYSTEM =====
 
 var turbulenceTriggerDistances = [3000, 5500, 9000, 13000, 17000, 21000];
 
 function getTurbulenceTriggerDistances() {
-  // 21000m 이후에는 4000m 간격으로 계속 추가
+  // 21000m ?댄썑?먮뒗 4000m 媛꾧꺽?쇰줈 怨꾩냽 異붽?
   var maxDist = Math.floor(game.distance) + 5000;
   var distances = turbulenceTriggerDistances.slice();
   var last = distances[distances.length - 1];
@@ -2667,11 +2648,11 @@ function getTurbulenceTriggerDistances() {
 }
 
 function updateTurbulence() {
-  // 난기류 활성 중이면 타이머 업데이트
+  // ?쒓린瑜??쒖꽦 以묒씠硫???대㉧ ?낅뜲?댄듃
   if (game.turbulenceActive) {
     game.turbulenceTimer += deltaTime;
     if (game.turbulenceTimer >= game.turbulenceDuration) {
-      // 난기류 종료
+      // ?쒓린瑜?醫낅즺
       game.turbulenceActive = false;
       game.turbulenceLevel = 0;
       game.turbulenceTimer = 0;
@@ -2679,20 +2660,20 @@ function updateTurbulence() {
     return;
   }
 
-  // 트리거 거리 확인
+  // ?몃━嫄?嫄곕━ ?뺤씤
   var triggers = getTurbulenceTriggerDistances();
   var dist = Math.floor(game.distance);
   for (var i = 0; i < triggers.length; i++) {
     var td = triggers[i];
-    // 거리를 지났고, 아직 트리거 안 됐으면 발동
+    // 嫄곕━瑜?吏?ш퀬, ?꾩쭅 ?몃━嫄????먯쑝硫?諛쒕룞
     if (dist >= td && game.turbulenceTriggered.indexOf(td) === -1) {
       game.turbulenceTriggered.push(td);
-      // 레벨 1~3 랜덤
+      // ?덈꺼 1~3 ?쒕뜡
       game.turbulenceLevel = 1 + Math.floor(Math.random() * 3);
       game.turbulenceActive = true;
       game.turbulenceTimer = 0;
       showTurbulenceWarning(game.turbulenceLevel);
-      // 난기류 사운드
+      // ?쒓린瑜??ъ슫??
       playTurbulenceSound();
       break;
     }
@@ -2708,14 +2689,14 @@ function showTurbulenceWarning(level) {
 
   var div = document.createElement('div');
   div.id = 'turbulenceWarning';
-  div.innerHTML = '⚠️ TURBULENCE Lv.' + level + '<br><span style="font-size:0.5em;letter-spacing:0.2em;">' + labels[level] + '</span>';
+  div.innerHTML = '?좑툘 TURBULENCE Lv.' + level + '<br><span style="font-size:0.5em;letter-spacing:0.2em;">' + labels[level] + '</span>';
   div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
     'font-family:Playfair Display,serif;font-size:48px;font-weight:700;color:' + colors[level] + ';' +
     'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
     'text-shadow:0 0 30px rgba(0,0,0,0.8),0 4px 15px rgba(0,0,0,0.5);transition:none;';
   document.body.appendChild(div);
 
-  // 애니메이션: 나타남 → 유지 → 사라짐
+  // ?좊땲硫붿씠?? ?섑??????좎? ???щ씪吏?
   requestAnimationFrame(function() {
     div.style.transition = 'all 0.4s ease-out';
     div.style.opacity = '1';
@@ -2735,7 +2716,7 @@ function playTurbulenceSound() {
   try {
     var ctx = getAudioCtx();
     var now = ctx.currentTime;
-    // 저주파 럼블
+    // ?二쇳뙆 ?쇰툝
     var bufferSize = ctx.sampleRate * 0.5;
     var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     var data = buffer.getChannelData(0);
@@ -2758,324 +2739,9 @@ function playTurbulenceSound() {
   } catch(e) {}
 }
 
-// ===== BIRD STRIKE (버드스트라이크) EVENT =====
-
-var birdStrikeTriggerDistances = [2200, 8200, 11200, 15800, 20200];
-var birdStrikeFlockMesh = null;
-var birdStrikeBirds = [];
-
-function getBirdStrikeTriggerDistances() {
-  var maxDist = Math.floor(game.distance) + 5000;
-  var distances = birdStrikeTriggerDistances.slice();
-  var last = distances[distances.length - 1];
-  while (last + 5000 <= maxDist) {
-    last += 5000;
-    distances.push(last);
-  }
-  return distances;
-}
-
-// 복셀 새 한 마리 생성
-function createBirdMesh() {
-  var bird = new THREE.Object3D();
-  var bodyMat = new THREE.MeshLambertMaterial({color: 0x2C2C2C});
-  var wingMat = new THREE.MeshLambertMaterial({color: 0x444444});
-  var beakMat = new THREE.MeshLambertMaterial({color: 0xFF8C00});
-
-  // 몸통
-  var body = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 3), bodyMat);
-  bird.add(body);
-
-  // 부리
-  var beak = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 1), beakMat);
-  beak.position.set(-3.5, 0.5, 0);
-  bird.add(beak);
-
-  // 왼쪽 날개
-  var wingL = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 8), wingMat);
-  wingL.position.set(-0.5, 1, 4);
-  bird.add(wingL);
-
-  // 오른쪽 날개
-  var wingR = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 8), wingMat);
-  wingR.position.set(-0.5, 1, -4);
-  bird.add(wingR);
-
-  bird._wingL = wingL;
-  bird._wingR = wingR;
-  bird._flapTimer = Math.random() * Math.PI * 2;
-
-  return bird;
-}
-
-function checkBirdStrikeTrigger() {
-  if (game.birdStrikeActive) return;
-  var triggers = getBirdStrikeTriggerDistances();
-  var dist = Math.floor(game.distance);
-  for (var i = 0; i < triggers.length; i++) {
-    var td = triggers[i];
-    if (dist >= td && game.birdStrikeTriggered.indexOf(td) === -1) {
-      game.birdStrikeTriggered.push(td);
-      startBirdStrike();
-      break;
-    }
-  }
-}
-
-function startBirdStrike() {
-  game.birdStrikeActive = true;
-  game.birdStrikePhase = 'warning';
-  game.birdStrikeTimer = 0;
-  game.birdStrikeHit = false;
-  game.birdStrikeSavedSpeed = game.speed;
-
-  // 경고 문구 표시
-  showBirdStrikeWarning();
-
-  // 어두운 오버레이 추가
-  var overlay = document.createElement('div');
-  overlay.id = 'birdStrikeDarkOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0);z-index:500;pointer-events:none;transition:background 1s ease;';
-  document.body.appendChild(overlay);
-  requestAnimationFrame(function() {
-    overlay.style.background = 'rgba(0,0,0,0.35)';
-  });
-
-  // 경고 사운드
-  playBirdStrikeWarningSound();
-}
-
-function showBirdStrikeWarning() {
-  var existing = document.getElementById('birdStrikeWarning');
-  if (existing) existing.remove();
-
-  var div = document.createElement('div');
-  div.id = 'birdStrikeWarning';
-  div.innerHTML = '🐦 버드스트라이크 발생! 🐦<br><span style="font-size:0.45em;letter-spacing:0.15em;">위아래로 피하세요!</span>';
-  div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
-    'font-family:Playfair Display,serif;font-size:42px;font-weight:700;color:#FF4444;' +
-    'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
-    'text-shadow:0 0 30px rgba(255,0,0,0.5),0 4px 15px rgba(0,0,0,0.6);transition:none;';
-  document.body.appendChild(div);
-
-  requestAnimationFrame(function() {
-    div.style.transition = 'all 0.5s ease-out';
-    div.style.opacity = '1';
-    div.style.transform = 'translate(-50%,-50%) scale(1)';
-  });
-}
-
-function hideBirdStrikeWarning() {
-  var div = document.getElementById('birdStrikeWarning');
-  if (div) {
-    div.style.transition = 'all 0.4s ease-in';
-    div.style.opacity = '0';
-    div.style.transform = 'translate(-50%,-50%) scale(1.5)';
-    setTimeout(function() { if (div.parentNode) div.remove(); }, 500);
-  }
-}
-
-function spawnBirdFlock() {
-  // 이전 새떼 제거
-  cleanupBirdFlock();
-
-  birdStrikeFlockMesh = new THREE.Object3D();
-  birdStrikeBirds = [];
-
-  var baseY = airplane.mesh.position.y;
-
-  // 1그룹 일렬 S자: 큰 진폭으로 비행 범위 전체 커버, Z=0 고정
-  var numBirds = 100;
-  var spacing = 16;
-  var sAmplitude = 75;
-  var sFrequency = 0.025;
-
-  for (var i = 0; i < numBirds; i++) {
-    var bird = createBirdMesh();
-    var xPos = 200 + i * spacing;
-    var yPos = baseY + Math.sin(i * sFrequency * Math.PI * 2) * sAmplitude;
-    bird.position.set(xPos, yPos, 0);
-    bird._speed = 0.10;
-    bird._index = i;
-
-    birdStrikeFlockMesh.add(bird);
-    birdStrikeBirds.push(bird);
-  }
-
-  scene.add(birdStrikeFlockMesh);
-}
-
-function updateBirdStrike() {
-  if (!game.birdStrikeActive) return;
-
-  game.birdStrikeTimer += deltaTime;
-
-  // Phase 1: 경고 (1.5초)
-  if (game.birdStrikePhase === 'warning') {
-    // 비행체 서서히 감속
-    game.speed *= 0.95;
-    if (game.birdStrikeTimer >= 1500) {
-      game.birdStrikePhase = 'dodging';
-      game.birdStrikeTimer = 0;
-      game.speed = 0;
-      hideBirdStrikeWarning();
-      spawnBirdFlock();
-    }
-    return;
-  }
-
-  // Phase 2: 회피
-  if (game.birdStrikePhase === 'dodging') {
-    game.speed = 0; // 비행체 정지
-
-    var allPassed = true;
-
-    for (var i = 0; i < birdStrikeBirds.length; i++) {
-      var bird = birdStrikeBirds[i];
-      if (!bird.visible) continue;
-
-      // 오른쪽에서 왼쪽으로 이동 (소행성처럼)
-      bird.position.x -= bird._speed * deltaTime;
-
-      // 날개 퍼덕임
-      bird._flapTimer += deltaTime * 0.015;
-      if (bird._wingL) {
-        bird._wingL.rotation.x = Math.sin(bird._flapTimer) * 0.6;
-        bird._wingR.rotation.x = -Math.sin(bird._flapTimer) * 0.6;
-      }
-
-      // 아직 화면에 있는 새가 있는지
-      if (bird.position.x > -250) {
-        allPassed = false;
-      }
-
-      // 충돌 체크 (비행기와의 거리)
-      if (!game.birdStrikeHit) {
-        var dx = airplane.mesh.position.x - bird.position.x;
-        var dy = airplane.mesh.position.y - bird.position.y;
-        var dz = airplane.mesh.position.z - bird.position.z;
-        var birdDist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-
-        if (birdDist < 18) {
-          game.birdStrikeHit = true;
-          // 충돌 파티클
-          particlesHolder.spawnParticles(bird.position.clone(), 15, 0x2C2C2C, 3);
-          playDestroySound();
-          // 카메라 흔들림
-          game.planeCollisionSpeedY = 40;
-          game.planeCollisionSpeedX = 20;
-          removeEnergy();
-        }
-      }
-    }
-
-    // 모든 새가 지나갔거나 6초 경과
-    if (allPassed || game.birdStrikeTimer >= 6000) {
-      game.birdStrikePhase = 'result';
-      game.birdStrikeTimer = 0;
-    }
-    return;
-  }
-
-  // Phase 3: 결과 (1.5초)
-  if (game.birdStrikePhase === 'result') {
-    if (game.birdStrikeTimer < 100) {
-      // 결과 표시 (1회만)
-      cleanupBirdFlock();
-      if (!game.birdStrikeHit) {
-        // 성공! 하트 2개 보상
-        showBirdStrikeResult(true);
-        addHeart();
-        addHeart();
-        playPowerupSound();
-      } else {
-        showBirdStrikeResult(false);
-      }
-    }
-
-    // 속도 복원
-    game.speed += (game.birdStrikeSavedSpeed - game.speed) * 0.05;
-
-    if (game.birdStrikeTimer >= 1500) {
-      // 이벤트 완전 종료
-      game.birdStrikeActive = false;
-      game.birdStrikePhase = '';
-      game.speed = game.birdStrikeSavedSpeed;
-      // 어두운 오버레이 제거
-      var darkOv = document.getElementById('birdStrikeDarkOverlay');
-      if (darkOv) {
-        darkOv.style.transition = 'background 0.8s ease';
-        darkOv.style.background = 'rgba(0,0,0,0)';
-        setTimeout(function() { if (darkOv.parentNode) darkOv.remove(); }, 900);
-      }
-    }
-  }
-}
-
-function showBirdStrikeResult(success) {
-  var existing = document.getElementById('birdStrikeResult');
-  if (existing) existing.remove();
-
-  var div = document.createElement('div');
-  div.id = 'birdStrikeResult';
-  if (success) {
-    div.innerHTML = '✅ CLEAR!<br><span style="font-size:0.5em;">❤️ +2</span>';
-    div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
-      'font-family:Playfair Display,serif;font-size:52px;font-weight:700;color:#44FF44;' +
-      'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
-      'text-shadow:0 0 30px rgba(0,255,0,0.5),0 4px 15px rgba(0,0,0,0.5);transition:none;';
-  } else {
-    div.innerHTML = '💥 HIT!';
-    div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
-      'font-family:Playfair Display,serif;font-size:52px;font-weight:700;color:#FF4444;' +
-      'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
-      'text-shadow:0 0 30px rgba(255,0,0,0.5),0 4px 15px rgba(0,0,0,0.5);transition:none;';
-  }
-  document.body.appendChild(div);
-
-  requestAnimationFrame(function() {
-    div.style.transition = 'all 0.4s ease-out';
-    div.style.opacity = '1';
-    div.style.transform = 'translate(-50%,-50%) scale(1)';
-    setTimeout(function() {
-      div.style.transition = 'all 0.5s ease-in';
-      div.style.opacity = '0';
-      setTimeout(function() { if (div.parentNode) div.remove(); }, 600);
-    }, 1200);
-  });
-}
-
-function cleanupBirdFlock() {
-  if (birdStrikeFlockMesh) {
-    scene.remove(birdStrikeFlockMesh);
-    birdStrikeFlockMesh = null;
-  }
-  birdStrikeBirds = [];
-}
-
-function playBirdStrikeWarningSound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-    // 짧은 경고음 2번
-    for (var i = 0; i < 2; i++) {
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.value = 800;
-      gain.gain.setValueAtTime(0.1, now + i * 0.25);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.25 + 0.15);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + i * 0.25);
-      osc.stop(now + i * 0.25 + 0.2);
-    }
-  } catch(e) {}
-}
-
 function updatePlane(){
 
-  // 난기류 시 마우스 입력에 노이즈 추가
+  // ?쒓린瑜???留덉슦???낅젰???몄씠利?異붽?
   var effMouseX = mousePos.x;
   var effMouseY = mousePos.y;
   if (game.turbulenceActive && game.turbulenceLevel > 0) {
@@ -3110,7 +2776,7 @@ function updatePlane(){
   camera.updateProjectionMatrix ()
   camera.position.y += (airplane.mesh.position.y - camera.position.y)*deltaTime*game.cameraSensivity;
 
-  // 난기류 카메라 흔들림
+  // ?쒓린瑜?移대찓???붾뱾由?
   if (game.turbulenceActive && game.turbulenceLevel > 0) {
     var shakeAmp = game.turbulenceLevel * 1.5; // Lv1:1.5, Lv2:3, Lv3:4.5
     game.turbulenceCamShake.x = (Math.random() - 0.5) * shakeAmp;
@@ -3138,11 +2804,11 @@ function hideReplay(){
 
 // ===== RANKING SYSTEM (Supabase) =====
 
-var RANKING_KEY = 'flyDarwinRankings'; // localStorage 폴백용
+var RANKING_KEY = 'flyDarwinRankings'; // localStorage ?대갚??
 var MAX_RANKINGS = 100;
 var currentPlayerRankIndex = -1;
 
-// Supabase 클라이언트 초기화
+// Supabase ?대씪?댁뼵??珥덇린??
 var SUPABASE_URL = 'https://tehpoogyhjrkvcaeioge.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlaHBvb2d5aGpya3ZjYWVpb2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NzQxOTQsImV4cCI6MjA4OTU1MDE5NH0.saInJOZuegHGaEW-D0sikBAU-XwoHZkjMYvUWw4t4sE';
 var supabaseClient = null;
@@ -3154,7 +2820,7 @@ function getSupabase() {
   return supabaseClient;
 }
 
-// localStorage 폴백 함수들
+// localStorage ?대갚 ?⑥닔??
 function getLocalRankings() {
   try {
     var data = localStorage.getItem(RANKING_KEY);
@@ -3180,7 +2846,7 @@ function saveLocalRanking(name, distance, level, form) {
   return rankings;
 }
 
-// Supabase 랭킹 함수들 (비동기)
+// Supabase ??궧 ?⑥닔??(鍮꾨룞湲?
 async function getRankingsFromDB() {
   var sb = getSupabase();
   if (!sb) return getLocalRankings();
@@ -3195,7 +2861,7 @@ async function getRankingsFromDB() {
     if (error) throw error;
     return data || [];
   } catch(e) {
-    console.warn('Supabase 조회 실패, localStorage 폴백:', e.message);
+    console.warn('Supabase 議고쉶 ?ㅽ뙣, localStorage ?대갚:', e.message);
     return getLocalRankings();
   }
 }
@@ -3210,7 +2876,7 @@ async function saveRankingToDB(name, distance, level, form) {
   
   var sb = getSupabase();
   if (!sb) {
-    // Supabase 사용 불가 → localStorage 폴백
+    // Supabase ?ъ슜 遺덇? ??localStorage ?대갚
     var rankings = saveLocalRanking(name, entry.distance, entry.level, form);
     currentPlayerRankIndex = -1;
     for (var i = 0; i < rankings.length; i++) {
@@ -3223,17 +2889,17 @@ async function saveRankingToDB(name, distance, level, form) {
   }
   
   try {
-    // 1) Supabase에 새 기록 삽입
+    // 1) Supabase????湲곕줉 ?쎌엯
     var { error: insertError } = await sb
       .from('rankings')
       .insert(entry);
     
     if (insertError) throw insertError;
     
-    // 2) 전체 랭킹 다시 조회
+    // 2) ?꾩껜 ??궧 ?ㅼ떆 議고쉶
     var rankings = await getRankingsFromDB();
     
-    // 3) 방금 등록한 플레이어의 순위 찾기
+    // 3) 諛⑷툑 ?깅줉???뚮젅?댁뼱???쒖쐞 李얘린
     currentPlayerRankIndex = -1;
     for (var i = 0; i < rankings.length; i++) {
       if (rankings[i].name === name && rankings[i].distance === entry.distance) {
@@ -3244,7 +2910,7 @@ async function saveRankingToDB(name, distance, level, form) {
     
     return rankings;
   } catch(e) {
-    console.warn('Supabase 저장 실패, localStorage 폴백:', e.message);
+    console.warn('Supabase ????ㅽ뙣, localStorage ?대갚:', e.message);
     var localRankings = saveLocalRanking(name, entry.distance, entry.level, form);
     currentPlayerRankIndex = -1;
     for (var i = 0; i < localRankings.length; i++) {
@@ -3263,12 +2929,12 @@ function renderRankingBoard(rankings) {
   
   if (!rankings || rankings.length === 0) {
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="5" style="color:rgba(255,255,255,0.3); padding:20px;">기록이 없습니다</td>';
+    tr.innerHTML = '<td colspan="5" style="color:rgba(255,255,255,0.3); padding:20px;">湲곕줉???놁뒿?덈떎</td>';
     tbody.appendChild(tr);
     return;
   }
   
-  var medals = ['🥇', '🥈', '🥉'];
+  var medals = ['?쪍', '?쪎', '?쪏'];
   for (var i = 0; i < rankings.length; i++) {
     var r = rankings[i];
     var tr = document.createElement('tr');
@@ -3295,7 +2961,7 @@ function animateCoinCount(el, from, to, duration) {
   function step(timestamp) {
     if (!startTime) startTime = timestamp;
     var progress = Math.min((timestamp - startTime) / duration, 1);
-    // ease-out 효과
+    // ease-out ?④낵
     var eased = 1 - Math.pow(1 - progress, 3);
     var current = Math.floor(from + (to - from) * eased);
     el.textContent = current;
@@ -3319,7 +2985,7 @@ async function showRankingFromGameOver() {
       var rankings = await getRankingsFromDB();
       renderRankingBoard(rankings);
     } catch(e) {
-      // Supabase 실패 시 로컬 랭킹
+      // Supabase ?ㅽ뙣 ??濡쒖뺄 ??궧
       var local = JSON.parse(localStorage.getItem('flyDarwinRankings') || '[]');
       renderRankingBoard(local);
     }
@@ -3339,7 +3005,7 @@ function showContinuePrompt() {
   var remaining = game.maxContinues - game.continueCount;
 
   if (remaining <= 0) {
-    // 컨티뉴 횟수 소진 — 바로 게임 오버 화면
+    // 而⑦떚???잛닔 ?뚯쭊 ??諛붾줈 寃뚯엫 ?ㅻ쾭 ?붾㈃
     showGameOver();
     game.status = "waitingReplay";
     return;
@@ -3348,7 +3014,7 @@ function showContinuePrompt() {
   var cost = game.continueCosts[game.continueCount];
   costEl.textContent = cost;
   balanceEl.textContent = game.coins;
-  remainingEl.textContent = '남은 기회: ' + remaining + '회';
+  remainingEl.textContent = '?⑥? 湲고쉶: ' + remaining + '??;
 
   if (game.coins < cost) {
     continueBtn.disabled = true;
@@ -3369,41 +3035,41 @@ function continueGame() {
   var cost = game.continueCosts[game.continueCount];
   if (game.coins < cost) return;
 
-  // 코인 차감
+  // 肄붿씤 李④컧
   game.coins -= cost;
   localStorage.setItem('totalCoins', game.coins);
   document.getElementById('coinsValue').textContent = game.coins;
 
-  // 컨티뉴 횟수 증가
+  // 而⑦떚???잛닔 利앷?
   game.continueCount++;
 
-  // 하트 3개로 복원
+  // ?섑듃 3媛쒕줈 蹂듭썝
   game.hearts = 3;
   updateHearts();
 
-  // 화면의 장애물 클리어
+  // ?붾㈃???μ븷臾??대━??
   for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
     var e = ennemiesHolder.ennemiesInUse[i];
     ennemiesHolder.mesh.remove(e.mesh);
   }
   ennemiesHolder.ennemiesInUse = [];
 
-  // 날아오는 소행성 클리어
+  // ?좎븘?ㅻ뒗 ?뚰뻾???대━??
   for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
     scene.remove(flyingAsteroids[j].mesh);
   }
   flyingAsteroids = [];
 
-  // 블랙홀 슬로우 해제
+  // 釉붾옓? ?щ줈???댁젣
   game.blackHoleSlowFactor = 1.0;
   game.blackHoleActive = false;
 
-  // 비행기를 현재 폼으로 재생성 (추락 후이므로 화면 밖에 있음)
+  // 鍮꾪뻾湲곕? ?꾩옱 ?쇱쑝濡??ъ깮??(異붾씫 ?꾩씠誘濡??붾㈃ 諛뽰뿉 ?덉쓬)
   var oldForm = game.currentForm;
   var oldPos = airplane.mesh.position.clone();
   scene.remove(airplane.mesh);
 
-  // 현재 폼에 맞는 비행체 재생성 (특수 비행체 유지)
+  // ?꾩옱 ?쇱뿉 留욌뒗 鍮꾪뻾泥??ъ깮??(?뱀닔 鍮꾪뻾泥??좎?)
   if (shopState && shopState.selectedVehicle) {
     airplane = createNewCharacter(shopState.selectedVehicle);
   } else {
@@ -3420,23 +3086,23 @@ function continueGame() {
   game.planeCollisionDisplacementX = 0;
   game.planeCollisionDisplacementY = 0;
 
-  // 낙하 속도 리셋
+  // ?숉븯 ?띾룄 由ъ뀑
   game.planeFallSpeed = 0.001;
 
-  // 오버레이 닫기
+  // ?ㅻ쾭?덉씠 ?リ린
   hideContinuePrompt();
 
-  // 3초 무적 활성화
+  // 3珥?臾댁쟻 ?쒖꽦??
   activateInvincible();
 
-  // 게임 재개
+  // 寃뚯엫 ?ш컻
   game.status = "playing";
   oldTime = new Date().getTime();
 }
 
 function stopAndShowGameOver() {
   hideContinuePrompt();
-  // 바로 게임오버 화면으로
+  // 諛붾줈 寃뚯엫?ㅻ쾭 ?붾㈃?쇰줈
   showGameOver();
   game.status = "waitingReplay";
 }
@@ -3451,7 +3117,7 @@ function showGameOver() {
   document.getElementById('finalLevel').textContent = Math.floor(game.level);
   document.getElementById('finalForm').textContent = game.currentForm;
   
-  // 코인 카운트업 애니메이션 (이번 라운드 획득분)
+  // 肄붿씤 移댁슫?몄뾽 ?좊땲硫붿씠??(?대쾲 ?쇱슫???띾뱷遺?
   var finalCoinsEl = document.getElementById('finalCoins');
   if (finalCoinsEl) {
     var startCoins = game.coins - game.coinsEarnedThisRound;
@@ -3483,14 +3149,14 @@ async function submitScore() {
   if (!name) {
     nameInput.style.borderColor = '#f25346';
     nameInput.style.boxShadow = '0 0 16px rgba(242, 83, 70, 0.3)';
-    nameInput.placeholder = '닉네임을 입력해주세요!';
+    nameInput.placeholder = '?됰꽕?꾩쓣 ?낅젰?댁＜?몄슂!';
     nameInput.focus();
     return;
   }
   
-  // 로딩 상태 (중복 클릭 방지)
+  // 濡쒕뵫 ?곹깭 (以묐났 ?대┃ 諛⑹?)
   submitBtn.disabled = true;
-  submitBtn.textContent = '등록 중...';
+  submitBtn.textContent = '?깅줉 以?..';
   
   try {
     var rankings = await saveRankingToDB(name, game.distance, game.level, game.currentForm);
@@ -3499,13 +3165,13 @@ async function submitScore() {
     document.getElementById('gameOverScore').style.display = 'none';
     document.getElementById('rankingBoard').style.display = 'block';
     
-    document.querySelector('#rankingBoard .gameover-title').textContent = '🏆 랭킹';
+    document.querySelector('#rankingBoard .gameover-title').textContent = '?룇 ??궧';
     renderRankingBoard(rankings);
   } catch(e) {
-    console.error('점수 등록 오류:', e);
+    console.error('?먯닔 ?깅줉 ?ㅻ쪟:', e);
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = '등록';
+    submitBtn.textContent = '?깅줉';
   }
 }
 
@@ -3514,7 +3180,7 @@ function startReplay() {
   resetGame();
   game.status = "waiting";
 
-  // 장애물 클리어
+  // ?μ븷臾??대━??
   if (ennemiesHolder && ennemiesHolder.ennemiesInUse) {
     for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
       ennemiesHolder.mesh.remove(ennemiesHolder.ennemiesInUse[i].mesh);
@@ -3522,7 +3188,7 @@ function startReplay() {
     ennemiesHolder.ennemiesInUse = [];
   }
 
-  // 날아오는 소행성 클리어
+  // ?좎븘?ㅻ뒗 ?뚰뻾???대━??
   if (typeof flyingAsteroids !== 'undefined') {
     for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
       scene.remove(flyingAsteroids[j].mesh);
@@ -3530,7 +3196,7 @@ function startReplay() {
     flyingAsteroids = [];
   }
 
-  // 코인 클리어
+  // 肄붿씤 ?대━??
   if (coinsHolder && coinsHolder.coinsInUse) {
     for (var k = coinsHolder.coinsInUse.length - 1; k >= 0; k--) {
       coinsHolder.mesh.remove(coinsHolder.coinsInUse[k].mesh);
@@ -3539,14 +3205,14 @@ function startReplay() {
     coinsHolder.coinsInUse = [];
   }
 
-  // 무적 해제
+  // 臾댁쟻 ?댁젣
   if (game.invincible) deactivateInvincible();
 
-  // 파티클/프로젝타일 클리어
+  // ?뚰떚???꾨줈?앺????대━??
   if (typeof cleanupProjectiles === 'function') cleanupProjectiles();
   if (typeof cleanupDestroyParticles === 'function') cleanupDestroyParticles();
 
-  // 보스 정리
+  // 蹂댁뒪 ?뺣━
   if (typeof cleanupBoss === 'function') cleanupBoss();
   if (typeof bossState !== 'undefined') bossState.triggered = [];
 
@@ -3564,11 +3230,11 @@ function startReplay() {
   airplane.mesh.position.y = game.planeDefaultHeight;
   scene.add(airplane.mesh);
 
-  // 시작 화면으로 돌아가기
+  // ?쒖옉 ?붾㈃?쇰줈 ?뚯븘媛湲?
   var overlay = document.getElementById('startOverlay');
   overlay.style.display = '';
   overlay.classList.remove('hidden');
-  // BGM 정지
+  // BGM ?뺤?
   stopBGM();
 }
 
@@ -3650,7 +3316,7 @@ function initBGM() {
   bgm.loop = true;
   bgm.volume = isMobile ? 0.01 : 0.025;
   bgm.load();
-  // BGM은 startGame()에서만 재생됨 — 상점에서는 재생하지 않음
+  // BGM? startGame()?먯꽌留??ъ깮?????곸젏?먯꽌???ъ깮?섏? ?딆쓬
 }
 
 function startBGMPlayback() {
@@ -3658,7 +3324,7 @@ function startBGMPlayback() {
   if (bgm.paused) {
     bgm.play().catch(function(){});
   }
-  // AudioContext 초기화 (Safari 효과음 대응)
+  // AudioContext 珥덇린??(Safari ?④낵?????
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
@@ -3723,14 +3389,14 @@ function initStartScreen() {
 
   function startGame() {
     if (game.status !== 'waiting') return;
-    // 상점에서 선택한 비행체/업그레이드 반영
+    // ?곸젏?먯꽌 ?좏깮??鍮꾪뻾泥??낃렇?덉씠??諛섏쁺
     shopState = loadShopData();
     resetGame();
     setupAbilityForVehicle();
     game.status = 'playing';
     overlay.classList.add('hidden');
     oldTime = new Date().getTime();
-    // BGM 시작 (PLAY 버튼에서만)
+    // BGM ?쒖옉 (PLAY 踰꾪듉?먯꽌留?
     startBGMPlayback();
     setTimeout(function() {
       if (overlay.parentNode) overlay.style.display = 'none';
@@ -3789,7 +3455,7 @@ function initPauseUI() {
     }
   }
 
-  // 모바일 터치와 데스크톱 클릭 모두 지원
+  // 紐⑤컮???곗튂? ?곗뒪?ы넲 ?대┃ 紐⑤몢 吏??
   pauseBtn.addEventListener('touchend', handlePauseBtnPress);
   pauseBtn.addEventListener('click', handlePauseBtnPress);
   pauseOverlay.addEventListener('touchend', handleOverlayPress);
@@ -3799,30 +3465,30 @@ function initPauseUI() {
 // ===== SHOP SYSTEM =====
 
 var shopVehicleData = [
-  { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개부터 시작", unlockForm: "Anomalocaris" },
-  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "슬로우 모션 3번 사용 가능 (마우스 왼쪽 버튼)", unlockForm: "Dunkleosteus" },
-  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "무적 효과 2번 사용 가능 (마우스 왼쪽 버튼)", unlockForm: "Tiktaalik" },
-  { id: "Jetliner", name: "여객기", price: 5000, ability: "코인 X3 획득", unlockForm: "Plesiosaur" },
-  { id: "Rocket", name: "로켓", price: 6000, ability: "미사일 100발 (철퇴, 소행성, 번개구름 파괴) (마우스 왼쪽 버튼)", unlockForm: "Quetzalcoatlus" },
-  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 8000, ability: "500m 부스터 2회 (모든 장애물 파괴)", unlockForm: "Darwin's Finch" },
-  { id: "UFO", name: "UFO", price: 12000, ability: "1000m 부스터 2회 + 레이저 200발 (모든 장애물 파괴)", unlockForm: "Darwin's Finch" }
+  { id: "Newton's Apple", name: "?댄꽩???ш낵", price: 1500, ability: "理쒕? ?섑듃 7媛쒕????쒖옉", unlockForm: "Anomalocaris" },
+  { id: "Einstein", name: "?꾩씤?덊???, price: 2500, ability: "?щ줈??紐⑥뀡 3踰??ъ슜 媛??(留덉슦???쇱そ 踰꾪듉)", unlockForm: "Dunkleosteus" },
+  { id: "Wright Flyer", name: "?쇱씠???뺤젣", price: 3000, ability: "臾댁쟻 ?④낵 2踰??ъ슜 媛??(留덉슦???쇱そ 踰꾪듉)", unlockForm: "Tiktaalik" },
+  { id: "Jetliner", name: "?ш컼湲?, price: 5000, ability: "肄붿씤 X3 ?띾뱷", unlockForm: "Plesiosaur" },
+  { id: "Rocket", name: "濡쒖폆", price: 6000, ability: "誘몄궗??100諛?(泥좏눜, ?뚰뻾?? 踰덇컻援щ쫫 ?뚭눼) (留덉슦???쇱そ 踰꾪듉)", unlockForm: "Quetzalcoatlus" },
+  { id: "SpaceShuttle", name: "?ㅽ럹?댁뒪 ?뷀?", price: 8000, ability: "500m 遺?ㅽ꽣 2??(紐⑤뱺 ?μ븷臾??뚭눼)", unlockForm: "Darwin's Finch" },
+  { id: "UFO", name: "UFO", price: 12000, ability: "1000m 遺?ㅽ꽣 2??+ ?덉씠? 200諛?(紐⑤뱺 ?μ븷臾??뚭눼)", unlockForm: "Darwin's Finch" }
 ];
 
 var shopUpgradeData = [
-  { id: "extraHeart1", name: "하트 +1", icon: "❤️", desc: "시작 하트 3→4개", price: 300 },
-  { id: "extraHeart2", name: "하트 +2", icon: "💖", desc: "시작 하트 4→5개", price: 800, requires: "extraHeart1" },
-  { id: "continueDiscount", name: "컨티뉴 할인", icon: "💰", desc: "컨티뉴 비용 30% 감소", price: 500 },
-  { id: "coinBooster", name: "코인 부스터", icon: "✨", desc: "코인 획득량 2배", price: 1000 }
+  { id: "extraHeart1", name: "?섑듃 +1", icon: "?ㅿ툘", desc: "?쒖옉 ?섑듃 3??媛?, price: 300 },
+  { id: "extraHeart2", name: "?섑듃 +2", icon: "?뮇", desc: "?쒖옉 ?섑듃 4??媛?, price: 800, requires: "extraHeart1" },
+  { id: "continueDiscount", name: "而⑦떚???좎씤", icon: "?뮥", desc: "而⑦떚??鍮꾩슜 30% 媛먯냼", price: 500 },
+  { id: "coinBooster", name: "肄붿씤 遺?ㅽ꽣", icon: "??, desc: "肄붿씤 ?띾뱷??2諛?, price: 1000 }
 ];
 
 var evoVehicleData = [
-  { id: "Amoeba", name: "아메바", levelReq: 1 },
-  { id: "Anomalocaris", name: "아노말로카리스", levelReq: 2 },
-  { id: "Dunkleosteus", name: "둔클레오스테우스", levelReq: 3 },
-  { id: "Tiktaalik", name: "틱타알릭", levelReq: 4 },
-  { id: "Plesiosaur", name: "플레시오사우루스", levelReq: 5 },
-  { id: "Quetzalcoatlus", name: "케찰코아틀루스", levelReq: 6 },
-  { id: "Darwin's Finch", name: "다윈의 핀치", levelReq: 7 }
+  { id: "Amoeba", name: "?꾨찓諛?, levelReq: 1 },
+  { id: "Anomalocaris", name: "?꾨끂留먮줈移대━??, levelReq: 2 },
+  { id: "Dunkleosteus", name: "?뷀겢?덉삤?ㅽ뀒?곗뒪", levelReq: 3 },
+  { id: "Tiktaalik", name: "?깊??뚮┃", levelReq: 4 },
+  { id: "Plesiosaur", name: "?뚮젅?쒖삤?ъ슦猷⑥뒪", levelReq: 5 },
+  { id: "Quetzalcoatlus", name: "耳李곗퐫?꾪?猷⑥뒪", levelReq: 6 },
+  { id: "Darwin's Finch", name: "?ㅼ쐢???移?, levelReq: 7 }
 ];
 
 // Shop save/load
@@ -3953,7 +3619,7 @@ function renderShopVehicles() {
     var previewId = 'vehiclePreview_' + i;
     var previewHTML = '<div class="vehicle-preview" id="' + previewId + '">';
     if (!isUnlocked) {
-      previewHTML += '<div class="vehicle-lock-overlay">🔒</div>';
+      previewHTML += '<div class="vehicle-lock-overlay">?뵏</div>';
     }
     previewHTML += '</div>';
 
@@ -3966,14 +3632,14 @@ function renderShopVehicles() {
     btn.className = 'vehicle-btn';
     if (!isUnlocked) {
       btn.className += ' vehicle-btn--locked';
-      btn.textContent = '🔒 ' + (v.unlockForm || '다윈의 핀치') + '까지 진화 시 해금';
+      btn.textContent = '?뵏 ' + (v.unlockForm || '?ㅼ쐢???移?) + '源뚯? 吏꾪솕 ???닿툑';
       btn.disabled = true;
     } else if (isPurchased && isSelected) {
       btn.className += ' vehicle-btn--selected';
-      btn.textContent = '✓ 선택됨';
+      btn.textContent = '???좏깮??;
     } else if (isPurchased) {
       btn.className += ' vehicle-btn--select';
-      btn.textContent = '선택하기';
+      btn.textContent = '?좏깮?섍린';
       (function(vid) {
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -3982,7 +3648,7 @@ function renderShopVehicles() {
       })(v.id);
     } else {
       btn.className += ' vehicle-btn--buy';
-      btn.textContent = v.price + ' 🪙 구매';
+      btn.textContent = v.price + ' ?첌 援щℓ';
       if (coins < v.price) btn.disabled = true;
       (function(vid, vprice) {
         btn.addEventListener('click', function(e) {
@@ -4030,10 +3696,10 @@ function renderShopUpgrades() {
     btn.className = 'upgrade-btn';
     if (isPurchased) {
       btn.className += ' upgrade-btn--done';
-      btn.textContent = '✓ 보유';
+      btn.textContent = '??蹂댁쑀';
     } else {
       btn.className += ' upgrade-btn--buy';
-      btn.textContent = u.price + ' 🪙';
+      btn.textContent = u.price + ' ?첌';
       if (coins < u.price || !requiresMet) btn.disabled = true;
       (function(uid, uprice) {
         btn.addEventListener('click', function(e) {
@@ -4065,26 +3731,26 @@ function renderEvoVehicles() {
     var previewId = 'evoPreview_' + i;
     var previewHTML = '<div class="vehicle-preview" id="' + previewId + '">';
     if (!isUnlocked) {
-      previewHTML += '<div class="vehicle-lock-overlay">🔒</div>';
+      previewHTML += '<div class="vehicle-lock-overlay">?뵏</div>';
     }
     previewHTML += '</div>';
 
     card.innerHTML = previewHTML +
       '<p class="vehicle-name">' + v.name + '</p>' +
-      '<p class="vehicle-ability">진화 레벨 ' + v.levelReq + ' 도달 시 해금</p>';
+      '<p class="vehicle-ability">吏꾪솕 ?덈꺼 ' + v.levelReq + ' ?꾨떖 ???닿툑</p>';
 
     var btn = document.createElement('button');
     btn.className = 'vehicle-btn';
     if (!isUnlocked) {
       btn.className += ' vehicle-btn--locked';
-      btn.textContent = '🔒 미해금';
+      btn.textContent = '?뵏 誘명빐湲?;
       btn.disabled = true;
     } else if (isSelected || isDefault) {
       btn.className += ' vehicle-btn--selected';
-      btn.textContent = '✓ 선택됨';
+      btn.textContent = '???좏깮??;
     } else {
       btn.className += ' vehicle-btn--select';
-      btn.textContent = '선택하기';
+      btn.textContent = '?좏깮?섍린';
       (function(vid) {
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -4169,7 +3835,7 @@ function closeShop() {
   document.getElementById('shopOverlay').style.display = 'none';
   cleanupShopPreviews();
 
-  // 선택된 비행체가 변경되었으면 씬의 비행기 교체
+  // ?좏깮??鍮꾪뻾泥닿? 蹂寃쎈릺?덉쑝硫??ъ쓽 鍮꾪뻾湲?援먯껜
   shopState = loadShopData();
   var desiredForm = shopState.selectedVehicle || "Amoeba";
   if (game.currentForm !== desiredForm) {
@@ -4269,14 +3935,14 @@ function getStartingHearts() {
   var hearts = 3;
   if (shopState.purchasedUpgrades.indexOf('extraHeart1') !== -1) hearts++;
   if (shopState.purchasedUpgrades.indexOf('extraHeart2') !== -1) hearts++;
-  // 뉴턴의 사과: 7개로 시작
+  // ?댄꽩???ш낵: 7媛쒕줈 ?쒖옉
   if (shopState.selectedVehicle === "Newton's Apple") hearts = 7;
   return hearts;
 }
 
 // Get max hearts based on vehicle
 function getStartingMaxHearts() {
-  // 뉴턴의 사과: 최대 7개
+  // ?댄꽩???ш낵: 理쒕? 7媛?
   if (shopState && shopState.selectedVehicle === "Newton's Apple") return 7;
   return 5;
 }
@@ -4314,11 +3980,11 @@ var abilityState = {
 };
 
 var abilityConfigs = {
-  'Einstein': { type: 'slowmo', icon: '⏱️', uses: 3, cooldownMs: 1000 },
-  'Wright Flyer': { type: 'invincible', icon: '🛡️', uses: 2, cooldownMs: 1000 },
-  'Rocket': { type: 'missile', icon: '🚀', uses: 100, cooldownMs: 100 },
-  'SpaceShuttle': { type: 'booster', icon: '🔥', uses: 2, cooldownMs: 2000 },
-  'UFO': { type: 'ufo', icon: '👽', uses: 2, cooldownMs: 100 }
+  'Einstein': { type: 'slowmo', icon: '?깍툘', uses: 3, cooldownMs: 1000 },
+  'Wright Flyer': { type: 'invincible', icon: '?썳截?, uses: 2, cooldownMs: 1000 },
+  'Rocket': { type: 'missile', icon: '??', uses: 100, cooldownMs: 100 },
+  'SpaceShuttle': { type: 'booster', icon: '?뵦', uses: 2, cooldownMs: 2000 },
+  'UFO': { type: 'ufo', icon: '?뫝', uses: 2, cooldownMs: 100 }
 };
 
 function initAbilitySystem() {
@@ -4336,13 +4002,13 @@ function initAbilitySystem() {
     activateAbility();
   });
 
-  // UFO 듀얼 버튼 이벤트
+  // UFO ???踰꾪듉 ?대깽??
   var laserBtn = document.getElementById('ufoLaserBtn');
   var boosterBtn = document.getElementById('ufoBoosterBtn');
   if (laserBtn) {
     laserBtn.addEventListener('click', function(e) {
       e.stopPropagation(); e.preventDefault();
-      activateAbility(); // 레이저 발사
+      activateAbility(); // ?덉씠? 諛쒖궗
     });
     laserBtn.addEventListener('touchend', function(e) {
       e.stopPropagation(); e.preventDefault();
@@ -4360,7 +4026,7 @@ function initAbilitySystem() {
     });
   }
 
-  // 보스전 발사 버튼
+  // 蹂댁뒪??諛쒖궗 踰꾪듉
   var bossFireBtn = document.getElementById('bossFireBtn');
   if (bossFireBtn) {
     var bossFireInterval = null;
@@ -4414,7 +4080,7 @@ function setupAbilityForVehicle() {
   abilityState.ufoLaserUses = (config.type === 'ufo') ? 200 : 0;
 
   if (config.type === 'ufo') {
-    // UFO: 듀얼 버튼 UI
+    // UFO: ???踰꾪듉 UI
     if (ui) ui.style.display = 'none';
     if (ufoDualUI) {
       ufoDualUI.style.display = 'flex';
@@ -4424,7 +4090,7 @@ function setupAbilityForVehicle() {
       document.getElementById('ufoBoosterBtn').disabled = false;
     }
   } else {
-    // 일반 비행체: 단일 버튼 UI
+    // ?쇰컲 鍮꾪뻾泥? ?⑥씪 踰꾪듉 UI
     if (ufoDualUI) ufoDualUI.style.display = 'none';
     document.getElementById('abilityIcon').textContent = config.icon;
     document.getElementById('abilityCount').textContent = abilityState.uses;
@@ -4443,9 +4109,9 @@ function activateAbility() {
   if (vehicle) config = abilityConfigs[vehicle];
   if (!config) return;
 
-  // UFO: 마우스 클릭 = 레이저만, 부스터는 UI 버튼 전용
+  // UFO: 留덉슦???대┃ = ?덉씠?留? 遺?ㅽ꽣??UI 踰꾪듉 ?꾩슜
   if (abilityState.type === 'ufo') {
-    // activateAbility는 마우스 클릭에서 호출됨 -> 레이저만
+    // activateAbility??留덉슦???대┃?먯꽌 ?몄텧??-> ?덉씠?留?
     if (abilityState.ufoLaserUses > 0) {
       fireLaser();
       abilityState.ufoLaserUses--;
@@ -4481,7 +4147,7 @@ function activateAbility() {
 
 function updateAbilityUI() {
   if (abilityState.type === 'ufo') {
-    // UFO 듀얼 UI 업데이트
+    // UFO ???UI ?낅뜲?댄듃
     var laserCount = document.getElementById('ufoLaserCount');
     var boosterCount = document.getElementById('ufoBoosterCount');
     var laserBtn = document.getElementById('ufoLaserBtn');
@@ -4521,7 +4187,7 @@ function activateInvincibility() {
   activateInvincible();
 }
 
-// === UFO Booster (UI 버튼 전용) ===
+// === UFO Booster (UI 踰꾪듉 ?꾩슜) ===
 function activateUfoBooster() {
   if (game.status !== 'playing' || abilityState.boosterActive) return;
   if (abilityState.uses <= 0) return;
@@ -4536,7 +4202,7 @@ function activateBooster() {
   abilityState.boosterActive = true;
   abilityState.boosterDistStart = game.distance;
   abilityState.boosterDistTarget = game.distance + (shopState && shopState.selectedVehicle === 'UFO' ? 1000 : 500);
-  // 기존 무적 시스템 사용 (금빛 글로우 이펙트 포함)
+  // 湲곗〈 臾댁쟻 ?쒖뒪???ъ슜 (湲덈튆 湲濡쒖슦 ?댄럺???ы븿)
   var isUfo = (shopState && shopState.selectedVehicle === 'UFO');
   game.invincibleDuration = isUfo ? 30000 : 15000;
   activateInvincible();
@@ -4601,15 +4267,15 @@ function updateAbilities(dt) {
     }
   }
 
-  // Booster effect - 장애물 파괴하면서 전진
+  // Booster effect - ?μ븷臾??뚭눼?섎㈃???꾩쭊
   if (abilityState.boosterActive) {
     if (game.distance >= abilityState.boosterDistTarget) {
       abilityState.boosterActive = false;
-      game.invincibleDuration = 5000; // 기본값 복원
+      game.invincibleDuration = 5000; // 湲곕낯媛?蹂듭썝
       deactivateInvincible();
-      updateAbilityUI(); // 부스터 버튼 재활성화
+      updateAbilityUI(); // 遺?ㅽ꽣 踰꾪듉 ?ы솢?깊솕
     } else {
-      // 부스터 중 장애물 자동 파괴
+      // 遺?ㅽ꽣 以??μ븷臾??먮룞 ?뚭눼
       destroyNearbyEnemies();
     }
   }
@@ -4631,13 +4297,13 @@ function updateAbilities(dt) {
 }
 
 function checkProjectileCollision(proj) {
-  // 일반 장애물 (ennemiesHolder 내부)
+  // ?쇰컲 ?μ븷臾?(ennemiesHolder ?대?)
   if (ennemiesHolder && ennemiesHolder.ennemiesInUse) {
     for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
       var ennemy = ennemiesHolder.ennemiesInUse[i];
       if (!ennemy || !ennemy.mesh) continue;
 
-      // 적의 월드 좌표 계산
+      // ?곸쓽 ?붾뱶 醫뚰몴 怨꾩궛
       var enemyWorldPos = new THREE.Vector3();
       ennemy.mesh.getWorldPosition(enemyWorldPos);
 
@@ -4646,7 +4312,7 @@ function checkProjectileCollision(proj) {
       var dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 30) {
-        // 파괴 + 파티클 + 효과음
+        // ?뚭눼 + ?뚰떚??+ ?④낵??
         var destroyPos = enemyWorldPos.clone();
         ennemiesHolder.mesh.remove(ennemy.mesh);
         ennemiesHolder.ennemiesInUse.splice(i, 1);
@@ -4658,7 +4324,7 @@ function checkProjectileCollision(proj) {
     }
   }
 
-  // 날아오는 소행성
+  // ?좎븘?ㅻ뒗 ?뚰뻾??
   if (typeof flyingAsteroids !== 'undefined') {
     for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
       var asteroid = flyingAsteroids[j];
@@ -4836,13 +4502,13 @@ function cleanupProjectiles() {
   abilityState.projectiles = [];
 }
 
-// 부스터 중 근처 장애물 자동 파괴
+// 遺?ㅽ꽣 以?洹쇱쿂 ?μ븷臾??먮룞 ?뚭눼
 function destroyNearbyEnemies() {
   if (!airplane || !airplane.mesh) return;
   var planePos = airplane.mesh.position;
   var destroyRange = 60;
 
-  // 일반 장애물
+  // ?쇰컲 ?μ븷臾?
   if (ennemiesHolder && ennemiesHolder.ennemiesInUse) {
     for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
       var ennemy = ennemiesHolder.ennemiesInUse[i];
@@ -4864,7 +4530,7 @@ function destroyNearbyEnemies() {
     }
   }
 
-  // 날아오는 소행성
+  // ?좎븘?ㅻ뒗 ?뚰뻾??
   if (typeof flyingAsteroids !== 'undefined') {
     for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
       var ast = flyingAsteroids[j];
@@ -4907,10 +4573,10 @@ var bossState = {
 };
 
 var bossConfigs = [
-  { name: '거대 암모나이트', hp: 15, reward: 150, color: 0xDDAA22, distance: 2000 },
-  { name: '메갈로돈', hp: 20, reward: 200, color: 0x4466AA, distance: 4000 },
-  { name: '티라노사우르스', hp: 30, reward: 300, color: 0x664422, distance: 7000 },
-  { name: '외계 모선', hp: 40, reward: 400, color: 0x44AA66, distance: 11000 }
+  { name: '嫄곕? ?붾え?섏씠??, hp: 15, reward: 150, color: 0xDDAA22, distance: 2000 },
+  { name: '硫붽컝濡쒕룉', hp: 20, reward: 200, color: 0x4466AA, distance: 4000 },
+  { name: '?곕씪?몄궗?곕Ⅴ??, hp: 30, reward: 300, color: 0x664422, distance: 7000 },
+  { name: '?멸퀎 紐⑥꽑', hp: 40, reward: 400, color: 0x44AA66, distance: 11000 }
 ];
 
 function getBossForDistance(dist) {
@@ -4927,13 +4593,13 @@ function getBossForDistance(dist) {
 
 function checkBossTrigger() {
   if (bossState.active) return;
-  // 보스 쿨다운 중이면 감소시키고 스폰 안 함
+  // 蹂댁뒪 荑⑤떎??以묒씠硫?媛먯냼?쒗궎怨??ㅽ룿 ????
   if (bossState.cooldown > 0) {
     bossState.cooldown -= 16; // ~60fps
     return;
   }
   var d = Math.floor(game.distance);
-  // 2000m 간격으로 보스 순환
+  // 2000m 媛꾧꺽?쇰줈 蹂댁뒪 ?쒗솚
   var interval = 2000;
   var triggerDist = Math.floor(d / interval) * interval;
   if (triggerDist < interval) return;
@@ -4950,8 +4616,8 @@ function createBossMesh(config, cycleIndex) {
   var type = cycleIndex % 4;
 
   if (type === 0) {
-    // 암모나이트 — 돌돌 말린 나선 껍데기(오른쪽) + 왼쪽 촉수
-    // 나선 껍데기: 로그 나선 경로에 구체 배치 (금색+검정 줄무늬)
+    // ?붾え?섏씠?????뚮룎 留먮┛ ?섏꽑 猿띾뜲湲??ㅻⅨ履? + ?쇱そ 珥됱닔
+    // ?섏꽑 猿띾뜲湲? 濡쒓렇 ?섏꽑 寃쎈줈??援ъ껜 諛곗튂 (湲덉깋+寃??以꾨Т??
     var shellGroup = new THREE.Object3D();
     var spiralSteps = 36;
     var sa = 3, sb = 0.17;
@@ -4973,7 +4639,7 @@ function createBossMesh(config, cycleIndex) {
       );
       shellGroup.add(sphere);
     }
-    // 나선 중심
+    // ?섏꽑 以묒떖
     var ctrGeom = new THREE.SphereGeometry(3.5, 6, 6);
     var ctrMat = new THREE.MeshPhongMaterial({ color: 0xCCAA33, flatShading: true });
     var ctr = new THREE.Mesh(ctrGeom, ctrMat);
@@ -4981,7 +4647,7 @@ function createBossMesh(config, cycleIndex) {
     shellGroup.add(ctr);
     group.add(shellGroup);
 
-    // 분홍 몸체 (껍데기 아래에서 왼쪽으로)
+    // 遺꾪솉 紐몄껜 (猿띾뜲湲??꾨옒?먯꽌 ?쇱そ?쇰줈)
     var bdGeom = new THREE.CylinderGeometry(7, 5, 22, 8);
     var bdMat = new THREE.MeshPhongMaterial({ color: 0xEE8877, flatShading: true });
     var bd = new THREE.Mesh(bdGeom, bdMat);
@@ -4989,7 +4655,7 @@ function createBossMesh(config, cycleIndex) {
     bd.position.set(-15, -6, 0);
     group.add(bd);
 
-    // 눈 (몸체 측면)
+    // ??(紐몄껜 痢〓㈃)
     var eGeom = new THREE.SphereGeometry(3, 8, 8);
     var eMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
     var eMesh = new THREE.Mesh(eGeom, eMat);
@@ -5001,7 +4667,7 @@ function createBossMesh(config, cycleIndex) {
     pMesh.position.set(-8, -3, 9.5);
     group.add(pMesh);
 
-    // 촉수 10개 — 왼쪽(-X)으로 뻗어나감
+    // 珥됱닔 10媛????쇱そ(-X)?쇰줈 六쀬뼱?섍컧
     group.tentacles = [];
     for (var t = 0; t < 10; t++) {
       var tGrp = new THREE.Object3D();
@@ -5030,27 +4696,27 @@ function createBossMesh(config, cycleIndex) {
       group.tentacles.push(tGrp);
     }
   } else if (type === 1) {
-    // 메갈로돈 — 거대 상어 측면
-    // 몸통
+    // 硫붽컝濡쒕룉 ??嫄곕? ?곸뼱 痢〓㈃
+    // 紐명넻
     var bodyG = new THREE.SphereGeometry(12, 8, 6);
     var bodyM = new THREE.MeshPhongMaterial({ color: 0x8899AA, flatShading: true });
     var bodyMesh = new THREE.Mesh(bodyG, bodyM);
     bodyMesh.scale.set(2.1, 1, 0.85);
     group.add(bodyMesh);
-    // 배 (하얀색)
+    // 諛?(?섏???
     var bellyG = new THREE.SphereGeometry(10, 8, 6);
     var bellyM = new THREE.MeshPhongMaterial({ color: 0xDDDDCC, flatShading: true });
     var belly = new THREE.Mesh(bellyG, bellyM);
     belly.scale.set(2.2, 0.8, 0.9);
     belly.position.set(2, -5, 0);
     group.add(belly);
-    // 머리 (앞쪽)
+    // 癒몃━ (?욎そ)
     var headG = new THREE.SphereGeometry(11, 8, 6);
     var headM = new THREE.MeshPhongMaterial({ color: 0x8899AA, flatShading: true });
     var headMesh = new THREE.Mesh(headG, headM);
     headMesh.position.set(-22, 2, 0);
     group.add(headMesh);
-    // 입 (벌어진 턱)
+    // ??(踰뚯뼱吏???
     var upperJawG = new THREE.BoxGeometry(14, 4, 16);
     var jawM = new THREE.MeshPhongMaterial({ color: 0x993333, flatShading: true });
     var upperJaw = new THREE.Mesh(upperJawG, jawM);
@@ -5061,7 +4727,7 @@ function createBossMesh(config, cycleIndex) {
     lowerJaw.position.set(-29, -4, 0);
     lowerJaw.rotation.z = 0.2;
     group.add(lowerJaw);
-    // 이빨 (위아래)
+    // ?대묠 (?꾩븘??
     for (var ti = 0; ti < 8; ti++) {
       var tG = new THREE.CylinderGeometry(0, 0.8, 3.5, 4);
       var tM = new THREE.MeshPhongMaterial({ color: 0xFFFFEE });
@@ -5073,14 +4739,14 @@ function createBossMesh(config, cycleIndex) {
       tDn.position.set(-25 - ti * 1.2, -3, -5 + ti * 1.3);
       group.add(tDn);
     }
-    // 등지느러미
+    // ?깆??먮윭誘?
     var dorG = new THREE.CylinderGeometry(0, 4, 18, 4);
     var dorM = new THREE.MeshPhongMaterial({ color: 0x667788, flatShading: true });
     var dorsal = new THREE.Mesh(dorG, dorM);
     dorsal.position.set(0, 16, 0);
     dorsal.rotation.z = 0.15;
     group.add(dorsal);
-    // 꼬리 지느러미
+    // 瑗щ━ 吏?먮윭誘?
     var tailG = new THREE.CylinderGeometry(0, 6, 15, 4);
     var tail = new THREE.Mesh(tailG, dorM.clone());
     tail.position.set(28, 6, 0);
@@ -5090,41 +4756,41 @@ function createBossMesh(config, cycleIndex) {
     tailLow.position.set(28, -4, 0);
     tailLow.rotation.z = 0.6;
     group.add(tailLow);
-    // 눈
+    // ??
     var sharkEyeG = new THREE.SphereGeometry(2.5, 6, 6);
     var sharkEyeM = new THREE.MeshPhongMaterial({ color: 0x111111 });
     var sharkEye = new THREE.Mesh(sharkEyeG, sharkEyeM);
     sharkEye.position.set(-18, 6, 9);
     group.add(sharkEye);
   } else if (type === 2) {
-    // 티라노사우르스 — 전체 측면
+    // ?곕씪?몄궗?곕Ⅴ?????꾩껜 痢〓㈃
     var dkBrown = 0x665533;
     var ltBrown = 0x887755;
-    // 몸통
+    // 紐명넻
     var torsoG = new THREE.SphereGeometry(14, 8, 6);
     var torsoM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
     var torso = new THREE.Mesh(torsoG, torsoM);
     torso.scale.set(1.3, 1, 0.7);
     group.add(torso);
-    // 머리
+    // 癒몃━
     var rHeadG = new THREE.BoxGeometry(22, 16, 16);
     var rHeadM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
     var rHead = new THREE.Mesh(rHeadG, rHeadM);
     rHead.position.set(-25, 12, 0);
     group.add(rHead);
-    // 주둥이
+    // 二쇰뫁??
     var snoutG = new THREE.BoxGeometry(14, 8, 14);
     var snout = new THREE.Mesh(snoutG, rHeadM.clone());
     snout.position.set(-36, 8, 0);
     group.add(snout);
-    // 아래턱
+    // ?꾨옒??
     var rJawG = new THREE.BoxGeometry(16, 5, 13);
     var rJawM = new THREE.MeshPhongMaterial({ color: 0x884433, flatShading: true });
     var rJaw = new THREE.Mesh(rJawG, rJawM);
     rJaw.position.set(-32, 0, 0);
     rJaw.rotation.z = 0.15;
     group.add(rJaw);
-    // 이빨
+    // ?대묠
     for (var ri = 0; ri < 7; ri++) {
       var rtG = new THREE.CylinderGeometry(0, 1, 4, 4);
       var rtM = new THREE.MeshPhongMaterial({ color: 0xFFFFDD });
@@ -5133,21 +4799,21 @@ function createBossMesh(config, cycleIndex) {
       rtMesh.rotation.x = Math.PI;
       group.add(rtMesh);
     }
-    // 목
+    // 紐?
     var neckG = new THREE.CylinderGeometry(8, 10, 12, 6);
     var neckM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
     var neck = new THREE.Mesh(neckG, neckM);
     neck.position.set(-12, 8, 0);
     neck.rotation.z = 0.4;
     group.add(neck);
-    // 꼬리
+    // 瑗щ━
     var tailRG = new THREE.CylinderGeometry(0, 7, 35, 6);
     var tailRM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
     var tailR = new THREE.Mesh(tailRG, tailRM);
     tailR.position.set(28, 2, 0);
     tailR.rotation.z = Math.PI / 2 + 0.2;
     group.add(tailR);
-    // 다리
+    // ?ㅻ━
     var legFG = new THREE.CylinderGeometry(3.5, 3, 18, 5);
     var legFM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
     var legF = new THREE.Mesh(legFG, legFM);
@@ -5157,21 +4823,21 @@ function createBossMesh(config, cycleIndex) {
     var legB = new THREE.Mesh(legBG, legFM.clone());
     legB.position.set(12, -17, 6);
     group.add(legB);
-    // 작은 팔
+    // ?묒? ??
     var armG = new THREE.CylinderGeometry(1.5, 1, 7, 4);
     var armM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
     var arm = new THREE.Mesh(armG, armM);
     arm.position.set(-15, -2, 9);
     arm.rotation.z = 0.5;
     group.add(arm);
-    // 눈
+    // ??
     var rexEyeG = new THREE.SphereGeometry(2.5, 6, 6);
     var rexEyeM = new THREE.MeshPhongMaterial({ color: 0xFFDD00, emissive: 0xAA8800 });
     var rexEye = new THREE.Mesh(rexEyeG, rexEyeM);
     rexEye.position.set(-28, 16, 8);
     group.add(rexEye);
   } else {
-    // 외계 모선 — UFO (수평 배치)
+    // ?멸퀎 紐⑥꽑 ??UFO (?섑룊 諛곗튂)
     var lowerDiscG = new THREE.CylinderGeometry(32, 38, 6, 16);
     var lowerDiscM = new THREE.MeshPhongMaterial({ color: 0x888899, flatShading: true });
     var lowerDisc = new THREE.Mesh(lowerDiscG, lowerDiscM);
@@ -5181,19 +4847,19 @@ function createBossMesh(config, cycleIndex) {
     var upperDisc = new THREE.Mesh(upperDiscG, upperDiscM);
     upperDisc.position.set(0, 4, 0);
     group.add(upperDisc);
-    // 구리색 띠
+    // 援щ━????
     var bandG = new THREE.TorusGeometry(33, 1.5, 6, 16);
     var bandM = new THREE.MeshPhongMaterial({ color: 0xCC8844, flatShading: true });
     var band = new THREE.Mesh(bandG, bandM);
     band.rotation.x = Math.PI / 2;
     group.add(band);
-    // 유리 돔
+    // ?좊━ ??
     var udomeG = new THREE.SphereGeometry(14, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2);
     var udomeM = new THREE.MeshPhongMaterial({ color: 0xAADDFF, transparent: true, opacity: 0.5, emissive: 0x446688 });
     var udome = new THREE.Mesh(udomeG, udomeM);
     udome.position.set(0, 7, 0);
     group.add(udome);
-    // 하부 엔진 포드 5개
+    // ?섎? ?붿쭊 ?щ뱶 5媛?
     for (var ep = 0; ep < 5; ep++) {
       var podG = new THREE.CylinderGeometry(3, 4, 6, 6);
       var podM = new THREE.MeshPhongMaterial({ color: 0x556677, flatShading: true });
@@ -5207,7 +4873,7 @@ function createBossMesh(config, cycleIndex) {
       glow.position.set(Math.cos(pAngle) * 22, -9, Math.sin(pAngle) * 22);
       group.add(glow);
     }
-    // 발광 링
+    // 諛쒓킅 留?
     var ringG = new THREE.TorusGeometry(26, 0.8, 4, 20);
     var ringM = new THREE.MeshPhongMaterial({ color: 0xFFAA00, emissive: 0xFF8800 });
     var ring = new THREE.Mesh(ringG, ringM);
@@ -5241,13 +4907,13 @@ function spawnBoss(config, typeIndex) {
   var ui = document.getElementById('bossUI');
   if (ui) ui.style.display = 'block';
   var nameEl = document.getElementById('bossName');
-  if (nameEl) nameEl.textContent = '⚠ ' + config.name;
-  // 모바일 발사 버튼 표시
+  if (nameEl) nameEl.textContent = '??' + config.name;
+  // 紐⑤컮??諛쒖궗 踰꾪듉 ?쒖떆
   var fireUI = document.getElementById('bossFireUI');
   if (fireUI) fireUI.style.display = 'flex';
   updateBossUI();
 
-  // 보스 등장 미사일 가이드
+  // 蹂댁뒪 ?깆옣 誘몄궗??媛?대뱶
   showBossGuide();
 }
 
@@ -5261,7 +4927,7 @@ function updateBossUI() {
 function updateBoss(dt) {
   if (!bossState.active || !bossState.mesh) return;
 
-  // 진입 애니메이션
+  // 吏꾩엯 ?좊땲硫붿씠??
   if (bossState.entering) {
     bossState.mesh.position.x += (bossState.targetX - bossState.mesh.position.x) * 0.03;
     if (Math.abs(bossState.mesh.position.x - bossState.targetX) < 2) {
@@ -5269,15 +4935,15 @@ function updateBoss(dt) {
     }
   }
 
-  // 위아래 오실레이션
+  // ?꾩븘???ㅼ떎?덉씠??
   bossState.oscillateTime += dt * 0.002;
   bossState.mesh.position.y = game.planeDefaultHeight + 30 + Math.sin(bossState.oscillateTime) * 40;
-  // 암모나이트는 회전 없이 측면만
+  // ?붾え?섏씠?몃뒗 ?뚯쟾 ?놁씠 痢〓㈃留?
   if (bossState.bossType !== 0) {
     bossState.mesh.rotation.y += 0.01;
   }
 
-  // 암모나이트 촉수 흔들림 애니메이션 (공격 없음)
+  // ?붾え?섏씠??珥됱닔 ?붾뱾由??좊땲硫붿씠??(怨듦꺽 ?놁쓬)
   if (bossState.bossType === 0 && bossState.mesh && bossState.mesh.tentacles) {
     var time = bossState.oscillateTime;
     for (var ti = 0; ti < bossState.mesh.tentacles.length; ti++) {
@@ -5287,11 +4953,11 @@ function updateBoss(dt) {
     }
   }
 
-  // 타이머 감소
+  // ??대㉧ 媛먯냼
   bossState.timer -= dt;
   updateBossUI();
 
-  // 미사일 업데이트
+  // 誘몄궗???낅뜲?댄듃
   for (var i = bossState.missiles.length - 1; i >= 0; i--) {
     var m = bossState.missiles[i];
     m.mesh.position.x += m.speed;
@@ -5303,7 +4969,7 @@ function updateBoss(dt) {
       continue;
     }
 
-    // 보스와 충돌 체크
+    // 蹂댁뒪? 異⑸룎 泥댄겕
     if (bossState.mesh) {
       var dx = m.mesh.position.x - bossState.mesh.position.x;
       var dy = m.mesh.position.y - bossState.mesh.position.y;
@@ -5312,7 +4978,7 @@ function updateBoss(dt) {
         bossState.hp--;
         scene.remove(m.mesh);
         bossState.missiles.splice(i, 1);
-        // 파티클
+        // ?뚰떚??
         spawnDestroyParticles(bossState.mesh.position.clone(), 0xFF4444);
         playShatterSound();
         updateBossUI();
@@ -5325,7 +4991,7 @@ function updateBoss(dt) {
     }
   }
 
-  // 타임아웃 — 보스 퇴각
+  // ??꾩븘????蹂댁뒪 ?닿컖
   if (bossState.timer <= 0) {
     retreatBoss();
   }
@@ -5369,13 +5035,13 @@ function fireBossProjectile() {
   var isLaser = false;
 
   if (bossState.bossType === 1 || bossState.bossType === 2) {
-    // 이빨 발사
+    // ?대묠 諛쒖궗
     var toothG = new THREE.CylinderGeometry(0, 2, 6, 4);
     var toothM = new THREE.MeshPhongMaterial({ color: 0xFFFFDD, flatShading: true });
     projMesh = new THREE.Mesh(toothG, toothM);
     projMesh.rotation.z = Math.atan2(dy, dx) - Math.PI / 2;
   } else {
-    // UFO 레이저빔
+    // UFO ?덉씠?鍮?
     var laserG = new THREE.CylinderGeometry(1, 1, 15, 6);
     var laserM = new THREE.MeshPhongMaterial({ color: 0x00FFCC, emissive: 0x00AA88, transparent: true, opacity: 0.8 });
     projMesh = new THREE.Mesh(laserG, laserM);
@@ -5401,7 +5067,7 @@ function fireBossProjectile() {
 function defeatBoss() {
   if (!bossState.mesh) return;
 
-  // 대폭발 파티클
+  // ???컻 ?뚰떚??
   for (var p = 0; p < 5; p++) {
     var offset = new THREE.Vector3(
       bossState.mesh.position.x + (Math.random() - 0.5) * 30,
@@ -5412,7 +5078,7 @@ function defeatBoss() {
   }
   playShatterSound();
 
-  // 코인 보상
+  // 肄붿씤 蹂댁긽
   var reward = bossState.reward;
   game.coins += reward;
   game.coinsEarnedThisRound += reward;
@@ -5421,14 +5087,14 @@ function defeatBoss() {
   var coinsEl = document.getElementById('coinsValue');
   if (coinsEl) coinsEl.textContent = game.coins;
 
-  // 보상 표시
+  // 蹂댁긽 ?쒖떆
   showBossReward(reward);
 
   cleanupBoss();
 }
 
 function retreatBoss() {
-  // 보스 퇴각 (보상 없이)
+  // 蹂댁뒪 ?닿컖 (蹂댁긽 ?놁씠)
   cleanupBoss();
 }
 
@@ -5437,12 +5103,12 @@ function cleanupBoss() {
     scene.remove(bossState.mesh);
     bossState.mesh = null;
   }
-  // 미사일 정리
+  // 誘몄궗???뺣━
   for (var i = 0; i < bossState.missiles.length; i++) {
     scene.remove(bossState.missiles[i].mesh);
   }
   bossState.missiles = [];
-  // 보스 발사체 정리
+  // 蹂댁뒪 諛쒖궗泥??뺣━
   if (bossState.bossProjectiles) {
     for (var j = 0; j < bossState.bossProjectiles.length; j++) {
       scene.remove(bossState.bossProjectiles[j].mesh);
@@ -5451,14 +5117,14 @@ function cleanupBoss() {
   }
   bossState.bossAttackTimer = 0;
   bossState.active = false;
-  bossState.cooldown = 500; // 0.5초 쿨다운 (테스트용)
-  // 마우스 홀드 인터벌 정리 (보스전 연사 중지)
+  bossState.cooldown = 500; // 0.5珥?荑⑤떎??(?뚯뒪?몄슜)
+  // 留덉슦??????명꽣踰??뺣━ (蹂댁뒪???곗궗 以묒?)
   mouseIsDown = false;
   if (mouseHoldInterval) {
     clearInterval(mouseHoldInterval);
     mouseHoldInterval = null;
   }
-  // UI 숨기기
+  // UI ?④린湲?
   var ui = document.getElementById('bossUI');
   if (ui) ui.style.display = 'none';
   var fireUI = document.getElementById('bossFireUI');
@@ -5468,7 +5134,7 @@ function cleanupBoss() {
 function showBossReward(amount) {
   var el = document.getElementById('levelUpText');
   if (el) {
-    el.innerHTML = '<p class="level-label">💣 Coin Bomb!</p><p class="level-number">+' + amount + '</p>';
+    el.innerHTML = '<p class="level-label">?뮗 Coin Bomb!</p><p class="level-number">+' + amount + '</p>';
     el.classList.add('show');
     setTimeout(function() {
       el.classList.remove('show');
@@ -5477,18 +5143,18 @@ function showBossReward(amount) {
 }
 
 function showBossGuide() {
-  // 기존 가이드 제거
+  // 湲곗〈 媛?대뱶 ?쒓굅
   var old = document.getElementById('bossGuide');
   if (old) old.remove();
 
   var guide = document.createElement('div');
   guide.id = 'bossGuide';
   guide.style.cssText = 'position:fixed;left:50%;top:60%;transform:translate(-50%,-50%);z-index:2000;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;animation:fadeInOut 3s ease forwards;';
-  guide.innerHTML = '<div style="font-size:60px;line-height:1;">🖱️</div>' +
-    '<div style="color:white;font-size:20px;font-weight:bold;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:8px 20px;border-radius:10px;white-space:nowrap;">마우스 왼쪽 클릭 → 미사일 발사!</div>';
+  guide.innerHTML = '<div style="font-size:60px;line-height:1;">?뼮截?/div>' +
+    '<div style="color:white;font-size:20px;font-weight:bold;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:8px 20px;border-radius:10px;white-space:nowrap;">留덉슦???쇱そ ?대┃ ??誘몄궗??諛쒖궗!</div>';
   document.body.appendChild(guide);
 
-  // fadeInOut 키프레임 동적 추가
+  // fadeInOut ?ㅽ봽?덉엫 ?숈쟻 異붽?
   if (!document.getElementById('bossGuideStyle')) {
     var style = document.createElement('style');
     style.id = 'bossGuideStyle';
