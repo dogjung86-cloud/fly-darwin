@@ -136,8 +136,8 @@
 	border: 1px solid rgba(255, 255, 255, 0.08);
 	border-radius: 20px;
 	padding: 28px 32px;
-	width: 720px;
-	max-width: 92vw;
+	width: 92vw;
+	max-width: 1100px;
 	max-height: 85vh;
 	display: flex;
 	flex-direction: column;
@@ -235,7 +235,7 @@
 /* Vehicle Grid */
 .shop-vehicles {
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
+	grid-template-columns: repeat(4, 1fr);
 	gap: 14px;
 }
 
@@ -450,10 +450,14 @@
 	cursor: default;
 }
 
+@media screen and (max-width: 900px) {
+	.shop-vehicles { grid-template-columns: repeat(3, 1fr); }
+}
+
 @media screen and (max-width: 600px) {
 	.shop-panel { padding: 20px 16px; }
-	.shop-vehicles { grid-template-columns: 1fr; }
-	.vehicle-preview { height: 100px; }
+	.shop-vehicles { grid-template-columns: repeat(2, 1fr); }
+	.vehicle-preview { height: 120px; }
 	.shop-title { font-size: 1.2em; }
 }
 
