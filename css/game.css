@@ -460,6 +460,165 @@
 	.vehicle-preview { height: 120px; }
 	.shop-title { font-size: 1.2em; }
 }
+/* ===== Boss UI ===== */
+.boss-ui {
+	position: fixed;
+	top: 80px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 2000;
+	width: 320px;
+}
+
+.boss-info {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 4px;
+}
+
+.boss-name {
+	color: #ff4444;
+	font-size: 16px;
+	font-weight: 800;
+	text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+	letter-spacing: 2px;
+}
+
+.boss-timer {
+	color: #ffcc00;
+	font-size: 14px;
+	font-weight: 700;
+	text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.boss-hp-bar-bg {
+	width: 100%;
+	height: 12px;
+	background: rgba(0,0,0,0.5);
+	border-radius: 6px;
+	border: 2px solid rgba(255,68,68,0.6);
+	overflow: hidden;
+}
+
+.boss-hp-bar {
+	height: 100%;
+	background: linear-gradient(90deg, #ff2222, #ff6644);
+	border-radius: 4px;
+	transition: width 0.3s ease;
+}
+
+.boss-fire-btn {
+	border-color: rgba(255, 50, 50, 0.8) !important;
+	background: linear-gradient(135deg, rgba(255, 50, 50, 0.4), rgba(255, 0, 0, 0.5)) !important;
+	box-shadow: 0 4px 20px rgba(255, 50, 50, 0.5) !important;
+	animation: bossPulse 1s infinite;
+}
+
+@keyframes bossPulse {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.08); }
+}
+
+/* ===== Ability Button ===== */
+.ability-ui {
+	position: fixed;
+	bottom: 30px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 2000;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+}
+
+.ufo-dual-ui {
+	position: fixed;
+	bottom: 30px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 2000;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 24px;
+}
+
+.ufo-laser-btn {
+	border-color: rgba(0, 255, 136, 0.6) !important;
+	background: linear-gradient(135deg, rgba(0, 200, 100, 0.25), rgba(0, 255, 136, 0.35)) !important;
+	box-shadow: 0 4px 20px rgba(0, 255, 136, 0.3) !important;
+}
+
+.ufo-booster-btn {
+	border-color: rgba(255, 100, 0, 0.6) !important;
+	background: linear-gradient(135deg, rgba(255, 100, 0, 0.25), rgba(255, 60, 0, 0.35)) !important;
+	box-shadow: 0 4px 20px rgba(255, 100, 0, 0.3) !important;
+}
+
+.ability-btn {
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	border: 3px solid rgba(255, 179, 0, 0.6);
+	background: linear-gradient(135deg, rgba(255, 179, 0, 0.25), rgba(255, 140, 0, 0.35));
+	backdrop-filter: blur(8px);
+	color: #fff;
+	font-size: 24px;
+	cursor: pointer;
+	position: relative;
+	transition: all 0.2s ease;
+	box-shadow: 0 4px 20px rgba(255, 179, 0, 0.3);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ability-btn:hover {
+	transform: scale(1.1);
+	box-shadow: 0 6px 28px rgba(255, 179, 0, 0.5);
+}
+
+.ability-btn:active {
+	transform: scale(0.95);
+}
+
+.ability-btn:disabled {
+	border-color: rgba(150, 150, 150, 0.3);
+	background: rgba(80, 80, 80, 0.3);
+	box-shadow: none;
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+.ability-count {
+	position: absolute;
+	top: -6px;
+	right: -6px;
+	background: #D4762C;
+	color: #fff;
+	font-size: 12px;
+	font-weight: 700;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+	font-family: 'Playfair Display', serif;
+}
+
+.ability-flash {
+	animation: abilityFlash 0.5s ease;
+}
+
+@keyframes abilityFlash {
+	0% { box-shadow: 0 0 0 0 rgba(255, 179, 0, 0.8); }
+	50% { box-shadow: 0 0 30px 10px rgba(255, 179, 0, 0.5); }
+	100% { box-shadow: 0 4px 20px rgba(255, 179, 0, 0.3); }
+}
 
 .game-holder {
 	position: absolute;

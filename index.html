@@ -99,8 +99,43 @@
 				</div>
 			</div>
 			<div class="world" id="world"></div>
+
+			<!-- Ability Button -->
+			<div id="abilityUI" class="ability-ui" style="display:none;">
+				<button id="abilityBtn" class="ability-btn">
+					<span id="abilityIcon">⚡</span>
+					<span id="abilityCount" class="ability-count">3</span>
+				</button>
+			</div>
+			<!-- UFO Dual Buttons -->
+			<div id="ufoDualUI" class="ufo-dual-ui" style="display:none;">
+				<button id="ufoLaserBtn" class="ability-btn ufo-laser-btn">
+					<span>🔫</span>
+					<span id="ufoLaserCount" class="ability-count">200</span>
+				</button>
+				<button id="ufoBoosterBtn" class="ability-btn ufo-booster-btn">
+					<span>🔥</span>
+					<span id="ufoBoosterCount" class="ability-count">2</span>
+				</button>
+			</div>
 <!-- Level업 텍스트 -->
 <div id="levelUpText" class="level-up-text"></div>
+<!-- Boss HP Bar -->
+<div id="bossUI" class="boss-ui" style="display:none;">
+	<div class="boss-info">
+		<span id="bossName" class="boss-name">BOSS</span>
+		<span id="bossTimer" class="boss-timer">15s</span>
+	</div>
+	<div class="boss-hp-bar-bg">
+		<div id="bossHpBar" class="boss-hp-bar" style="width:100%"></div>
+	</div>
+</div>
+<!-- Boss Fire Button (mobile) -->
+<div id="bossFireUI" class="ability-ui" style="display:none;">
+	<button id="bossFireBtn" class="ability-btn boss-fire-btn">
+		<span>🚀</span>
+	</button>
+</div>
 		<!-- Continue Prompt Overlay -->
 	<div id="continueOverlay" class="continue-overlay">
 		<div class="continue-panel">

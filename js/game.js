@@ -89,57 +89,10 @@ function playDestroySound() {
 }
 
 function playInvincibleSmashSound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-
-    // 1) 강력한 저음 펀치
-    var osc1 = ctx.createOscillator();
-    var gain1 = ctx.createGain();
-    osc1.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(180, now);
-    osc1.frequency.exponentialRampToValueAtTime(50, now + 0.2);
-    gain1.gain.setValueAtTime(0.18, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.35);
-
-    // 2) 상승하는 밝은 톤 (시원한 파괴)
-    var osc2 = ctx.createOscillator();
-    var gain2 = ctx.createGain();
-    osc2.type = 'square';
-    osc2.frequency.setValueAtTime(500, now + 0.03);
-    osc2.frequency.exponentialRampToValueAtTime(1500, now + 0.15);
-    gain2.gain.setValueAtTime(0.1, now + 0.03);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(now + 0.03);
-    osc2.stop(now + 0.3);
-
-    // 3) 금속성 노이즈 크래시
-    var bufferSize = ctx.sampleRate * 0.2;
-    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    var data = buffer.getChannelData(0);
-    for (var i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 1.5);
-    }
-    var noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    var gainN = ctx.createGain();
-    gainN.gain.setValueAtTime(0.13, now);
-    gainN.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-    var filter = ctx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.value = 2500;
-    noise.connect(filter);
-    filter.connect(gainN);
-    gainN.connect(ctx.destination);
-    noise.start(now);
-    noise.stop(now + 0.25);
-  } catch(e) {}
+  // 미사일/부스터 파괴와 동일한 효과음 사용
+  if (typeof playShatterSound === 'function') {
+    playShatterSound();
+  }
 }
 
 function playCoinSound() {
@@ -295,6 +248,8 @@ function resetGame(){
 
           heartItemLastSpawn : 0,
           distanceForHeartItemSpawn : 800,
+
+          splashPlayed : false,
          };
   fieldLevel.innerHTML = Math.floor(game.level);
   var coinsEl = document.getElementById('coinsValue');
@@ -395,14 +350,63 @@ function handleTouchMove(event) {
     var ty = 1 - (event.touches[0].pageY / HEIGHT)*2;
     mousePos = {x:tx, y:ty};
 }
+var mouseHoldInterval = null;
+var mouseIsDown = false;
+
+function handleMouseDown(event) {
+  if (event.button !== 0) return;
+  mouseIsDown = true;
+
+  if (game.status !== 'playing') return;
+
+  // 보스전: 보스가 활성이면 바로 미사일 발사
+  if (typeof bossState !== 'undefined' && bossState.active) {
+    fireBossMissile();
+    clearInterval(mouseHoldInterval);
+    mouseHoldInterval = setInterval(function() {
+      if (!mouseIsDown || game.status !== 'playing' || !bossState.active) {
+        clearInterval(mouseHoldInterval);
+        mouseHoldInterval = null;
+        return;
+      }
+      fireBossMissile();
+    }, 150);
+    return;
+  }
+
+  // 일반 능력 발동
+  if (!abilityState || !abilityState.type) return;
+
+  // 즉시 1회 발사
+  activateAbility();
+
+  // 연사 가능한 능력(미사일, 레이저)은 홀드 시 반복 발사
+  var isRapidFire = (abilityState.type === 'missile' || abilityState.type === 'ufo');
+  if (isRapidFire) {
+    clearInterval(mouseHoldInterval);
+    mouseHoldInterval = setInterval(function() {
+      if (!mouseIsDown || game.status !== 'playing') {
+        clearInterval(mouseHoldInterval);
+        mouseHoldInterval = null;
+        return;
+      }
+      activateAbility();
+    }, 120);
+  }
+}
 
 function handleMouseUp(event){
-  // Replay is handled by overlay buttons now
+  if (event.button !== 0) return;
+  mouseIsDown = false;
+  if (mouseHoldInterval) {
+    clearInterval(mouseHoldInterval);
+    mouseHoldInterval = null;
+  }
 }
 
 
 function handleTouchEnd(event){
-  // Replay is handled by overlay buttons now
+  // 모바일은 하단 능력 버튼으로만 발동 (터치 이동과 충돌 방지)
 }
 
 // LIGHTS
@@ -1704,7 +1708,7 @@ CoinsHolder = function (nCoins){
 
 CoinsHolder.prototype.spawnCoins = function(){
 
-  var nCoins = 1 + Math.floor(Math.random()*10);
+  var nCoins = 5 + Math.floor(Math.random()*15);
   var d = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight-20);
   var amplitude = 10 + Math.round(Math.random()*10);
   for (var i=0; i<nCoins; i++){
@@ -2452,15 +2456,23 @@ function loop(){
     }
 
     updateTurbulence();
-    checkBirdStrikeTrigger();
-    updateBirdStrike();
+    // 보스전 시스템
+    try {
+      if (typeof checkBossTrigger === 'function') checkBossTrigger();
+      if (typeof updateBoss === 'function') updateBoss(deltaTime);
+    } catch(bossErr) { console.warn('Boss error:', bossErr); }
     updatePlane();
     updateDistance();
     updateHearts();
     game.baseSpeed += (game.targetBaseSpeed - game.baseSpeed) * deltaTime * 0.02;
     if (game.baseSpeed > game.maxSpeed) game.baseSpeed = game.maxSpeed;
-    // 블랙홀 슬로우모션 적용
-    game.speed = game.baseSpeed * game.planeSpeed;
+    // 블랙홀 슬로우모션 적용 + 능력 속도 멀티플라이어
+    var abilityMult = (typeof getAbilitySpeedMultiplier === 'function') ? getAbilitySpeedMultiplier() : 1.0;
+    game.speed = game.baseSpeed * game.planeSpeed * abilityMult;
+
+    // 능력 시스템 업데이트
+    if (typeof updateAbilities === 'function') updateAbilities(deltaTime);
+    if (typeof updateDestroyParticles === 'function') updateDestroyParticles(deltaTime);
 
   }else if(game.status=="gameover"){
     game.speed *= .99;
@@ -2469,10 +2481,18 @@ function loop(){
     game.planeFallSpeed *= 1.05;
     airplane.mesh.position.y -= game.planeFallSpeed*deltaTime;
 
+    // 바다 표면에 닿을 때 효과음 (1회만)
+    if (airplane.mesh.position.y < 10 && !game.splashPlayed) {
+      game.splashPlayed = true;
+      playWaterSplashSound();
+    }
+
     if (airplane.mesh.position.y <-200){
       // 컨티뉴 가능하면 컨티뉴 선택 화면, 아니면 바로 게임오버
       showContinuePrompt();
       game.status = "continuePrompt";
+      if (typeof hideAbilityUI === 'function') hideAbilityUI();
+      if (typeof cleanupProjectiles === 'function') cleanupProjectiles();
     }
   }else if(game.status=="continuePrompt"){
     // 컨티뉴 선택 대기 중: 비행기 부유 + 씬 렌더링 유지
@@ -3383,8 +3403,12 @@ function continueGame() {
   var oldPos = airplane.mesh.position.clone();
   scene.remove(airplane.mesh);
 
-  // 현재 폼에 맞는 비행체 재생성
-  airplane = createNewCharacter(oldForm);
+  // 현재 폼에 맞는 비행체 재생성 (특수 비행체 유지)
+  if (shopState && shopState.selectedVehicle) {
+    airplane = createNewCharacter(shopState.selectedVehicle);
+  } else {
+    airplane = createNewCharacter(oldForm);
+  }
   airplane.mesh.scale.set(.25,.25,.25);
   airplane.mesh.position.y = game.planeDefaultHeight;
   airplane.mesh.rotation.z = 0;
@@ -3489,6 +3513,43 @@ function startReplay() {
   hideGameOver();
   resetGame();
   game.status = "waiting";
+
+  // 장애물 클리어
+  if (ennemiesHolder && ennemiesHolder.ennemiesInUse) {
+    for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
+      ennemiesHolder.mesh.remove(ennemiesHolder.ennemiesInUse[i].mesh);
+    }
+    ennemiesHolder.ennemiesInUse = [];
+  }
+
+  // 날아오는 소행성 클리어
+  if (typeof flyingAsteroids !== 'undefined') {
+    for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
+      scene.remove(flyingAsteroids[j].mesh);
+    }
+    flyingAsteroids = [];
+  }
+
+  // 코인 클리어
+  if (coinsHolder && coinsHolder.coinsInUse) {
+    for (var k = coinsHolder.coinsInUse.length - 1; k >= 0; k--) {
+      coinsHolder.mesh.remove(coinsHolder.coinsInUse[k].mesh);
+      coinsHolder.coinsPool.push(coinsHolder.coinsInUse[k]);
+    }
+    coinsHolder.coinsInUse = [];
+  }
+
+  // 무적 해제
+  if (game.invincible) deactivateInvincible();
+
+  // 파티클/프로젝타일 클리어
+  if (typeof cleanupProjectiles === 'function') cleanupProjectiles();
+  if (typeof cleanupDestroyParticles === 'function') cleanupDestroyParticles();
+
+  // 보스 정리
+  if (typeof cleanupBoss === 'function') cleanupBoss();
+  if (typeof bossState !== 'undefined') bossState.triggered = [];
+
   // Reset plane to initial form
   scene.remove(airplane.mesh);
   shopState = loadShopData();
@@ -3507,6 +3568,8 @@ function startReplay() {
   var overlay = document.getElementById('startOverlay');
   overlay.style.display = '';
   overlay.classList.remove('hidden');
+  // BGM 정지
+  stopBGM();
 }
 
 function initRankingUI() {
@@ -3583,47 +3646,32 @@ var fieldDistance, replayMessage, fieldLevel, levelCircle;
 var bgm = null;
 var bgmStarted = false;
 function initBGM() {
-  bgm = new Audio('music/Townsong.mp3');
+  bgm = new Audio('music/Suvaco do Cristo.mp3');
   bgm.loop = true;
-  bgm.volume = isMobile ? 0.02 : 0.05;
-  // 모바일 Safari 대응: 미리 load 호출
+  bgm.volume = isMobile ? 0.01 : 0.025;
   bgm.load();
-  // 브라우저 자동재생 정책 대응: 첫 인터랙션 후 재생
-  var removeBGMListeners = function() {
-    document.removeEventListener('click', startBGM);
-    document.removeEventListener('touchstart', startBGM);
-    document.removeEventListener('touchend', startBGM);
-    document.removeEventListener('pointerdown', startBGM);
-  };
-  var startBGM = function() {
-    if (bgmStarted) return;
-    if (bgm && bgm.paused) {
-      var playPromise = bgm.play();
-      if (playPromise !== undefined) {
-        playPromise.then(function() {
-          bgmStarted = true;
-          removeBGMListeners();
-        }).catch(function() {
-          // 재생 실패 시 리스너 유지 → 다음 인터랙션에서 재시도
-        });
-      } else {
-        // play()가 promise를 반환하지 않는 구형 브라우저
-        bgmStarted = true;
-        removeBGMListeners();
-      }
-    }
-    // AudioContext를 사용자 제스처 내에서 미리 생성 + resume (Safari 효과음 해결)
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-  };
-  document.addEventListener('click', startBGM);
-  document.addEventListener('touchstart', startBGM);
-  document.addEventListener('touchend', startBGM);
-  document.addEventListener('pointerdown', startBGM);
+  // BGM은 startGame()에서만 재생됨 — 상점에서는 재생하지 않음
+}
+
+function startBGMPlayback() {
+  if (!bgm) return;
+  if (bgm.paused) {
+    bgm.play().catch(function(){});
+  }
+  // AudioContext 초기화 (Safari 효과음 대응)
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function stopBGM() {
+  if (bgm && !bgm.paused) {
+    bgm.pause();
+    bgm.currentTime = 0;
+  }
 }
 
 function init(event){
@@ -3649,6 +3697,7 @@ function init(event){
   createHeartItems();
 
   document.addEventListener('mousemove', handleMouseMove, false);
+  document.addEventListener('mousedown', handleMouseDown, false);
   document.addEventListener('touchstart', handleTouchStart, { passive: false });
   document.addEventListener('touchmove', handleTouchMove, { passive: false });
   document.addEventListener('mouseup', handleMouseUp, false);
@@ -3659,6 +3708,8 @@ function init(event){
   initBGM();
   initPauseUI();
   initShopUI();
+  initAbilitySystem();
+  initAbilitySounds();
   initStartScreen();
   loop();
 }
@@ -3675,17 +3726,12 @@ function initStartScreen() {
     // 상점에서 선택한 비행체/업그레이드 반영
     shopState = loadShopData();
     resetGame();
+    setupAbilityForVehicle();
     game.status = 'playing';
     overlay.classList.add('hidden');
     oldTime = new Date().getTime();
-    // BGM 시작 (사용자 제스처 내)
-    if (typeof initBGM === 'function') {
-      if (bgm && bgm.paused) bgm.play().catch(function(){});
-    }
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    // BGM 시작 (PLAY 버튼에서만)
+    startBGMPlayback();
     setTimeout(function() {
       if (overlay.parentNode) overlay.style.display = 'none';
     }, 700);
@@ -3753,13 +3799,13 @@ function initPauseUI() {
 // ===== SHOP SYSTEM =====
 
 var shopVehicleData = [
-  { id: "Newton's Apple", name: "뉴턴의 사과", price: 2000, ability: "최대 하트 7개부터 시작" },
-  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "슬로우 모션 3번 사용 가능 (마우스 왼쪽 버튼)" },
-  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "무적 효과 2번 사용 가능 (마우스 왼쪽 버튼)" },
-  { id: "Jetliner", name: "여객기", price: 4000, ability: "코인 X3 획득" },
-  { id: "Rocket", name: "로켓", price: 6000, ability: "미사일 20발 (철퇴, 소행성, 번개구름 파괴) (마우스 왼쪽 버튼)" },
-  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 7000, ability: "500m 부스터 2회 (모든 장애물 회피)" },
-  { id: "UFO", name: "UFO", price: 8000, ability: "500m 부스터 2회 + 레이저 20발 (모든 장애물 파괴)" }
+  { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개부터 시작", unlockForm: "Anomalocaris" },
+  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "슬로우 모션 3번 사용 가능 (마우스 왼쪽 버튼)", unlockForm: "Dunkleosteus" },
+  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "무적 효과 2번 사용 가능 (마우스 왼쪽 버튼)", unlockForm: "Tiktaalik" },
+  { id: "Jetliner", name: "여객기", price: 5000, ability: "코인 X3 획득", unlockForm: "Plesiosaur" },
+  { id: "Rocket", name: "로켓", price: 6000, ability: "미사일 100발 (철퇴, 소행성, 번개구름 파괴) (마우스 왼쪽 버튼)", unlockForm: "Quetzalcoatlus" },
+  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 8000, ability: "500m 부스터 2회 (모든 장애물 파괴)", unlockForm: "Darwin's Finch" },
+  { id: "UFO", name: "UFO", price: 12000, ability: "1000m 부스터 2회 + 레이저 200발 (모든 장애물 파괴)", unlockForm: "Darwin's Finch" }
 ];
 
 var shopUpgradeData = [
@@ -3897,7 +3943,7 @@ function renderShopVehicles() {
 
   for (var i = 0; i < shopVehicleData.length; i++) {
     var v = shopVehicleData[i];
-    var isUnlocked = shopState.darwinFinchReached;
+    var isUnlocked = v.unlockForm ? (shopState.unlockedEvoForms.indexOf(v.unlockForm) !== -1) : shopState.darwinFinchReached;
     var isPurchased = shopState.unlockedVehicles.indexOf(v.id) !== -1;
     var isSelected = shopState.selectedVehicle === v.id;
 
@@ -3920,7 +3966,7 @@ function renderShopVehicles() {
     btn.className = 'vehicle-btn';
     if (!isUnlocked) {
       btn.className += ' vehicle-btn--locked';
-      btn.textContent = '🔒 다윈의 핀치 도달 시 해금';
+      btn.textContent = '🔒 ' + (v.unlockForm || '다윈의 핀치') + '까지 진화 시 해금';
       btn.disabled = true;
     } else if (isPurchased && isSelected) {
       btn.className += ' vehicle-btn--selected';
@@ -4242,4 +4288,1215 @@ function getContinueCosts() {
     costs = [35, 140, 210];
   }
   return costs;
+}
+
+// ===== ACTIVE ABILITY SYSTEM =====
+
+var abilityState = {
+  type: null,       // 'slowmo', 'invincible', 'missile', 'booster', 'ufo'
+  uses: 0,
+  maxUses: 0,
+  active: false,
+  cooldown: false,
+  cooldownTimer: 0,
+  // Slow motion
+  slowmoActive: false,
+  slowmoTimer: 0,
+  slowmoDuration: 5000,
+  // Booster
+  boosterActive: false,
+  boosterDistStart: 0,
+  boosterDistTarget: 0,
+  // Missiles/Lasers
+  projectiles: [],
+  // UFO secondary (laser)
+  ufoLaserUses: 0
+};
+
+var abilityConfigs = {
+  'Einstein': { type: 'slowmo', icon: '⏱️', uses: 3, cooldownMs: 1000 },
+  'Wright Flyer': { type: 'invincible', icon: '🛡️', uses: 2, cooldownMs: 1000 },
+  'Rocket': { type: 'missile', icon: '🚀', uses: 100, cooldownMs: 100 },
+  'SpaceShuttle': { type: 'booster', icon: '🔥', uses: 2, cooldownMs: 2000 },
+  'UFO': { type: 'ufo', icon: '👽', uses: 2, cooldownMs: 100 }
+};
+
+function initAbilitySystem() {
+  var btn = document.getElementById('abilityBtn');
+  if (!btn) return;
+
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    activateAbility();
+  });
+  btn.addEventListener('touchend', function(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    activateAbility();
+  });
+
+  // UFO 듀얼 버튼 이벤트
+  var laserBtn = document.getElementById('ufoLaserBtn');
+  var boosterBtn = document.getElementById('ufoBoosterBtn');
+  if (laserBtn) {
+    laserBtn.addEventListener('click', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      activateAbility(); // 레이저 발사
+    });
+    laserBtn.addEventListener('touchend', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      activateAbility();
+    });
+  }
+  if (boosterBtn) {
+    boosterBtn.addEventListener('click', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      activateUfoBooster();
+    });
+    boosterBtn.addEventListener('touchend', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      activateUfoBooster();
+    });
+  }
+
+  // 보스전 발사 버튼
+  var bossFireBtn = document.getElementById('bossFireBtn');
+  if (bossFireBtn) {
+    var bossFireInterval = null;
+    bossFireBtn.addEventListener('touchstart', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      if (typeof bossState !== 'undefined' && bossState.active) {
+        fireBossMissile();
+        clearInterval(bossFireInterval);
+        bossFireInterval = setInterval(function() {
+          if (!bossState.active) { clearInterval(bossFireInterval); return; }
+          fireBossMissile();
+        }, 150);
+      }
+    });
+    bossFireBtn.addEventListener('touchend', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      clearInterval(bossFireInterval);
+    });
+    bossFireBtn.addEventListener('click', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      if (typeof bossState !== 'undefined' && bossState.active) {
+        fireBossMissile();
+      }
+    });
+  }
+}
+
+function setupAbilityForVehicle() {
+  var vehicle = shopState ? shopState.selectedVehicle : null;
+  var config = vehicle ? abilityConfigs[vehicle] : null;
+  var ui = document.getElementById('abilityUI');
+  var ufoDualUI = document.getElementById('ufoDualUI');
+
+  if (!config) {
+    if (ui) ui.style.display = 'none';
+    if (ufoDualUI) ufoDualUI.style.display = 'none';
+    abilityState.type = null;
+    abilityState.uses = 0;
+    return;
+  }
+
+  abilityState.type = config.type;
+  abilityState.uses = config.uses;
+  abilityState.maxUses = config.uses;
+  abilityState.active = false;
+  abilityState.cooldown = false;
+  abilityState.cooldownTimer = 0;
+  abilityState.slowmoActive = false;
+  abilityState.boosterActive = false;
+  abilityState.projectiles = [];
+  abilityState.ufoLaserUses = (config.type === 'ufo') ? 200 : 0;
+
+  if (config.type === 'ufo') {
+    // UFO: 듀얼 버튼 UI
+    if (ui) ui.style.display = 'none';
+    if (ufoDualUI) {
+      ufoDualUI.style.display = 'flex';
+      document.getElementById('ufoLaserCount').textContent = abilityState.ufoLaserUses;
+      document.getElementById('ufoBoosterCount').textContent = abilityState.uses;
+      document.getElementById('ufoLaserBtn').disabled = false;
+      document.getElementById('ufoBoosterBtn').disabled = false;
+    }
+  } else {
+    // 일반 비행체: 단일 버튼 UI
+    if (ufoDualUI) ufoDualUI.style.display = 'none';
+    document.getElementById('abilityIcon').textContent = config.icon;
+    document.getElementById('abilityCount').textContent = abilityState.uses;
+    if (ui) ui.style.display = 'flex';
+    var btn = document.getElementById('abilityBtn');
+    btn.disabled = false;
+  }
+}
+
+function activateAbility() {
+  if (game.status !== 'playing' || abilityState.cooldown || paused) return;
+  if (!abilityState.type) return;
+
+  var config = null;
+  var vehicle = shopState ? shopState.selectedVehicle : null;
+  if (vehicle) config = abilityConfigs[vehicle];
+  if (!config) return;
+
+  // UFO: 마우스 클릭 = 레이저만, 부스터는 UI 버튼 전용
+  if (abilityState.type === 'ufo') {
+    // activateAbility는 마우스 클릭에서 호출됨 -> 레이저만
+    if (abilityState.ufoLaserUses > 0) {
+      fireLaser();
+      abilityState.ufoLaserUses--;
+    } else {
+      return;
+    }
+    updateAbilityUI();
+    startAbilityCooldown(config.cooldownMs);
+    return;
+  }
+
+  if (abilityState.uses <= 0) return;
+  abilityState.uses--;
+
+  switch (abilityState.type) {
+    case 'slowmo':
+      activateSlowmo();
+      break;
+    case 'invincible':
+      activateInvincibility();
+      break;
+    case 'missile':
+      fireMissile();
+      break;
+    case 'booster':
+      activateBooster();
+      break;
+  }
+
+  updateAbilityUI();
+  startAbilityCooldown(config.cooldownMs);
+}
+
+function updateAbilityUI() {
+  if (abilityState.type === 'ufo') {
+    // UFO 듀얼 UI 업데이트
+    var laserCount = document.getElementById('ufoLaserCount');
+    var boosterCount = document.getElementById('ufoBoosterCount');
+    var laserBtn = document.getElementById('ufoLaserBtn');
+    var boosterBtn = document.getElementById('ufoBoosterBtn');
+    if (laserCount) laserCount.textContent = abilityState.ufoLaserUses;
+    if (boosterCount) boosterCount.textContent = abilityState.uses;
+    if (laserBtn) laserBtn.disabled = (abilityState.ufoLaserUses <= 0);
+    if (boosterBtn) boosterBtn.disabled = (abilityState.uses <= 0 || abilityState.boosterActive);
+  } else {
+    var countEl = document.getElementById('abilityCount');
+    var btn = document.getElementById('abilityBtn');
+    if (!countEl || !btn) return;
+    countEl.textContent = abilityState.uses;
+    btn.disabled = (abilityState.uses <= 0);
+
+    // Flash effect
+    btn.classList.remove('ability-flash');
+    void btn.offsetWidth;
+    btn.classList.add('ability-flash');
+  }
+}
+
+function startAbilityCooldown(ms) {
+  abilityState.cooldown = true;
+  abilityState.cooldownTimer = ms;
+}
+
+// === Slow Motion ===
+function activateSlowmo() {
+  abilityState.slowmoActive = true;
+  abilityState.slowmoTimer = abilityState.slowmoDuration;
+}
+
+// === Invincibility ===
+function activateInvincibility() {
+  game.invincibleDuration = 5000;
+  activateInvincible();
+}
+
+// === UFO Booster (UI 버튼 전용) ===
+function activateUfoBooster() {
+  if (game.status !== 'playing' || abilityState.boosterActive) return;
+  if (abilityState.uses <= 0) return;
+
+  abilityState.uses--;
+  activateBooster();
+  updateAbilityUI();
+}
+
+// === Booster ===
+function activateBooster() {
+  abilityState.boosterActive = true;
+  abilityState.boosterDistStart = game.distance;
+  abilityState.boosterDistTarget = game.distance + (shopState && shopState.selectedVehicle === 'UFO' ? 1000 : 500);
+  // 기존 무적 시스템 사용 (금빛 글로우 이펙트 포함)
+  var isUfo = (shopState && shopState.selectedVehicle === 'UFO');
+  game.invincibleDuration = isUfo ? 30000 : 15000;
+  activateInvincible();
+}
+
+// === Missile ===
+function fireMissile() {
+  if (!airplane || !airplane.mesh) return;
+  var pos = airplane.mesh.position.clone();
+  var geom = new THREE.BoxGeometry(3, 3, 12);
+  var mat = new THREE.MeshPhongMaterial({ color: 0xFF4444, flatShading: true });
+  var mesh = new THREE.Mesh(geom, mat);
+  mesh.position.set(pos.x + 15, pos.y, pos.z);
+  scene.add(mesh);
+  playShotSound();
+
+  abilityState.projectiles.push({
+    mesh: mesh,
+    type: 'missile',
+    speed: 6,
+    life: 3000
+  });
+}
+
+// === Laser ===
+function fireLaser() {
+  if (!airplane || !airplane.mesh) return;
+  var pos = airplane.mesh.position.clone();
+  var geom = new THREE.CylinderGeometry(1, 1, 30, 6);
+  var mat = new THREE.MeshPhongMaterial({ color: 0x00FF88, emissive: 0x00AA44, flatShading: true });
+  var mesh = new THREE.Mesh(geom, mat);
+  mesh.rotation.z = Math.PI / 2;
+  mesh.position.set(pos.x + 20, pos.y, pos.z);
+  scene.add(mesh);
+  playLaserSound();
+
+  abilityState.projectiles.push({
+    mesh: mesh,
+    type: 'laser',
+    speed: 8,
+    life: 2000
+  });
+}
+
+// Called every frame from game loop
+function updateAbilities(dt) {
+  if (!abilityState.type) return;
+
+  // Cooldown timer
+  if (abilityState.cooldown) {
+    abilityState.cooldownTimer -= dt;
+    if (abilityState.cooldownTimer <= 0) {
+      abilityState.cooldown = false;
+    }
+  }
+
+  // Slow motion effect
+  if (abilityState.slowmoActive) {
+    abilityState.slowmoTimer -= dt;
+    if (abilityState.slowmoTimer <= 0) {
+      abilityState.slowmoActive = false;
+    }
+  }
+
+  // Booster effect - 장애물 파괴하면서 전진
+  if (abilityState.boosterActive) {
+    if (game.distance >= abilityState.boosterDistTarget) {
+      abilityState.boosterActive = false;
+      game.invincibleDuration = 5000; // 기본값 복원
+      deactivateInvincible();
+      updateAbilityUI(); // 부스터 버튼 재활성화
+    } else {
+      // 부스터 중 장애물 자동 파괴
+      destroyNearbyEnemies();
+    }
+  }
+
+  // Update projectiles
+  for (var i = abilityState.projectiles.length - 1; i >= 0; i--) {
+    var p = abilityState.projectiles[i];
+    p.mesh.position.x += p.speed;
+    p.life -= dt;
+
+    // Check collision with enemies
+    checkProjectileCollision(p);
+
+    if (p.life <= 0 || p.mesh.position.x > 400) {
+      scene.remove(p.mesh);
+      abilityState.projectiles.splice(i, 1);
+    }
+  }
+}
+
+function checkProjectileCollision(proj) {
+  // 일반 장애물 (ennemiesHolder 내부)
+  if (ennemiesHolder && ennemiesHolder.ennemiesInUse) {
+    for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
+      var ennemy = ennemiesHolder.ennemiesInUse[i];
+      if (!ennemy || !ennemy.mesh) continue;
+
+      // 적의 월드 좌표 계산
+      var enemyWorldPos = new THREE.Vector3();
+      ennemy.mesh.getWorldPosition(enemyWorldPos);
+
+      var dx = proj.mesh.position.x - enemyWorldPos.x;
+      var dy = proj.mesh.position.y - enemyWorldPos.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 30) {
+        // 파괴 + 파티클 + 효과음
+        var destroyPos = enemyWorldPos.clone();
+        ennemiesHolder.mesh.remove(ennemy.mesh);
+        ennemiesHolder.ennemiesInUse.splice(i, 1);
+        proj.life = 0;
+        spawnDestroyParticles(destroyPos, 0x666666);
+        playShatterSound();
+        return;
+      }
+    }
+  }
+
+  // 날아오는 소행성
+  if (typeof flyingAsteroids !== 'undefined') {
+    for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
+      var asteroid = flyingAsteroids[j];
+      if (!asteroid || !asteroid.mesh) continue;
+
+      var dx2 = proj.mesh.position.x - asteroid.mesh.position.x;
+      var dy2 = proj.mesh.position.y - asteroid.mesh.position.y;
+      var dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+      if (dist2 < 30) {
+        var destroyPos2 = asteroid.mesh.position.clone();
+        scene.remove(asteroid.mesh);
+        flyingAsteroids.splice(j, 1);
+        proj.life = 0;
+        spawnDestroyParticles(destroyPos2, 0x996633);
+        playShatterSound();
+        return;
+      }
+    }
+  }
+}
+
+// Get the speed multiplier for slow motion
+function getAbilitySpeedMultiplier() {
+  if (abilityState.slowmoActive) return 0.3;
+  if (abilityState.boosterActive) return 3.0;
+  return 1.0;
+}
+
+// ===== DESTROY PARTICLES =====
+var destroyParticles = [];
+
+var shotSound = null;
+var shatterSounds = [];
+var waterSplashSound = null;
+
+function initAbilitySounds() {
+  try {
+    shotSound = new Audio('audio/shot-hard.mp3');
+    shotSound.volume = 0.06;
+    shatterSounds.push(new Audio('audio/rock-shatter-1.mp3'));
+    shatterSounds.push(new Audio('audio/rock-shatter-2.mp3'));
+    shatterSounds.push(new Audio('audio/bullet-impact-rock.mp3'));
+    for (var i = 0; i < shatterSounds.length; i++) {
+      shatterSounds[i].volume = 0.2;
+    }
+    waterSplashSound = new Audio('audio/water-splash.mp3');
+    waterSplashSound.volume = 0.35;
+  } catch(e) {}
+}
+
+function playShotSound() {
+  try {
+    if (shotSound) {
+      var s = shotSound.cloneNode();
+      s.volume = 0.06;
+      s.play().catch(function(){});
+    }
+  } catch(e) {}
+}
+
+var _laserAudioCtx = null;
+function playLaserSound() {
+  try {
+    if (!_laserAudioCtx) _laserAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var ctx = _laserAudioCtx;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+  } catch(e) {}
+}
+
+function playShatterSound() {
+  try {
+    if (shatterSounds.length > 0) {
+      var idx = Math.floor(Math.random() * shatterSounds.length);
+      var s = shatterSounds[idx].cloneNode();
+      s.volume = 0.2;
+      s.play().catch(function(){});
+    }
+  } catch(e) {}
+}
+
+function playWaterSplashSound() {
+  try {
+    if (waterSplashSound) {
+      var s = waterSplashSound.cloneNode();
+      s.volume = 0.35;
+      s.play().catch(function(){});
+    }
+  } catch(e) {}
+}
+
+function spawnDestroyParticles(worldPos, color) {
+  var particleCount = 12;
+  var col = color || 0x888888;
+
+  for (var i = 0; i < particleCount; i++) {
+    var size = 2 + Math.random() * 4;
+    var geom = new THREE.BoxGeometry(size, size, size);
+    var mat = new THREE.MeshPhongMaterial({
+      color: col,
+      flatShading: true,
+      transparent: true,
+      opacity: 1
+    });
+    var mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(worldPos.x, worldPos.y, worldPos.z);
+    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+    scene.add(mesh);
+
+    destroyParticles.push({
+      mesh: mesh,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.5) * 4,
+      vz: (Math.random() - 0.5) * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.3,
+      life: 800 + Math.random() * 400,
+      maxLife: 800 + Math.random() * 400
+    });
+  }
+}
+
+function updateDestroyParticles(dt) {
+  for (var i = destroyParticles.length - 1; i >= 0; i--) {
+    var p = destroyParticles[i];
+    p.mesh.position.x += p.vx;
+    p.mesh.position.y += p.vy;
+    p.mesh.position.z += p.vz;
+    p.vy -= 0.08; // gravity
+    p.mesh.rotation.x += p.rotSpeed;
+    p.mesh.rotation.y += p.rotSpeed;
+    p.life -= dt;
+
+    // Fade out + shrink
+    var ratio = Math.max(0, p.life / p.maxLife);
+    p.mesh.scale.set(ratio, ratio, ratio);
+    if (p.mesh.material) p.mesh.material.opacity = ratio;
+
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      destroyParticles.splice(i, 1);
+    }
+  }
+}
+
+function cleanupDestroyParticles() {
+  for (var i = 0; i < destroyParticles.length; i++) {
+    scene.remove(destroyParticles[i].mesh);
+  }
+  destroyParticles = [];
+}
+
+function hideAbilityUI() {
+  var ui = document.getElementById('abilityUI');
+  if (ui) ui.style.display = 'none';
+  var ufoDualUI = document.getElementById('ufoDualUI');
+  if (ufoDualUI) ufoDualUI.style.display = 'none';
+  mouseIsDown = false;
+  if (mouseHoldInterval) { clearInterval(mouseHoldInterval); mouseHoldInterval = null; }
+}
+
+function cleanupProjectiles() {
+  for (var i = 0; i < abilityState.projectiles.length; i++) {
+    scene.remove(abilityState.projectiles[i].mesh);
+  }
+  abilityState.projectiles = [];
+}
+
+// 부스터 중 근처 장애물 자동 파괴
+function destroyNearbyEnemies() {
+  if (!airplane || !airplane.mesh) return;
+  var planePos = airplane.mesh.position;
+  var destroyRange = 60;
+
+  // 일반 장애물
+  if (ennemiesHolder && ennemiesHolder.ennemiesInUse) {
+    for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
+      var ennemy = ennemiesHolder.ennemiesInUse[i];
+      if (!ennemy || !ennemy.mesh) continue;
+
+      var wp = new THREE.Vector3();
+      ennemy.mesh.getWorldPosition(wp);
+      var dx = planePos.x - wp.x;
+      var dy = planePos.y - wp.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < destroyRange) {
+        var dpos = wp.clone();
+        ennemiesHolder.mesh.remove(ennemy.mesh);
+        ennemiesHolder.ennemiesInUse.splice(i, 1);
+        spawnDestroyParticles(dpos, 0x666666);
+        playShatterSound();
+      }
+    }
+  }
+
+  // 날아오는 소행성
+  if (typeof flyingAsteroids !== 'undefined') {
+    for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
+      var ast = flyingAsteroids[j];
+      if (!ast || !ast.mesh) continue;
+      var dx2 = planePos.x - ast.mesh.position.x;
+      var dy2 = planePos.y - ast.mesh.position.y;
+      var dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      if (dist2 < destroyRange) {
+        var dpos2 = ast.mesh.position.clone();
+        scene.remove(ast.mesh);
+        flyingAsteroids.splice(j, 1);
+        spawnDestroyParticles(dpos2, 0x996633);
+        playShatterSound();
+      }
+    }
+  }
+}
+
+// ===== BOSS FIGHT SYSTEM =====
+
+var bossState = {
+  active: false,
+  mesh: null,
+  hp: 0,
+  maxHp: 0,
+  timer: 0,
+  maxTimer: 25000, // 25 seconds
+  reward: 0,
+  name: '',
+  triggered: [],
+  missiles: [],
+  entering: true,
+  targetX: 80,
+  oscillateTime: 0,
+  bossType: 0,
+  cooldown: 0,
+  tentacleAttackTimer: 0,
+  tentacleAttacking: false,
+  tentaclePhase: 0
+};
+
+var bossConfigs = [
+  { name: '거대 암모나이트', hp: 15, reward: 150, color: 0xDDAA22, distance: 2000 },
+  { name: '메갈로돈', hp: 20, reward: 200, color: 0x4466AA, distance: 4000 },
+  { name: '티라노사우르스', hp: 30, reward: 300, color: 0x664422, distance: 7000 },
+  { name: '외계 모선', hp: 40, reward: 400, color: 0x44AA66, distance: 11000 }
+];
+
+function getBossForDistance(dist) {
+  var d = Math.floor(dist);
+  for (var i = bossConfigs.length - 1; i >= 0; i--) {
+    if (d >= bossConfigs[i].distance) {
+      // Repeating bosses: cycle through them
+      var cycleIndex = Math.floor((d - 5000) / 5000) % bossConfigs.length;
+      return bossConfigs[cycleIndex];
+    }
+  }
+  return null;
+}
+
+function checkBossTrigger() {
+  if (bossState.active) return;
+  // 보스 쿨다운 중이면 감소시키고 스폰 안 함
+  if (bossState.cooldown > 0) {
+    bossState.cooldown -= 16; // ~60fps
+    return;
+  }
+  var d = Math.floor(game.distance);
+  // 2000m 간격으로 보스 순환
+  var interval = 2000;
+  var triggerDist = Math.floor(d / interval) * interval;
+  if (triggerDist < interval) return;
+  if (bossState.triggered.indexOf(triggerDist) !== -1) return;
+
+  bossState.triggered.push(triggerDist);
+  var cycleIndex = (Math.floor(triggerDist / interval) - 1) % bossConfigs.length;
+  var config = bossConfigs[cycleIndex];
+  spawnBoss(config, cycleIndex);
+}
+
+function createBossMesh(config, cycleIndex) {
+  var group = new THREE.Object3D();
+  var type = cycleIndex % 4;
+
+  if (type === 0) {
+    // 암모나이트 — 돌돌 말린 나선 껍데기(오른쪽) + 왼쪽 촉수
+    // 나선 껍데기: 로그 나선 경로에 구체 배치 (금색+검정 줄무늬)
+    var shellGroup = new THREE.Object3D();
+    var spiralSteps = 36;
+    var sa = 3, sb = 0.17;
+    for (var si = 0; si < spiralSteps; si++) {
+      var theta = si * 0.45;
+      var sr = sa * Math.exp(sb * theta);
+      var sz = 1.2 + sr * 0.3;
+      var sphereGeom = new THREE.SphereGeometry(sz, 6, 5);
+      var isStripe = (si % 3 === 0);
+      var sphereMat = new THREE.MeshPhongMaterial({
+        color: isStripe ? 0x332200 : 0xDDAA22,
+        flatShading: true
+      });
+      var sphere = new THREE.Mesh(sphereGeom, sphereMat);
+      sphere.position.set(
+        Math.cos(theta) * sr + 8,
+        Math.sin(theta) * sr + 2,
+        0
+      );
+      shellGroup.add(sphere);
+    }
+    // 나선 중심
+    var ctrGeom = new THREE.SphereGeometry(3.5, 6, 6);
+    var ctrMat = new THREE.MeshPhongMaterial({ color: 0xCCAA33, flatShading: true });
+    var ctr = new THREE.Mesh(ctrGeom, ctrMat);
+    ctr.position.set(8, 2, 0);
+    shellGroup.add(ctr);
+    group.add(shellGroup);
+
+    // 분홍 몸체 (껍데기 아래에서 왼쪽으로)
+    var bdGeom = new THREE.CylinderGeometry(7, 5, 22, 8);
+    var bdMat = new THREE.MeshPhongMaterial({ color: 0xEE8877, flatShading: true });
+    var bd = new THREE.Mesh(bdGeom, bdMat);
+    bd.rotation.z = Math.PI / 2;
+    bd.position.set(-15, -6, 0);
+    group.add(bd);
+
+    // 눈 (몸체 측면)
+    var eGeom = new THREE.SphereGeometry(3, 8, 8);
+    var eMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
+    var eMesh = new THREE.Mesh(eGeom, eMat);
+    eMesh.position.set(-8, -3, 7);
+    group.add(eMesh);
+    var pGeom = new THREE.SphereGeometry(1.5, 6, 6);
+    var pMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+    var pMesh = new THREE.Mesh(pGeom, pMat);
+    pMesh.position.set(-8, -3, 9.5);
+    group.add(pMesh);
+
+    // 촉수 10개 — 왼쪽(-X)으로 뻗어나감
+    group.tentacles = [];
+    for (var t = 0; t < 10; t++) {
+      var tGrp = new THREE.Object3D();
+      var nSeg = 4 + Math.floor(Math.random() * 2);
+      var cx = 0;
+      for (var sg = 0; sg < nSeg; sg++) {
+        var sLen = 5 + Math.random() * 3;
+        var tk = 1.8 - sg * 0.25;
+        if (tk < 0.4) tk = 0.4;
+        var sgGeom = new THREE.CylinderGeometry(tk, tk * 0.8, sLen, 5);
+        var sgMat = new THREE.MeshPhongMaterial({
+          color: sg < 2 ? 0xEE8877 : 0xDD6644,
+          flatShading: true
+        });
+        var sgMesh = new THREE.Mesh(sgGeom, sgMat);
+        sgMesh.rotation.z = Math.PI / 2;
+        sgMesh.position.set(cx - sLen / 2, 0, 0);
+        tGrp.add(sgMesh);
+        cx -= sLen;
+      }
+      var sprd = (t / 9 - 0.5) * 2;
+      tGrp.position.set(-25, -6 + sprd * 4, sprd * 4);
+      tGrp.rotation.z = sprd * 0.12;
+      tGrp.rotation.y = sprd * 0.08;
+      group.add(tGrp);
+      group.tentacles.push(tGrp);
+    }
+  } else if (type === 1) {
+    // 메갈로돈 — 거대 상어 측면
+    // 몸통
+    var bodyG = new THREE.SphereGeometry(12, 8, 6);
+    var bodyM = new THREE.MeshPhongMaterial({ color: 0x8899AA, flatShading: true });
+    var bodyMesh = new THREE.Mesh(bodyG, bodyM);
+    bodyMesh.scale.set(2.1, 1, 0.85);
+    group.add(bodyMesh);
+    // 배 (하얀색)
+    var bellyG = new THREE.SphereGeometry(10, 8, 6);
+    var bellyM = new THREE.MeshPhongMaterial({ color: 0xDDDDCC, flatShading: true });
+    var belly = new THREE.Mesh(bellyG, bellyM);
+    belly.scale.set(2.2, 0.8, 0.9);
+    belly.position.set(2, -5, 0);
+    group.add(belly);
+    // 머리 (앞쪽)
+    var headG = new THREE.SphereGeometry(11, 8, 6);
+    var headM = new THREE.MeshPhongMaterial({ color: 0x8899AA, flatShading: true });
+    var headMesh = new THREE.Mesh(headG, headM);
+    headMesh.position.set(-22, 2, 0);
+    group.add(headMesh);
+    // 입 (벌어진 턱)
+    var upperJawG = new THREE.BoxGeometry(14, 4, 16);
+    var jawM = new THREE.MeshPhongMaterial({ color: 0x993333, flatShading: true });
+    var upperJaw = new THREE.Mesh(upperJawG, jawM);
+    upperJaw.position.set(-30, 2, 0);
+    group.add(upperJaw);
+    var lowerJawG = new THREE.BoxGeometry(12, 3, 14);
+    var lowerJaw = new THREE.Mesh(lowerJawG, jawM);
+    lowerJaw.position.set(-29, -4, 0);
+    lowerJaw.rotation.z = 0.2;
+    group.add(lowerJaw);
+    // 이빨 (위아래)
+    for (var ti = 0; ti < 8; ti++) {
+      var tG = new THREE.CylinderGeometry(0, 0.8, 3.5, 4);
+      var tM = new THREE.MeshPhongMaterial({ color: 0xFFFFEE });
+      var tUp = new THREE.Mesh(tG, tM);
+      tUp.position.set(-26 - ti * 1.2, -1, -5 + ti * 1.3);
+      tUp.rotation.x = Math.PI;
+      group.add(tUp);
+      var tDn = new THREE.Mesh(tG.clone(), tM.clone());
+      tDn.position.set(-25 - ti * 1.2, -3, -5 + ti * 1.3);
+      group.add(tDn);
+    }
+    // 등지느러미
+    var dorG = new THREE.CylinderGeometry(0, 4, 18, 4);
+    var dorM = new THREE.MeshPhongMaterial({ color: 0x667788, flatShading: true });
+    var dorsal = new THREE.Mesh(dorG, dorM);
+    dorsal.position.set(0, 16, 0);
+    dorsal.rotation.z = 0.15;
+    group.add(dorsal);
+    // 꼬리 지느러미
+    var tailG = new THREE.CylinderGeometry(0, 6, 15, 4);
+    var tail = new THREE.Mesh(tailG, dorM.clone());
+    tail.position.set(28, 6, 0);
+    tail.rotation.z = -0.8;
+    group.add(tail);
+    var tailLow = new THREE.Mesh(tailG.clone(), dorM.clone());
+    tailLow.position.set(28, -4, 0);
+    tailLow.rotation.z = 0.6;
+    group.add(tailLow);
+    // 눈
+    var sharkEyeG = new THREE.SphereGeometry(2.5, 6, 6);
+    var sharkEyeM = new THREE.MeshPhongMaterial({ color: 0x111111 });
+    var sharkEye = new THREE.Mesh(sharkEyeG, sharkEyeM);
+    sharkEye.position.set(-18, 6, 9);
+    group.add(sharkEye);
+  } else if (type === 2) {
+    // 티라노사우르스 — 전체 측면
+    var dkBrown = 0x665533;
+    var ltBrown = 0x887755;
+    // 몸통
+    var torsoG = new THREE.SphereGeometry(14, 8, 6);
+    var torsoM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
+    var torso = new THREE.Mesh(torsoG, torsoM);
+    torso.scale.set(1.3, 1, 0.7);
+    group.add(torso);
+    // 머리
+    var rHeadG = new THREE.BoxGeometry(22, 16, 16);
+    var rHeadM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
+    var rHead = new THREE.Mesh(rHeadG, rHeadM);
+    rHead.position.set(-25, 12, 0);
+    group.add(rHead);
+    // 주둥이
+    var snoutG = new THREE.BoxGeometry(14, 8, 14);
+    var snout = new THREE.Mesh(snoutG, rHeadM.clone());
+    snout.position.set(-36, 8, 0);
+    group.add(snout);
+    // 아래턱
+    var rJawG = new THREE.BoxGeometry(16, 5, 13);
+    var rJawM = new THREE.MeshPhongMaterial({ color: 0x884433, flatShading: true });
+    var rJaw = new THREE.Mesh(rJawG, rJawM);
+    rJaw.position.set(-32, 0, 0);
+    rJaw.rotation.z = 0.15;
+    group.add(rJaw);
+    // 이빨
+    for (var ri = 0; ri < 7; ri++) {
+      var rtG = new THREE.CylinderGeometry(0, 1, 4, 4);
+      var rtM = new THREE.MeshPhongMaterial({ color: 0xFFFFDD });
+      var rtMesh = new THREE.Mesh(rtG, rtM);
+      rtMesh.position.set(-28 - ri * 2, 3, 7);
+      rtMesh.rotation.x = Math.PI;
+      group.add(rtMesh);
+    }
+    // 목
+    var neckG = new THREE.CylinderGeometry(8, 10, 12, 6);
+    var neckM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
+    var neck = new THREE.Mesh(neckG, neckM);
+    neck.position.set(-12, 8, 0);
+    neck.rotation.z = 0.4;
+    group.add(neck);
+    // 꼬리
+    var tailRG = new THREE.CylinderGeometry(0, 7, 35, 6);
+    var tailRM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
+    var tailR = new THREE.Mesh(tailRG, tailRM);
+    tailR.position.set(28, 2, 0);
+    tailR.rotation.z = Math.PI / 2 + 0.2;
+    group.add(tailR);
+    // 다리
+    var legFG = new THREE.CylinderGeometry(3.5, 3, 18, 5);
+    var legFM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
+    var legF = new THREE.Mesh(legFG, legFM);
+    legF.position.set(-5, -16, 6);
+    group.add(legF);
+    var legBG = new THREE.CylinderGeometry(4, 3.5, 20, 5);
+    var legB = new THREE.Mesh(legBG, legFM.clone());
+    legB.position.set(12, -17, 6);
+    group.add(legB);
+    // 작은 팔
+    var armG = new THREE.CylinderGeometry(1.5, 1, 7, 4);
+    var armM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
+    var arm = new THREE.Mesh(armG, armM);
+    arm.position.set(-15, -2, 9);
+    arm.rotation.z = 0.5;
+    group.add(arm);
+    // 눈
+    var rexEyeG = new THREE.SphereGeometry(2.5, 6, 6);
+    var rexEyeM = new THREE.MeshPhongMaterial({ color: 0xFFDD00, emissive: 0xAA8800 });
+    var rexEye = new THREE.Mesh(rexEyeG, rexEyeM);
+    rexEye.position.set(-28, 16, 8);
+    group.add(rexEye);
+  } else {
+    // 외계 모선 — UFO (수평 배치)
+    var lowerDiscG = new THREE.CylinderGeometry(32, 38, 6, 16);
+    var lowerDiscM = new THREE.MeshPhongMaterial({ color: 0x888899, flatShading: true });
+    var lowerDisc = new THREE.Mesh(lowerDiscG, lowerDiscM);
+    group.add(lowerDisc);
+    var upperDiscG = new THREE.CylinderGeometry(28, 32, 5, 16);
+    var upperDiscM = new THREE.MeshPhongMaterial({ color: 0x99AABB, flatShading: true });
+    var upperDisc = new THREE.Mesh(upperDiscG, upperDiscM);
+    upperDisc.position.set(0, 4, 0);
+    group.add(upperDisc);
+    // 구리색 띠
+    var bandG = new THREE.TorusGeometry(33, 1.5, 6, 16);
+    var bandM = new THREE.MeshPhongMaterial({ color: 0xCC8844, flatShading: true });
+    var band = new THREE.Mesh(bandG, bandM);
+    band.rotation.x = Math.PI / 2;
+    group.add(band);
+    // 유리 돔
+    var udomeG = new THREE.SphereGeometry(14, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    var udomeM = new THREE.MeshPhongMaterial({ color: 0xAADDFF, transparent: true, opacity: 0.5, emissive: 0x446688 });
+    var udome = new THREE.Mesh(udomeG, udomeM);
+    udome.position.set(0, 7, 0);
+    group.add(udome);
+    // 하부 엔진 포드 5개
+    for (var ep = 0; ep < 5; ep++) {
+      var podG = new THREE.CylinderGeometry(3, 4, 6, 6);
+      var podM = new THREE.MeshPhongMaterial({ color: 0x556677, flatShading: true });
+      var pod = new THREE.Mesh(podG, podM);
+      var pAngle = (ep / 5) * Math.PI * 2;
+      pod.position.set(Math.cos(pAngle) * 22, -6, Math.sin(pAngle) * 22);
+      group.add(pod);
+      var glowG = new THREE.SphereGeometry(2.5, 4, 4);
+      var glowM = new THREE.MeshPhongMaterial({ color: 0x00CCFF, emissive: 0x0088FF });
+      var glow = new THREE.Mesh(glowG, glowM);
+      glow.position.set(Math.cos(pAngle) * 22, -9, Math.sin(pAngle) * 22);
+      group.add(glow);
+    }
+    // 발광 링
+    var ringG = new THREE.TorusGeometry(26, 0.8, 4, 20);
+    var ringM = new THREE.MeshPhongMaterial({ color: 0xFFAA00, emissive: 0xFF8800 });
+    var ring = new THREE.Mesh(ringG, ringM);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(0, -3, 0);
+    group.add(ring);
+  }
+
+  return group;
+}
+
+function spawnBoss(config, typeIndex) {
+  bossState.active = true;
+  bossState.hp = config.hp;
+  bossState.maxHp = config.hp;
+  bossState.timer = bossState.maxTimer;
+  bossState.reward = config.reward;
+  bossState.name = config.name;
+  bossState.entering = true;
+  bossState.oscillateTime = 0;
+  bossState.missiles = [];
+
+  var cycleIndex = (typeIndex !== undefined) ? typeIndex : 0;
+  bossState.bossType = cycleIndex % 4;
+  bossState.mesh = createBossMesh(config, cycleIndex);
+  bossState.mesh.position.set(250, game.planeDefaultHeight + 30, 0);
+  bossState.mesh.scale.set(1.5, 1.5, 1.5);
+  scene.add(bossState.mesh);
+
+  // UI
+  var ui = document.getElementById('bossUI');
+  if (ui) ui.style.display = 'block';
+  var nameEl = document.getElementById('bossName');
+  if (nameEl) nameEl.textContent = '⚠ ' + config.name;
+  // 모바일 발사 버튼 표시
+  var fireUI = document.getElementById('bossFireUI');
+  if (fireUI) fireUI.style.display = 'flex';
+  updateBossUI();
+
+  // 보스 등장 미사일 가이드
+  showBossGuide();
+}
+
+function updateBossUI() {
+  var hpBar = document.getElementById('bossHpBar');
+  if (hpBar) hpBar.style.width = Math.max(0, (bossState.hp / bossState.maxHp) * 100) + '%';
+  var timerEl = document.getElementById('bossTimer');
+  if (timerEl) timerEl.textContent = Math.ceil(bossState.timer / 1000) + 's';
+}
+
+function updateBoss(dt) {
+  if (!bossState.active || !bossState.mesh) return;
+
+  // 진입 애니메이션
+  if (bossState.entering) {
+    bossState.mesh.position.x += (bossState.targetX - bossState.mesh.position.x) * 0.03;
+    if (Math.abs(bossState.mesh.position.x - bossState.targetX) < 2) {
+      bossState.entering = false;
+    }
+  }
+
+  // 위아래 오실레이션
+  bossState.oscillateTime += dt * 0.002;
+  bossState.mesh.position.y = game.planeDefaultHeight + 30 + Math.sin(bossState.oscillateTime) * 40;
+  // 암모나이트는 회전 없이 측면만
+  if (bossState.bossType !== 0) {
+    bossState.mesh.rotation.y += 0.01;
+  }
+
+  // 암모나이트 촉수 흔들림 애니메이션 (공격 없음)
+  if (bossState.bossType === 0 && bossState.mesh && bossState.mesh.tentacles) {
+    var time = bossState.oscillateTime;
+    for (var ti = 0; ti < bossState.mesh.tentacles.length; ti++) {
+      var tent = bossState.mesh.tentacles[ti];
+      tent.rotation.x = Math.sin(time * 2 + ti) * 0.3;
+      tent.rotation.z = Math.sin(time * 1.5 + ti * 0.7) * 0.2;
+    }
+  }
+
+  // 타이머 감소
+  bossState.timer -= dt;
+  updateBossUI();
+
+  // 미사일 업데이트
+  for (var i = bossState.missiles.length - 1; i >= 0; i--) {
+    var m = bossState.missiles[i];
+    m.mesh.position.x += m.speed;
+    m.life -= dt;
+
+    if (m.life <= 0) {
+      scene.remove(m.mesh);
+      bossState.missiles.splice(i, 1);
+      continue;
+    }
+
+    // 보스와 충돌 체크
+    if (bossState.mesh) {
+      var dx = m.mesh.position.x - bossState.mesh.position.x;
+      var dy = m.mesh.position.y - bossState.mesh.position.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 45) {
+        bossState.hp--;
+        scene.remove(m.mesh);
+        bossState.missiles.splice(i, 1);
+        // 파티클
+        spawnDestroyParticles(bossState.mesh.position.clone(), 0xFF4444);
+        playShatterSound();
+        updateBossUI();
+
+        if (bossState.hp <= 0) {
+          defeatBoss();
+          return;
+        }
+      }
+    }
+  }
+
+  // 타임아웃 — 보스 퇴각
+  if (bossState.timer <= 0) {
+    retreatBoss();
+  }
+}
+
+function fireBossMissile() {
+  if (!bossState.active || !airplane || !airplane.mesh) return;
+
+  var pos = airplane.mesh.position.clone();
+  var geom = new THREE.BoxGeometry(3, 3, 12);
+  var mat = new THREE.MeshPhongMaterial({ color: 0xFF4444, flatShading: true });
+  var mesh = new THREE.Mesh(geom, mat);
+  mesh.position.set(pos.x + 15, pos.y, pos.z);
+  scene.add(mesh);
+  playShotSound();
+
+  bossState.missiles.push({
+    mesh: mesh,
+    speed: 5,
+    life: 3000
+  });
+}
+
+function fireBossProjectile() {
+  if (!bossState.active || !bossState.mesh || !airplane || !airplane.mesh) return;
+  if (!bossState.bossProjectiles) bossState.bossProjectiles = [];
+
+  var bx = bossState.mesh.position.x;
+  var by = bossState.mesh.position.y;
+  var px = airplane.mesh.position.x;
+  var py = airplane.mesh.position.y;
+  var dx = px - bx;
+  var dy = py - by;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 1) dist = 1;
+  var speed = 3;
+  var vx = (dx / dist) * speed;
+  var vy = (dy / dist) * speed;
+
+  var projMesh;
+  var isLaser = false;
+
+  if (bossState.bossType === 1 || bossState.bossType === 2) {
+    // 이빨 발사
+    var toothG = new THREE.CylinderGeometry(0, 2, 6, 4);
+    var toothM = new THREE.MeshPhongMaterial({ color: 0xFFFFDD, flatShading: true });
+    projMesh = new THREE.Mesh(toothG, toothM);
+    projMesh.rotation.z = Math.atan2(dy, dx) - Math.PI / 2;
+  } else {
+    // UFO 레이저빔
+    var laserG = new THREE.CylinderGeometry(1, 1, 15, 6);
+    var laserM = new THREE.MeshPhongMaterial({ color: 0x00FFCC, emissive: 0x00AA88, transparent: true, opacity: 0.8 });
+    projMesh = new THREE.Mesh(laserG, laserM);
+    projMesh.rotation.z = Math.atan2(dy, dx) + Math.PI / 2;
+    isLaser = true;
+    speed = 4;
+    vx = (dx / dist) * speed;
+    vy = (dy / dist) * speed;
+  }
+
+  projMesh.position.set(bx - 20, by, 0);
+  scene.add(projMesh);
+
+  bossState.bossProjectiles.push({
+    mesh: projMesh,
+    vx: vx,
+    vy: vy,
+    life: 4000,
+    isLaser: isLaser
+  });
+}
+
+function defeatBoss() {
+  if (!bossState.mesh) return;
+
+  // 대폭발 파티클
+  for (var p = 0; p < 5; p++) {
+    var offset = new THREE.Vector3(
+      bossState.mesh.position.x + (Math.random() - 0.5) * 30,
+      bossState.mesh.position.y + (Math.random() - 0.5) * 30,
+      bossState.mesh.position.z + (Math.random() - 0.5) * 20
+    );
+    spawnDestroyParticles(offset, 0xFF6600);
+  }
+  playShatterSound();
+
+  // 코인 보상
+  var reward = bossState.reward;
+  game.coins += reward;
+  game.coinsEarnedThisRound += reward;
+  var totalCoins = parseInt(localStorage.getItem('totalCoins') || '0');
+  localStorage.setItem('totalCoins', (totalCoins + reward).toString());
+  var coinsEl = document.getElementById('coinsValue');
+  if (coinsEl) coinsEl.textContent = game.coins;
+
+  // 보상 표시
+  showBossReward(reward);
+
+  cleanupBoss();
+}
+
+function retreatBoss() {
+  // 보스 퇴각 (보상 없이)
+  cleanupBoss();
+}
+
+function cleanupBoss() {
+  if (bossState.mesh) {
+    scene.remove(bossState.mesh);
+    bossState.mesh = null;
+  }
+  // 미사일 정리
+  for (var i = 0; i < bossState.missiles.length; i++) {
+    scene.remove(bossState.missiles[i].mesh);
+  }
+  bossState.missiles = [];
+  // 보스 발사체 정리
+  if (bossState.bossProjectiles) {
+    for (var j = 0; j < bossState.bossProjectiles.length; j++) {
+      scene.remove(bossState.bossProjectiles[j].mesh);
+    }
+    bossState.bossProjectiles = [];
+  }
+  bossState.bossAttackTimer = 0;
+  bossState.active = false;
+  bossState.cooldown = 500; // 0.5초 쿨다운 (테스트용)
+  // 마우스 홀드 인터벌 정리 (보스전 연사 중지)
+  mouseIsDown = false;
+  if (mouseHoldInterval) {
+    clearInterval(mouseHoldInterval);
+    mouseHoldInterval = null;
+  }
+  // UI 숨기기
+  var ui = document.getElementById('bossUI');
+  if (ui) ui.style.display = 'none';
+  var fireUI = document.getElementById('bossFireUI');
+  if (fireUI) fireUI.style.display = 'none';
+}
+
+function showBossReward(amount) {
+  var el = document.getElementById('levelUpText');
+  if (el) {
+    el.innerHTML = '<p class="level-label">💣 Coin Bomb!</p><p class="level-number">+' + amount + '</p>';
+    el.classList.add('show');
+    setTimeout(function() {
+      el.classList.remove('show');
+    }, 2000);
+  }
+}
+
+function showBossGuide() {
+  // 기존 가이드 제거
+  var old = document.getElementById('bossGuide');
+  if (old) old.remove();
+
+  var guide = document.createElement('div');
+  guide.id = 'bossGuide';
+  guide.style.cssText = 'position:fixed;left:50%;top:60%;transform:translate(-50%,-50%);z-index:2000;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;animation:fadeInOut 3s ease forwards;';
+  guide.innerHTML = '<div style="font-size:60px;line-height:1;">🖱️</div>' +
+    '<div style="color:white;font-size:20px;font-weight:bold;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:8px 20px;border-radius:10px;white-space:nowrap;">마우스 왼쪽 클릭 → 미사일 발사!</div>';
+  document.body.appendChild(guide);
+
+  // fadeInOut 키프레임 동적 추가
+  if (!document.getElementById('bossGuideStyle')) {
+    var style = document.createElement('style');
+    style.id = 'bossGuideStyle';
+    style.textContent = '@keyframes fadeInOut{0%{opacity:0;transform:translate(-50%,-50%) scale(0.8)}15%{opacity:1;transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}';
+    document.head.appendChild(style);
+  }
+
+  setTimeout(function() {
+    if (guide.parentNode) guide.remove();
+  }, 3200);
 }
