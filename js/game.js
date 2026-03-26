@@ -186,7 +186,7 @@ function resetGame(){
           distance:0,
           ratioSpeedDistance:50,
           hearts: (typeof getStartingHearts === 'function') ? getStartingHearts() : 3,
-          maxHearts:5,
+          maxHearts: (typeof getStartingMaxHearts === 'function') ? getStartingMaxHearts() : 5,
           coins: parseInt(localStorage.getItem('totalCoins') || '0'),
           coinsEarnedThisRound: 0,
 
@@ -2529,8 +2529,23 @@ function updateDistance(){
 }
 
 function updateHearts(){
-  // 하트 UI 업데이트
-  for (var i = 1; i <= 5; i++) {
+  // 하트 UI 동적 업데이트
+  var container = document.querySelector('.score__value--hearts');
+  if (!container) return;
+
+  // maxHearts가 변경되었으면 하트 요소 재생성
+  var currentCount = container.children.length;
+  if (currentCount !== game.maxHearts) {
+    container.innerHTML = '';
+    for (var j = 0; j < game.maxHearts; j++) {
+      var span = document.createElement('span');
+      span.className = 'heart';
+      span.id = 'heart' + (j + 1);
+      container.appendChild(span);
+    }
+  }
+
+  for (var i = 1; i <= game.maxHearts; i++) {
     var el = document.getElementById('heart' + i);
     if (!el) continue;
     if (i <= game.hearts) {
@@ -2548,8 +2563,18 @@ function updateHearts(){
 }
 
 function addCoin(){
-  game.coins += game.coinValue;
-  game.coinsEarnedThisRound += game.coinValue;
+  var coinMultiplier = 1;
+  // 여객기: 코인 X3
+  if (shopState && shopState.selectedVehicle === 'Jetliner') {
+    coinMultiplier = 3;
+  }
+  // 코인 부스터 업그레이드: X2
+  if (shopState && shopState.purchasedUpgrades && shopState.purchasedUpgrades.indexOf('coinBooster') !== -1) {
+    coinMultiplier *= 2;
+  }
+  var earned = game.coinValue * coinMultiplier;
+  game.coins += earned;
+  game.coinsEarnedThisRound += earned;
   localStorage.setItem('totalCoins', game.coins);
   document.getElementById('coinsValue').textContent = game.coins;
   playCoinSound();
@@ -3647,6 +3672,9 @@ function initStartScreen() {
 
   function startGame() {
     if (game.status !== 'waiting') return;
+    // 상점에서 선택한 비행체/업그레이드 반영
+    shopState = loadShopData();
+    resetGame();
     game.status = 'playing';
     overlay.classList.add('hidden');
     oldTime = new Date().getTime();
@@ -4190,12 +4218,21 @@ function unlockEvoForm(formId, level) {
   saveShopData(shopState);
 }
 
-// Get starting hearts based on upgrades
+// Get starting hearts based on upgrades + vehicle
 function getStartingHearts() {
   var hearts = 3;
   if (shopState.purchasedUpgrades.indexOf('extraHeart1') !== -1) hearts++;
   if (shopState.purchasedUpgrades.indexOf('extraHeart2') !== -1) hearts++;
+  // 뉴턴의 사과: 7개로 시작
+  if (shopState.selectedVehicle === "Newton's Apple") hearts = 7;
   return hearts;
+}
+
+// Get max hearts based on vehicle
+function getStartingMaxHearts() {
+  // 뉴턴의 사과: 최대 7개
+  if (shopState && shopState.selectedVehicle === "Newton's Apple") return 7;
+  return 5;
 }
 
 // Get continue costs (with discount if purchased)
