@@ -38,7 +38,36 @@
 				<p class="start-subtitle">Fly In To The Evolution</p>
 	
 				<button id="playBtn" class="start-play-btn">▶ PLAY</button>
+				<br>
+				<button id="shopBtn" style="margin-top:16px; font-family:'Playfair Display',serif; font-size:1em; font-weight:700; letter-spacing:0.15em; color:rgba(255,255,255,0.7); background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:50px; padding:12px 48px; cursor:pointer; transition:all 0.3s ease;">🛒 SHOP</button>
 				<p class="start-hint">Mouse or Touch to control</p>
+			</div>
+		</div>
+
+		<!-- Shop Overlay -->
+		<div id="shopOverlay" class="shop-overlay">
+			<div class="shop-panel">
+				<div class="shop-header">
+					<h2 class="shop-title">🛒 상점</h2>
+					<span class="shop-coins">🪙 <span id="shopCoinsDisplay">0</span></span>
+					<button id="shopCloseBtn" class="shop-close">✕</button>
+				</div>
+				<div class="shop-tabs">
+					<button class="shop-tab active" data-tab="upgrades">⚡ 업그레이드</button>
+					<button class="shop-tab" data-tab="evoVehicles">🧬 진화 비행체</button>
+					<button class="shop-tab" data-tab="specialVehicles">🚀 특수 비행체</button>
+				</div>
+				<div class="shop-content">
+					<div id="shopUpgrades" class="shop-tab-content active">
+						<div class="shop-upgrades" id="upgradesList"></div>
+					</div>
+					<div id="shopEvoVehicles" class="shop-tab-content">
+						<div class="shop-vehicles" id="evoVehiclesList"></div>
+					</div>
+					<div id="shopSpecialVehicles" class="shop-tab-content">
+						<div class="shop-vehicles" id="vehiclesList"></div>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -72,7 +101,22 @@
 			<div class="world" id="world"></div>
 <!-- Level업 텍스트 -->
 <div id="levelUpText" class="level-up-text"></div>
-		<!-- Game Over Overlay -->
+		<!-- Continue Prompt Overlay -->
+	<div id="continueOverlay" class="continue-overlay">
+		<div class="continue-panel">
+			<h2 class="continue-title">GAME OVER</h2>
+			<p class="continue-subtitle">Continue?</p>
+			<p id="continueNoCoins" class="continue-no-coins" style="display:none;">코인이 부족합니다</p>
+			<div class="continue-buttons">
+				<button id="continueBtn" class="continue-btn">▶ CONTINUE <span id="continueCost">50</span> 🪙</button>
+				<button id="continueStopBtn" class="continue-stop-btn">■ STOP</button>
+			</div>
+			<p class="continue-coins-info">보유 코인: <span id="continueBalance" class="coin-balance">0</span></p>
+			<p id="continueRemaining" class="continue-remaining">남은 기회: 3회</p>
+		</div>
+	</div>
+
+	<!-- Game Over Overlay -->
 		<div id="gameOverOverlay" class="gameover-overlay">
 			<div class="gameover-panel">
 				<!-- Phase 1: Score Display + Name Input -->

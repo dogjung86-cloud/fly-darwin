@@ -185,10 +185,15 @@ function resetGame(){
 
           distance:0,
           ratioSpeedDistance:50,
-          hearts:3,
+          hearts: (typeof getStartingHearts === 'function') ? getStartingHearts() : 3,
           maxHearts:5,
           coins: parseInt(localStorage.getItem('totalCoins') || '0'),
           coinsEarnedThisRound: 0,
+
+          // Continue system
+          continueCount: 0,
+          continueCosts: (typeof getContinueCosts === 'function') ? getContinueCosts() : [50, 200, 300],
+          maxContinues: 3,
 
           level:1,
           levelLastUpdate:0,
@@ -2022,7 +2027,13 @@ var sea;
 var airplane;
 
 function createPlane(){
-  airplane = new Amoeba();
+  shopState = loadShopData();
+  if (shopState.selectedVehicle) {
+    airplane = createNewCharacter(shopState.selectedVehicle);
+    game.currentForm = shopState.selectedVehicle;
+  } else {
+    airplane = new Amoeba();
+  }
   airplane.mesh.scale.set(.25,.25,.25);
   airplane.mesh.position.y = game.planeDefaultHeight;
   scene.add(airplane.mesh);
@@ -2416,33 +2427,28 @@ function loop(){
       game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel*game.level
     }
 
-    // Checking for Transformation
-    if (game.distance > game.transformDistance1 && game.currentForm === "Amoeba") {
-      transformPlane("Anomalocaris");
-    } else if (game.distance > game.transformDistance2 && game.currentForm === "Anomalocaris") {
-      transformPlane("Dunkleosteus");
-    } else if (game.distance > game.transformDistance3 && game.currentForm === "Dunkleosteus") {
-      transformPlane("Tiktaalik");
-    } else if (game.distance > game.transformDistance4 && game.currentForm === "Tiktaalik") {
-      transformPlane("Plesiosaur");
-    } else if (game.distance > game.transformDistance5 && game.currentForm === "Plesiosaur") {
-      transformPlane("Quetzalcoatlus");
-    } else if (game.distance > game.transformDistance6 && game.currentForm === "Quetzalcoatlus") {
-      transformPlane("Darwin's Finch");
-    } else if (game.distance > game.transformDistance7 && game.currentForm === "Darwin's Finch") {
-      transformPlane("Newton's Apple");
-    } else if (game.distance > game.transformDistance8 && game.currentForm === "Newton's Apple") {
-      transformPlane("Einstein");
-    } else if (game.distance > game.transformDistance9 && game.currentForm === "Einstein") {
-      transformPlane("Wright Flyer");
-    } else if (game.distance > game.transformDistance10 && game.currentForm === "Wright Flyer") {
-      transformPlane("Jetliner");
-    } else if (game.distance > game.transformDistance11 && game.currentForm === "Jetliner") {
-      transformPlane("Rocket");
-    } else if (game.distance > game.transformDistance12 && game.currentForm === "Rocket") {
-      transformPlane("SpaceShuttle");
-    } else if (game.distance > game.transformDistance13 && game.currentForm === "SpaceShuttle") {
-      transformPlane("UFO");
+    // Checking for Transformation (상점 비행체 선택 시 진화 없음)
+    if (!shopState.selectedVehicle) {
+      if (game.distance > game.transformDistance1 && game.currentForm === "Amoeba") {
+        transformPlane("Anomalocaris");
+        unlockEvoForm("Anomalocaris", 2);
+      } else if (game.distance > game.transformDistance2 && game.currentForm === "Anomalocaris") {
+        transformPlane("Dunkleosteus");
+        unlockEvoForm("Dunkleosteus", 3);
+      } else if (game.distance > game.transformDistance3 && game.currentForm === "Dunkleosteus") {
+        transformPlane("Tiktaalik");
+        unlockEvoForm("Tiktaalik", 4);
+      } else if (game.distance > game.transformDistance4 && game.currentForm === "Tiktaalik") {
+        transformPlane("Plesiosaur");
+        unlockEvoForm("Plesiosaur", 5);
+      } else if (game.distance > game.transformDistance5 && game.currentForm === "Plesiosaur") {
+        transformPlane("Quetzalcoatlus");
+        unlockEvoForm("Quetzalcoatlus", 6);
+      } else if (game.distance > game.transformDistance6 && game.currentForm === "Quetzalcoatlus") {
+        transformPlane("Darwin's Finch");
+        unlockEvoForm("Darwin's Finch", 7);
+        markDarwinFinchReached();
+      }
     }
 
     updateTurbulence();
@@ -2464,10 +2470,16 @@ function loop(){
     airplane.mesh.position.y -= game.planeFallSpeed*deltaTime;
 
     if (airplane.mesh.position.y <-200){
-      showGameOver();
-      game.status = "waitingReplay";
-
+      // 컨티뉴 가능하면 컨티뉴 선택 화면, 아니면 바로 게임오버
+      showContinuePrompt();
+      game.status = "continuePrompt";
     }
+  }else if(game.status=="continuePrompt"){
+    // 컨티뉴 선택 대기 중: 비행기 부유 + 씬 렌더링 유지
+    sky.moveClouds();
+    sea.moveWaves();
+    sea.mesh.rotation.z += 0.0001 * deltaTime;
+
   }else if (game.status=="waitingReplay"){
 
   }
@@ -3269,6 +3281,117 @@ async function showRankingFromGameOver() {
   }
 }
 
+// ===== CONTINUE SYSTEM =====
+
+function showContinuePrompt() {
+  var overlay = document.getElementById('continueOverlay');
+  var costEl = document.getElementById('continueCost');
+  var balanceEl = document.getElementById('continueBalance');
+  var remainingEl = document.getElementById('continueRemaining');
+  var noCoinsEl = document.getElementById('continueNoCoins');
+  var continueBtn = document.getElementById('continueBtn');
+
+  var remaining = game.maxContinues - game.continueCount;
+
+  if (remaining <= 0) {
+    // 컨티뉴 횟수 소진 — 바로 게임 오버 화면
+    showGameOver();
+    game.status = "waitingReplay";
+    return;
+  }
+
+  var cost = game.continueCosts[game.continueCount];
+  costEl.textContent = cost;
+  balanceEl.textContent = game.coins;
+  remainingEl.textContent = '남은 기회: ' + remaining + '회';
+
+  if (game.coins < cost) {
+    continueBtn.disabled = true;
+    noCoinsEl.style.display = 'block';
+  } else {
+    continueBtn.disabled = false;
+    noCoinsEl.style.display = 'none';
+  }
+
+  overlay.style.display = 'flex';
+}
+
+function hideContinuePrompt() {
+  document.getElementById('continueOverlay').style.display = 'none';
+}
+
+function continueGame() {
+  var cost = game.continueCosts[game.continueCount];
+  if (game.coins < cost) return;
+
+  // 코인 차감
+  game.coins -= cost;
+  localStorage.setItem('totalCoins', game.coins);
+  document.getElementById('coinsValue').textContent = game.coins;
+
+  // 컨티뉴 횟수 증가
+  game.continueCount++;
+
+  // 하트 3개로 복원
+  game.hearts = 3;
+  updateHearts();
+
+  // 화면의 장애물 클리어
+  for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
+    var e = ennemiesHolder.ennemiesInUse[i];
+    ennemiesHolder.mesh.remove(e.mesh);
+  }
+  ennemiesHolder.ennemiesInUse = [];
+
+  // 날아오는 소행성 클리어
+  for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
+    scene.remove(flyingAsteroids[j].mesh);
+  }
+  flyingAsteroids = [];
+
+  // 블랙홀 슬로우 해제
+  game.blackHoleSlowFactor = 1.0;
+  game.blackHoleActive = false;
+
+  // 비행기를 현재 폼으로 재생성 (추락 후이므로 화면 밖에 있음)
+  var oldForm = game.currentForm;
+  var oldPos = airplane.mesh.position.clone();
+  scene.remove(airplane.mesh);
+
+  // 현재 폼에 맞는 비행체 재생성
+  airplane = createNewCharacter(oldForm);
+  airplane.mesh.scale.set(.25,.25,.25);
+  airplane.mesh.position.y = game.planeDefaultHeight;
+  airplane.mesh.rotation.z = 0;
+  airplane.mesh.rotation.x = 0;
+  scene.add(airplane.mesh);
+
+  game.planeCollisionSpeedX = 0;
+  game.planeCollisionSpeedY = 0;
+  game.planeCollisionDisplacementX = 0;
+  game.planeCollisionDisplacementY = 0;
+
+  // 낙하 속도 리셋
+  game.planeFallSpeed = 0.001;
+
+  // 오버레이 닫기
+  hideContinuePrompt();
+
+  // 3초 무적 활성화
+  activateInvincible();
+
+  // 게임 재개
+  game.status = "playing";
+  oldTime = new Date().getTime();
+}
+
+function stopAndShowGameOver() {
+  hideContinuePrompt();
+  // 바로 게임오버 화면으로
+  showGameOver();
+  game.status = "waitingReplay";
+}
+
 function showGameOver() {
   var overlay = document.getElementById('gameOverOverlay');
   var scoreSection = document.getElementById('gameOverScore');
@@ -3340,15 +3463,25 @@ async function submitScore() {
 function startReplay() {
   hideGameOver();
   resetGame();
-  game.status = "playing";
-  oldTime = new Date().getTime();
+  game.status = "waiting";
   // Reset plane to initial form
-  var oldPos = airplane.mesh.position.clone();
   scene.remove(airplane.mesh);
-  airplane = new Amoeba();
+  shopState = loadShopData();
+  if (shopState.selectedVehicle) {
+    airplane = createNewCharacter(shopState.selectedVehicle);
+    game.currentForm = shopState.selectedVehicle;
+  } else {
+    airplane = new Amoeba();
+    game.currentForm = "Amoeba";
+  }
   airplane.mesh.scale.set(.25,.25,.25);
   airplane.mesh.position.y = game.planeDefaultHeight;
   scene.add(airplane.mesh);
+
+  // 시작 화면으로 돌아가기
+  var overlay = document.getElementById('startOverlay');
+  overlay.style.display = '';
+  overlay.classList.remove('hidden');
 }
 
 function initRankingUI() {
@@ -3386,6 +3519,26 @@ function initRankingUI() {
     e.stopPropagation();
   });
   document.getElementById('gameOverOverlay').addEventListener('touchend', function(e) {
+    e.stopPropagation();
+  });
+
+  // Continue button
+  document.getElementById('continueBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    continueGame();
+  });
+
+  // Stop button (go to game over)
+  document.getElementById('continueStopBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    stopAndShowGameOver();
+  });
+
+  // Prevent clicks on continue overlay from propagating
+  document.getElementById('continueOverlay').addEventListener('mouseup', function(e) {
+    e.stopPropagation();
+  });
+  document.getElementById('continueOverlay').addEventListener('touchend', function(e) {
     e.stopPropagation();
   });
 }
@@ -3480,6 +3633,7 @@ function init(event){
   initRankingUI();
   initBGM();
   initPauseUI();
+  initShopUI();
   initStartScreen();
   loop();
 }
@@ -3566,4 +3720,489 @@ function initPauseUI() {
   pauseBtn.addEventListener('click', handlePauseBtnPress);
   pauseOverlay.addEventListener('touchend', handleOverlayPress);
   pauseOverlay.addEventListener('click', handleOverlayPress);
+}
+
+// ===== SHOP SYSTEM =====
+
+var shopVehicleData = [
+  { id: "Newton's Apple", name: "뉴턴의 사과", price: 2000, ability: "최대 하트 7개부터 시작" },
+  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "슬로우 모션 3번 사용 가능 (마우스 왼쪽 버튼)" },
+  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "무적 효과 2번 사용 가능 (마우스 왼쪽 버튼)" },
+  { id: "Jetliner", name: "여객기", price: 4000, ability: "코인 X3 획득" },
+  { id: "Rocket", name: "로켓", price: 6000, ability: "미사일 20발 (철퇴, 소행성, 번개구름 파괴) (마우스 왼쪽 버튼)" },
+  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 7000, ability: "500m 부스터 2회 (모든 장애물 회피)" },
+  { id: "UFO", name: "UFO", price: 8000, ability: "500m 부스터 2회 + 레이저 20발 (모든 장애물 파괴)" }
+];
+
+var shopUpgradeData = [
+  { id: "extraHeart1", name: "하트 +1", icon: "❤️", desc: "시작 하트 3→4개", price: 300 },
+  { id: "extraHeart2", name: "하트 +2", icon: "💖", desc: "시작 하트 4→5개", price: 800, requires: "extraHeart1" },
+  { id: "continueDiscount", name: "컨티뉴 할인", icon: "💰", desc: "컨티뉴 비용 30% 감소", price: 500 },
+  { id: "coinBooster", name: "코인 부스터", icon: "✨", desc: "코인 획득량 2배", price: 1000 }
+];
+
+var evoVehicleData = [
+  { id: "Amoeba", name: "아메바", levelReq: 1 },
+  { id: "Anomalocaris", name: "아노말로카리스", levelReq: 2 },
+  { id: "Dunkleosteus", name: "둔클레오스테우스", levelReq: 3 },
+  { id: "Tiktaalik", name: "틱타알릭", levelReq: 4 },
+  { id: "Plesiosaur", name: "플레시오사우루스", levelReq: 5 },
+  { id: "Quetzalcoatlus", name: "케찰코아틀루스", levelReq: 6 },
+  { id: "Darwin's Finch", name: "다윈의 핀치", levelReq: 7 }
+];
+
+// Shop save/load
+function loadShopData() {
+  var defaults = {
+    unlockedVehicles: [],
+    selectedVehicle: null,
+    purchasedUpgrades: [],
+    darwinFinchReached: false,
+    unlockedEvoForms: ["Amoeba"],
+    maxEvoLevel: 1
+  };
+  var saved = localStorage.getItem('flyDarwinShop');
+  if (saved) {
+    try {
+      var parsed = JSON.parse(saved);
+      return {
+        unlockedVehicles: parsed.unlockedVehicles || defaults.unlockedVehicles,
+        selectedVehicle: parsed.selectedVehicle !== undefined ? parsed.selectedVehicle : defaults.selectedVehicle,
+        purchasedUpgrades: parsed.purchasedUpgrades || defaults.purchasedUpgrades,
+        darwinFinchReached: parsed.darwinFinchReached || defaults.darwinFinchReached,
+        unlockedEvoForms: parsed.unlockedEvoForms || defaults.unlockedEvoForms,
+        maxEvoLevel: parsed.maxEvoLevel || defaults.maxEvoLevel
+      };
+    } catch(e) {
+      return defaults;
+    }
+  }
+  return defaults;
+}
+
+function saveShopData(data) {
+  localStorage.setItem('flyDarwinShop', JSON.stringify(data));
+}
+
+var shopState = loadShopData();
+
+// Shop 3D preview system
+var shopPreviews = [];
+var shopAnimationId = null;
+
+function createShopPreview(containerId, formName) {
+  var container = document.getElementById(containerId);
+  if (!container) return null;
+
+  var w = container.clientWidth || 300;
+  var h = container.clientHeight || 120;
+
+  var previewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  previewRenderer.setSize(w, h);
+  previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  container.appendChild(previewRenderer.domElement);
+
+  var previewScene = new THREE.Scene();
+  var previewCamera = new THREE.PerspectiveCamera(50, w / h, 1, 1000);
+  previewCamera.position.set(0, 10, 100);
+  previewCamera.lookAt(new THREE.Vector3(0, 0, 0));
+
+  // Lights
+  var ambLight = new THREE.AmbientLight(0xB0D0E8, 0.8);
+  previewScene.add(ambLight);
+  var dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+  dirLight.position.set(50, 80, 50);
+  previewScene.add(dirLight);
+  var hemiLight = new THREE.HemisphereLight(0xaaaaaa, 0x000000, 0.5);
+  previewScene.add(hemiLight);
+
+  // Create model
+  var model = createNewCharacter(formName);
+  model.mesh.scale.set(0.55, 0.55, 0.55);
+  model.mesh.position.set(0, 0, 0);
+  model.mesh.rotation.set(0, 0, 0);
+  previewScene.add(model.mesh);
+
+  return {
+    renderer: previewRenderer,
+    scene: previewScene,
+    camera: previewCamera,
+    model: model,
+    container: container
+  };
+}
+
+function animateShopPreviews() {
+  shopAnimationId = requestAnimationFrame(animateShopPreviews);
+  for (var i = 0; i < shopPreviews.length; i++) {
+    var p = shopPreviews[i];
+    if (p && p.model && p.model.mesh) {
+      p.model.mesh.rotation.y += 0.015;
+      if (p.model.propeller) p.model.propeller.rotation.x += 0.1;
+      if (p.model.updateWings) p.model.updateWings();
+      p.renderer.render(p.scene, p.camera);
+    }
+  }
+}
+
+function cleanupShopPreviews() {
+  if (shopAnimationId) {
+    cancelAnimationFrame(shopAnimationId);
+    shopAnimationId = null;
+  }
+  for (var i = 0; i < shopPreviews.length; i++) {
+    if (shopPreviews[i]) {
+      shopPreviews[i].renderer.dispose();
+      if (shopPreviews[i].container) {
+        shopPreviews[i].container.innerHTML = '';
+      }
+    }
+  }
+  shopPreviews = [];
+}
+
+// Render shop tabs
+function renderShopVehicles() {
+  var list = document.getElementById('vehiclesList');
+  list.innerHTML = '';
+  var coins = parseInt(localStorage.getItem('totalCoins') || '0');
+
+  for (var i = 0; i < shopVehicleData.length; i++) {
+    var v = shopVehicleData[i];
+    var isUnlocked = shopState.darwinFinchReached;
+    var isPurchased = shopState.unlockedVehicles.indexOf(v.id) !== -1;
+    var isSelected = shopState.selectedVehicle === v.id;
+
+    var card = document.createElement('div');
+    card.className = 'vehicle-card' + (isSelected ? ' selected' : '') + (!isUnlocked ? ' locked' : '');
+
+    var previewId = 'vehiclePreview_' + i;
+    var previewHTML = '<div class="vehicle-preview" id="' + previewId + '">';
+    if (!isUnlocked) {
+      previewHTML += '<div class="vehicle-lock-overlay">🔒</div>';
+    }
+    previewHTML += '</div>';
+
+    card.innerHTML = previewHTML +
+      '<p class="vehicle-name">' + v.name + '</p>' +
+      '<p class="vehicle-ability">' + v.ability + '</p>';
+
+    // Button
+    var btn = document.createElement('button');
+    btn.className = 'vehicle-btn';
+    if (!isUnlocked) {
+      btn.className += ' vehicle-btn--locked';
+      btn.textContent = '🔒 다윈의 핀치 도달 시 해금';
+      btn.disabled = true;
+    } else if (isPurchased && isSelected) {
+      btn.className += ' vehicle-btn--selected';
+      btn.textContent = '✓ 선택됨';
+    } else if (isPurchased) {
+      btn.className += ' vehicle-btn--select';
+      btn.textContent = '선택하기';
+      (function(vid) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          selectVehicle(vid);
+        });
+      })(v.id);
+    } else {
+      btn.className += ' vehicle-btn--buy';
+      btn.textContent = v.price + ' 🪙 구매';
+      if (coins < v.price) btn.disabled = true;
+      (function(vid, vprice) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          purchaseVehicle(vid, vprice);
+        });
+      })(v.id, v.price);
+    }
+
+    card.appendChild(btn);
+    list.appendChild(card);
+  }
+
+  // Create 3D previews after DOM is ready
+  setTimeout(function() {
+    for (var i = 0; i < shopVehicleData.length; i++) {
+      var preview = createShopPreview('vehiclePreview_' + i, shopVehicleData[i].id);
+      if (preview) shopPreviews.push(preview);
+    }
+    if (shopPreviews.length > 0 && !shopAnimationId) {
+      animateShopPreviews();
+    }
+  }, 50);
+}
+
+function renderShopUpgrades() {
+  var list = document.getElementById('upgradesList');
+  list.innerHTML = '';
+  var coins = parseInt(localStorage.getItem('totalCoins') || '0');
+
+  for (var i = 0; i < shopUpgradeData.length; i++) {
+    var u = shopUpgradeData[i];
+    var isPurchased = shopState.purchasedUpgrades.indexOf(u.id) !== -1;
+    var requiresMet = !u.requires || shopState.purchasedUpgrades.indexOf(u.requires) !== -1;
+
+    var card = document.createElement('div');
+    card.className = 'upgrade-card' + (isPurchased ? ' purchased' : '');
+
+    var iconDiv = '<div class="upgrade-icon">' + u.icon + '</div>';
+    var infoDiv = '<div class="upgrade-info"><p class="upgrade-name">' + u.name + '</p><p class="upgrade-desc">' + u.desc + '</p></div>';
+
+    card.innerHTML = iconDiv + infoDiv;
+
+    var btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    if (isPurchased) {
+      btn.className += ' upgrade-btn--done';
+      btn.textContent = '✓ 보유';
+    } else {
+      btn.className += ' upgrade-btn--buy';
+      btn.textContent = u.price + ' 🪙';
+      if (coins < u.price || !requiresMet) btn.disabled = true;
+      (function(uid, uprice) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          purchaseUpgrade(uid, uprice);
+        });
+      })(u.id, u.price);
+    }
+
+    card.appendChild(btn);
+    list.appendChild(card);
+  }
+}
+
+// Evolution vehicles rendering
+function renderEvoVehicles() {
+  var list = document.getElementById('evoVehiclesList');
+  list.innerHTML = '';
+
+  for (var i = 0; i < evoVehicleData.length; i++) {
+    var v = evoVehicleData[i];
+    var isUnlocked = shopState.unlockedEvoForms.indexOf(v.id) !== -1;
+    var isSelected = shopState.selectedVehicle === v.id;
+    var isDefault = !shopState.selectedVehicle && v.id === 'Amoeba';
+
+    var card = document.createElement('div');
+    card.className = 'vehicle-card' + ((isSelected || isDefault) ? ' selected' : '') + (!isUnlocked ? ' locked' : '');
+
+    var previewId = 'evoPreview_' + i;
+    var previewHTML = '<div class="vehicle-preview" id="' + previewId + '">';
+    if (!isUnlocked) {
+      previewHTML += '<div class="vehicle-lock-overlay">🔒</div>';
+    }
+    previewHTML += '</div>';
+
+    card.innerHTML = previewHTML +
+      '<p class="vehicle-name">' + v.name + '</p>' +
+      '<p class="vehicle-ability">진화 레벨 ' + v.levelReq + ' 도달 시 해금</p>';
+
+    var btn = document.createElement('button');
+    btn.className = 'vehicle-btn';
+    if (!isUnlocked) {
+      btn.className += ' vehicle-btn--locked';
+      btn.textContent = '🔒 미해금';
+      btn.disabled = true;
+    } else if (isSelected || isDefault) {
+      btn.className += ' vehicle-btn--selected';
+      btn.textContent = '✓ 선택됨';
+    } else {
+      btn.className += ' vehicle-btn--select';
+      btn.textContent = '선택하기';
+      (function(vid) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          selectVehicle(vid);
+        });
+      })(v.id);
+    }
+
+    card.appendChild(btn);
+    list.appendChild(card);
+  }
+
+  // 3D previews
+  setTimeout(function() {
+    for (var i = 0; i < evoVehicleData.length; i++) {
+      var preview = createShopPreview('evoPreview_' + i, evoVehicleData[i].id);
+      if (preview) shopPreviews.push(preview);
+    }
+    if (shopPreviews.length > 0 && !shopAnimationId) {
+      animateShopPreviews();
+    }
+  }, 50);
+}
+
+function purchaseVehicle(vehicleId, price) {
+  var coins = parseInt(localStorage.getItem('totalCoins') || '0');
+  if (coins < price) return;
+
+  coins -= price;
+  localStorage.setItem('totalCoins', coins);
+
+  shopState.unlockedVehicles.push(vehicleId);
+  shopState.selectedVehicle = vehicleId;
+  saveShopData(shopState);
+
+  refreshShop();
+}
+
+function selectVehicle(vehicleId) {
+  shopState.selectedVehicle = vehicleId;
+  saveShopData(shopState);
+  refreshShop();
+}
+
+function purchaseUpgrade(upgradeId, price) {
+  var coins = parseInt(localStorage.getItem('totalCoins') || '0');
+  if (coins < price) return;
+
+  coins -= price;
+  localStorage.setItem('totalCoins', coins);
+
+  shopState.purchasedUpgrades.push(upgradeId);
+  saveShopData(shopState);
+
+  refreshShop();
+}
+
+function refreshShop() {
+  var coins = parseInt(localStorage.getItem('totalCoins') || '0');
+  document.getElementById('shopCoinsDisplay').textContent = coins;
+  cleanupShopPreviews();
+  renderShopUpgrades();
+
+  // Only render the currently active vehicle tab
+  var evoTab = document.getElementById('shopEvoVehicles');
+  var specialTab = document.getElementById('shopSpecialVehicles');
+  if (evoTab && evoTab.classList.contains('active')) {
+    renderEvoVehicles();
+  } else if (specialTab && specialTab.classList.contains('active')) {
+    renderShopVehicles();
+  }
+}
+
+function openShop() {
+  shopState = loadShopData();
+  var overlay = document.getElementById('shopOverlay');
+  overlay.style.display = 'flex';
+  refreshShop();
+}
+
+function closeShop() {
+  document.getElementById('shopOverlay').style.display = 'none';
+  cleanupShopPreviews();
+
+  // 선택된 비행체가 변경되었으면 씬의 비행기 교체
+  shopState = loadShopData();
+  var desiredForm = shopState.selectedVehicle || "Amoeba";
+  if (game.currentForm !== desiredForm) {
+    if (airplane && airplane.mesh) {
+      scene.remove(airplane.mesh);
+    }
+    airplane = createNewCharacter(desiredForm);
+    airplane.mesh.scale.set(.25, .25, .25);
+    airplane.mesh.position.y = game.planeDefaultHeight;
+    game.currentForm = desiredForm;
+    scene.add(airplane.mesh);
+  }
+}
+
+function initShopUI() {
+  // Shop button
+  var shopBtn = document.getElementById('shopBtn');
+  shopBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    openShop();
+  });
+
+  // Close button
+  document.getElementById('shopCloseBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    closeShop();
+  });
+
+  // Tab switching
+  var tabs = document.querySelectorAll('.shop-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].addEventListener('click', function(e) {
+      e.stopPropagation();
+      var tabName = this.getAttribute('data-tab');
+
+      // Update active tab
+      var allTabs = document.querySelectorAll('.shop-tab');
+      for (var j = 0; j < allTabs.length; j++) {
+        allTabs[j].classList.remove('active');
+      }
+      this.classList.add('active');
+
+      // Show content
+      var allContent = document.querySelectorAll('.shop-tab-content');
+      for (var k = 0; k < allContent.length; k++) {
+        allContent[k].classList.remove('active');
+      }
+
+      var contentId = 'shopUpgrades';
+      if (tabName === 'evoVehicles') contentId = 'shopEvoVehicles';
+      else if (tabName === 'specialVehicles') contentId = 'shopSpecialVehicles';
+      document.getElementById(contentId).classList.add('active');
+
+      // Rebuild 3D previews when switching to vehicle tabs
+      if (tabName === 'evoVehicles') {
+        cleanupShopPreviews();
+        renderEvoVehicles();
+      } else if (tabName === 'specialVehicles') {
+        cleanupShopPreviews();
+        renderShopVehicles();
+      }
+    });
+  }
+
+  // Prevent overlay clicks
+  document.getElementById('shopOverlay').addEventListener('mouseup', function(e) {
+    if (e.target === this) closeShop();
+  });
+}
+
+// Mark Darwin's Finch as reached when player transforms to it
+function markDarwinFinchReached() {
+  shopState.darwinFinchReached = true;
+  // Unlock all evolution forms
+  for (var i = 0; i < evoVehicleData.length; i++) {
+    if (shopState.unlockedEvoForms.indexOf(evoVehicleData[i].id) === -1) {
+      shopState.unlockedEvoForms.push(evoVehicleData[i].id);
+    }
+  }
+  shopState.maxEvoLevel = 7;
+  saveShopData(shopState);
+}
+
+// Unlock a specific evolution form
+function unlockEvoForm(formId, level) {
+  if (shopState.unlockedEvoForms.indexOf(formId) === -1) {
+    shopState.unlockedEvoForms.push(formId);
+  }
+  if (level > shopState.maxEvoLevel) {
+    shopState.maxEvoLevel = level;
+  }
+  saveShopData(shopState);
+}
+
+// Get starting hearts based on upgrades
+function getStartingHearts() {
+  var hearts = 3;
+  if (shopState.purchasedUpgrades.indexOf('extraHeart1') !== -1) hearts++;
+  if (shopState.purchasedUpgrades.indexOf('extraHeart2') !== -1) hearts++;
+  return hearts;
+}
+
+// Get continue costs (with discount if purchased)
+function getContinueCosts() {
+  var costs = [50, 200, 300];
+  if (shopState.purchasedUpgrades.indexOf('continueDiscount') !== -1) {
+    costs = [35, 140, 210];
+  }
+  return costs;
 }
