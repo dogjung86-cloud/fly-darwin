@@ -2788,7 +2788,7 @@ function showHeartPickup() {
 function removeEnergy(){
   if (game.invincible) return;
   // 아노말로카리스 패시브: 30% 확률 데미지 무시
-  if (game.currentForm === 'Anomalocaris' && Math.random() < 0.3) {
+  if (game.currentForm === 'Dunkleosteus' && Math.random() < 0.3) {
     showEvoPassiveText('갑각 방어!');
     return;
   }
@@ -3003,7 +3003,7 @@ function updatePlane(){
 
   // 케찰코아틀루스 패시브: 조작 민감도 +30%
   var moveSens = game.planeMoveSensivity;
-  if (game.currentForm === 'Dunkleosteus') moveSens *= 1.3;
+  if (game.currentForm === 'Anomalocaris') moveSens *= 1.3;
   airplane.mesh.position.y += (targetY-airplane.mesh.position.y)*deltaTime*moveSens;
   airplane.mesh.position.x += (targetX-airplane.mesh.position.x)*deltaTime*moveSens;
 
@@ -3160,7 +3160,9 @@ async function loadCloudSave() {
         darwinFinchReached: localShop.darwinFinchReached || cloudShop.darwinFinchReached || false,
         unlockedEvoForms: mergeArrays(localShop.unlockedEvoForms, cloudShop.unlockedEvoForms || []),
         maxEvoLevel: Math.max(localShop.maxEvoLevel || 1, cloudShop.maxEvoLevel || 1),
-        autoEvolve: localShop.autoEvolve !== undefined ? localShop.autoEvolve : true
+        autoEvolve: localShop.autoEvolve !== undefined ? localShop.autoEvolve : true,
+        maxDistance: Math.max(localShop.maxDistance || 0, cloudShop.maxDistance || 0),
+        defeatedBosses: mergeArrays(localShop.defeatedBosses || [], cloudShop.defeatedBosses || [])
       };
       saveShopData(merged);
       shopState = merged;
@@ -3464,10 +3466,17 @@ function stopAndShowGameOver() {
 }
 
 function showGameOver() {
+  // 최대 거리 기록 갱신
+  var finalDist = Math.floor(game.distance);
+  if (finalDist > (shopState.maxDistance || 0)) {
+    shopState.maxDistance = finalDist;
+    saveShopData(shopState);
+  }
+
   var overlay = document.getElementById('gameOverOverlay');
   var scoreSection = document.getElementById('gameOverScore');
   var rankSection = document.getElementById('rankingBoard');
-  
+
   // Fill final stats
   document.getElementById('finalDistance').textContent = Math.floor(game.distance).toLocaleString() + 'm';
   document.getElementById('finalLevel').textContent = Math.floor(game.level);
@@ -3856,24 +3865,24 @@ function initPauseUI() {
 // ===== SHOP SYSTEM =====
 
 var shopVehicleData = [
-  { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개로 시작", unlockForm: "Anomalocaris" },
-  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "⚡ 슬로우 모션 3회 | 🛡️ 피격 시 50% 확률로 코인 10개 소실로 대체", unlockForm: "Dunkleosteus" },
-  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "⚡ 무적 2회 | 🛡️ 피격 후 무적시간 7배", unlockForm: "Tiktaalik" },
-  { id: "Jetliner", name: "여객기", price: 4000, ability: "코인 X3 획득", unlockForm: "Plesiosaur" },
-  { id: "Rocket", name: "로켓", price: 5000, ability: "⚡ 미사일 100발 | 🛡️ 장애물 파괴 시 코인 10개 드롭", unlockForm: "Quetzalcoatlus" },
-  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 8000, ability: "⚡ 3000m에서 시작 + 500m 무적부스터 2회", unlockForm: "Darwin's Finch" },
-  { id: "UFO", name: "UFO", price: 10000, ability: "⚡ 5000m에서 시작 + 1000m 무적부스터 2회 + 레이저 200발", unlockForm: "Darwin's Finch" }
+  { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개로 시작", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치까지 진화 후 해금" },
+  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "⚡ 슬로우 모션 3회 | 🛡️ 피격 시 50% 확률로 코인 10개 소실로 대체", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치까지 진화 후 해금" },
+  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "⚡ 무적 2회 | 🛡️ 피격 후 무적시간 7배", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치까지 진화 후 해금" },
+  { id: "Jetliner", name: "여객기", price: 4000, ability: "코인 X3 획득", unlockDist: 10000, lockText: "🔒 10,000m 달성 시 해금" },
+  { id: "Rocket", name: "로켓", price: 5000, ability: "⚡ 미사일 100발 | 🛡️ 장애물 파괴 시 코인 10개 드롭", unlockDist: 13000, lockText: "🔒 13,000m 달성 시 해금" },
+  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 0, ability: "⚡ 3000m에서 시작 + 500m 무적부스터 2회", unlockBoss: "UFO", lockText: "🔒 UFO 보스 처치 시 무료 해금" },
+  { id: "UFO", name: "UFO", price: 10000, ability: "⚡ 5000m에서 시작 + 1000m 무적부스터 2회 + 레이저 200발", unlockDist: 20000, lockText: "🔒 20,000m 달성 시 해금" }
 ];
 
 var shopUpgradeData = [
-  { id: "extraHeart1", name: "하트 +1", icon: "❤️", desc: "시작 하트 3에서 4로", price: 300 },
-  { id: "extraHeart2", name: "하트 +2", icon: "💞", desc: "시작 하트 4에서 5로", price: 800, requires: "extraHeart1" }
+  { id: "extraHeart1", name: "하트 +1", icon: "❤️", desc: "시작 하트 3에서 4로", price: 600 },
+  { id: "extraHeart2", name: "하트 +2", icon: "💞", desc: "시작 하트 4에서 5로", price: 1200, requires: "extraHeart1" }
 ];
 
 var evoVehicleData = [
   { id: "Amoeba", name: "아메바", levelReq: 1, passive: "" },
-  { id: "Anomalocaris", name: "아노말로카리스", levelReq: 2, passive: "🛡️ 피격 시 30% 확률 데미지 무시" },
-  { id: "Dunkleosteus", name: "둔클레오스테우스", levelReq: 3, passive: "🦅 조작 민감도 +30%" },
+  { id: "Anomalocaris", name: "아노말로카리스", levelReq: 2, passive: "🦅 조작 민감도 +30%" },
+  { id: "Dunkleosteus", name: "둔클레오스테우스", levelReq: 3, passive: "🛡️ 피격 시 30% 확률 데미지 무시" },
   { id: "Tiktaalik", name: "틱타알릭", levelReq: 4, passive: "❤️ 하트 아이템 출현빈도 1.5배" },
   { id: "Plesiosaur", name: "플레시오사우루스", levelReq: 5, passive: "🌊 장애물 스폰 간격 +30%" },
   { id: "Quetzalcoatlus", name: "케찰코아틀루스", levelReq: 6, passive: "🪙 코인 획득량 +50%" },
@@ -3889,7 +3898,9 @@ function loadShopData() {
     darwinFinchReached: false,
     unlockedEvoForms: ["Amoeba"],
     maxEvoLevel: 1,
-    autoEvolve: true
+    autoEvolve: true,
+    maxDistance: 0,
+    defeatedBosses: []
   };
   var saved = localStorage.getItem('flyDarwinShop');
   if (saved) {
@@ -3902,7 +3913,9 @@ function loadShopData() {
         darwinFinchReached: parsed.darwinFinchReached || defaults.darwinFinchReached,
         unlockedEvoForms: parsed.unlockedEvoForms || defaults.unlockedEvoForms,
         maxEvoLevel: parsed.maxEvoLevel || defaults.maxEvoLevel,
-        autoEvolve: parsed.autoEvolve !== undefined ? parsed.autoEvolve : defaults.autoEvolve
+        autoEvolve: parsed.autoEvolve !== undefined ? parsed.autoEvolve : defaults.autoEvolve,
+        maxDistance: parsed.maxDistance || defaults.maxDistance,
+        defeatedBosses: parsed.defeatedBosses || defaults.defeatedBosses
       };
     } catch(e) {
       return defaults;
@@ -4005,6 +4018,13 @@ function cleanupShopPreviews() {
 }
 
 // Render shop tabs
+function checkVehicleUnlocked(v) {
+  if (v.unlockForm) return shopState.unlockedEvoForms.indexOf(v.unlockForm) !== -1;
+  if (v.unlockDist) return (shopState.maxDistance || 0) >= v.unlockDist;
+  if (v.unlockBoss) return (shopState.defeatedBosses || []).indexOf(v.unlockBoss) !== -1;
+  return false;
+}
+
 function renderShopVehicles() {
   var list = document.getElementById('vehiclesList');
   list.innerHTML = '';
@@ -4012,7 +4032,7 @@ function renderShopVehicles() {
 
   for (var i = 0; i < shopVehicleData.length; i++) {
     var v = shopVehicleData[i];
-    var isUnlocked = v.unlockForm ? (shopState.unlockedEvoForms.indexOf(v.unlockForm) !== -1) : shopState.darwinFinchReached;
+    var isUnlocked = checkVehicleUnlocked(v);
     var isPurchased = shopState.unlockedVehicles.indexOf(v.id) !== -1;
     var isSelected = shopState.selectedVehicle === v.id;
 
@@ -4035,7 +4055,7 @@ function renderShopVehicles() {
     btn.className = 'vehicle-btn';
     if (!isUnlocked) {
       btn.className += ' vehicle-btn--locked';
-      btn.textContent = '🔒 ' + (v.unlockForm || '다윈의 핀치') + '까지 진화 후 해금';
+      btn.textContent = v.lockText || '🔒 해금 조건 미달성';
       btn.disabled = true;
     } else if (isPurchased && isSelected) {
       btn.className += ' vehicle-btn--selected';
@@ -4051,8 +4071,12 @@ function renderShopVehicles() {
       })(v.id);
     } else {
       btn.className += ' vehicle-btn--buy';
-      btn.textContent = v.price + ' 코인 구매';
-      if (coins < v.price) btn.disabled = true;
+      if (v.price === 0) {
+        btn.textContent = '무료 획득';
+      } else {
+        btn.textContent = v.price + ' 코인 구매';
+        if (coins < v.price) btn.disabled = true;
+      }
       (function(vid, vprice) {
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -4071,7 +4095,7 @@ function renderShopVehicles() {
       var preview = createShopPreview('vehiclePreview_' + i, shopVehicleData[i].id);
       if (preview) {
         var sv = shopVehicleData[i];
-        var unlocked = sv.unlockForm ? (shopState.unlockedEvoForms.indexOf(sv.unlockForm) !== -1) : shopState.darwinFinchReached;
+        var unlocked = checkVehicleUnlocked(sv);
         if (!unlocked) makePreviewSilhouette(preview);
         shopPreviews.push(preview);
       }
@@ -5846,6 +5870,13 @@ function defeatBoss() {
   var hearts = bossState.heartReward || 0;
   for (var h = 0; h < hearts; h++) {
     addHeart();
+  }
+
+  // 보스 처치 기록 저장
+  if (bossState.name && (!shopState.defeatedBosses || shopState.defeatedBosses.indexOf(bossState.name) === -1)) {
+    if (!shopState.defeatedBosses) shopState.defeatedBosses = [];
+    shopState.defeatedBosses.push(bossState.name);
+    saveShopData(shopState);
   }
 
   //
