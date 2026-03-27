@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull:*)",
+      "Bash(start:*)",
+      "Bash(cat:*)",
+      "Bash(ls \"C:/games/Finch/.env\"*)"
+    ]
+  }
+}

@@ -3051,15 +3051,114 @@ var MAX_RANKINGS = 100;
 var currentPlayerRankIndex = -1;
 
 // Supabase ?대씪?댁뼵??珥덇린??
-var SUPABASE_URL = 'https://tehpoogyhjrkvcaeioge.supabase.co';
-var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlaHBvb2d5aGpya3ZjYWVpb2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NzQxOTQsImV4cCI6MjA4OTU1MDE5NH0.saInJOZuegHGaEW-D0sikBAU-XwoHZkjMYvUWw4t4sE';
+var SUPABASE_URL = 'https://yayfjpjuzpwhhxzwqyom.supabase.co';
+var SUPABASE_ANON_KEY = 'sb_publishable_p68ycUm3ZVTSw62a6wb_kA_8icbgCNF';
 var supabaseClient = null;
+var currentUser = null; // Finch 로그인 유저
 
 function getSupabase() {
   if (!supabaseClient && window.supabase) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
   return supabaseClient;
+}
+
+// Finch 로그인 상태 확인
+async function initAuth() {
+  var sb = getSupabase();
+  if (!sb) return;
+  try {
+    var { data } = await sb.auth.getUser();
+    currentUser = data.user || null;
+    sb.auth.onAuthStateChange(function(event, session) {
+      currentUser = session ? session.user : null;
+      updateLoginUI();
+      if (currentUser) loadCloudSave();
+    });
+    updateLoginUI();
+    if (currentUser) loadCloudSave();
+  } catch(e) { console.warn('Auth init failed:', e); }
+}
+
+function updateLoginUI() {
+  var btn = document.getElementById('cloudSaveBtn');
+  if (!btn) return;
+  if (currentUser) {
+    btn.innerHTML = '☁️ 저장됨 ✓';
+    btn.style.color = '#4CAF50';
+    btn.style.borderColor = 'rgba(76,175,80,0.3)';
+    btn.onclick = null;
+    btn.style.cursor = 'default';
+  } else {
+    btn.innerHTML = '🔒 로그인하면 상점과 아이템 기록이 안전해요';
+    btn.style.color = 'rgba(255,255,255,0.7)';
+    btn.style.borderColor = 'rgba(255,255,255,0.2)';
+    btn.style.cursor = 'pointer';
+    btn.onclick = function() { window.open('https://finch.co.kr', '_blank'); };
+  }
+}
+
+// 클라우드 저장 (로그인 시)
+async function saveCloudData() {
+  if (!currentUser) return;
+  var sb = getSupabase();
+  if (!sb) return;
+  try {
+    var shopData = loadShopData();
+    var coins = parseInt(localStorage.getItem('totalCoins') || '0');
+    await sb.from('fly_darwin_saves').upsert({
+      user_id: currentUser.id,
+      shop_data: shopData,
+      total_coins: coins,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  } catch(e) { console.warn('Cloud save failed:', e); }
+}
+
+// 클라우드 불러오기 (로그인 시)
+async function loadCloudSave() {
+  if (!currentUser) return;
+  var sb = getSupabase();
+  if (!sb) return;
+  try {
+    var { data, error } = await sb
+      .from('fly_darwin_saves')
+      .select('shop_data, total_coins')
+      .eq('user_id', currentUser.id)
+      .single();
+    if (error || !data) return;
+    // 클라우드 데이터가 있으면 로컬에 병합 (더 진행된 쪽 우선)
+    var localShop = loadShopData();
+    var cloudShop = data.shop_data;
+    var localCoins = parseInt(localStorage.getItem('totalCoins') || '0');
+    var cloudCoins = data.total_coins || 0;
+    // 코인은 큰 쪽
+    if (cloudCoins > localCoins) {
+      localStorage.setItem('totalCoins', cloudCoins.toString());
+    }
+    // 해금 데이터는 합치기 (양쪽 합집합)
+    if (cloudShop) {
+      var merged = {
+        unlockedVehicles: mergeArrays(localShop.unlockedVehicles, cloudShop.unlockedVehicles || []),
+        selectedVehicle: localShop.selectedVehicle || cloudShop.selectedVehicle,
+        purchasedUpgrades: mergeArrays(localShop.purchasedUpgrades, cloudShop.purchasedUpgrades || []),
+        darwinFinchReached: localShop.darwinFinchReached || cloudShop.darwinFinchReached || false,
+        unlockedEvoForms: mergeArrays(localShop.unlockedEvoForms, cloudShop.unlockedEvoForms || []),
+        maxEvoLevel: Math.max(localShop.maxEvoLevel || 1, cloudShop.maxEvoLevel || 1),
+        autoEvolve: localShop.autoEvolve !== undefined ? localShop.autoEvolve : true
+      };
+      saveShopData(merged);
+      shopState = merged;
+    }
+  } catch(e) { console.warn('Cloud load failed:', e); }
+}
+
+function mergeArrays(a, b) {
+  var result = a.slice();
+  for (var i = 0; i < b.length; i++) {
+    if (result.indexOf(b[i]) === -1) result.push(b[i]);
+  }
+  return result;
 }
 
 // localStorage ?대갚 ?⑥닔??
@@ -3619,6 +3718,7 @@ function init(event){
   initAbilitySystem();
   initAbilitySounds();
   initStartScreen();
+  initAuth();
   loop();
 }
 
@@ -3796,6 +3896,8 @@ function loadShopData() {
 
 function saveShopData(data) {
   localStorage.setItem('flyDarwinShop', JSON.stringify(data));
+  // 로그인 상태면 클라우드에도 저장
+  if (currentUser) saveCloudData();
 }
 
 var shopState = loadShopData();
