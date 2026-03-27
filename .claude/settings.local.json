@@ -4,7 +4,13 @@
       "Bash(git pull:*)",
       "Bash(start:*)",
       "Bash(cat:*)",
-      "Bash(ls \"C:/games/Finch/.env\"*)"
+      "Bash(ls \"C:/games/Finch/.env\"*)",
+      "Bash(mkdir -p \"C:/games/fly-darwin-app/app/src/main/java/kr/co/finch/flydarwin\")",
+      "Bash(mkdir -p \"C:/games/fly-darwin-app/app/src/main/res/values\")",
+      "Bash(mkdir -p \"C:/games/fly-darwin-app/app/src/main/res/mipmap-hdpi\")",
+      "Bash(mkdir -p \"C:/games/fly-darwin-app/app/src/main/res/mipmap-xhdpi\")",
+      "Bash(mkdir -p \"C:/games/fly-darwin-app/app/src/main/res/mipmap-xxhdpi\")",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

@@ -3570,7 +3570,7 @@ function startReplay() {
 
   //
   if (typeof cleanupBoss === 'function') cleanupBoss();
-  if (typeof bossState !== 'undefined') bossState.triggered = [];
+  if (typeof bossState !== 'undefined') { bossState.triggered = []; bossState.pendingBoss = null; }
 
   // Reset plane to initial form
   scene.remove(airplane.mesh);
@@ -3771,8 +3771,10 @@ function initStartScreen() {
       game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel * game.level;
       game.baseSpeed = game.targetBaseSpeed;
       // 보스/난기류 트리거 스킵
-      if (typeof bossState !== 'undefined') {
-        for (var bd = 2000; bd <= startDist; bd += 2000) bossState.triggered.push(bd);
+      if (typeof bossState !== 'undefined' && typeof bossConfigs !== 'undefined') {
+        for (var bi = 0; bi < bossConfigs.length; bi++) {
+          if (bossConfigs[bi].distance <= startDist) bossState.triggered.push(bossConfigs[bi].distance);
+        }
       }
       game.turbulenceTriggered = [];
       var turbDists = typeof getTurbulenceTriggerDistances === 'function' ? getTurbulenceTriggerDistances() : [3000,5500,9000,13000,17000,21000];
@@ -5030,16 +5032,17 @@ var bossState = {
   oscillateTime: 0,
   bossType: 0,
   cooldown: 0,
+  pendingBoss: null,
   tentacleAttackTimer: 0,
   tentacleAttacking: false,
   tentaclePhase: 0
 };
 
 var bossConfigs = [
-  { name: '거대 암모나이트', hp: 50, reward: 150, color: 0xDDAA22, distance: 2000 },
-  { name: '메갈로돈', hp: 70, reward: 200, color: 0x4466AA, distance: 4000 },
-  { name: '티라노사우루스', hp: 100, reward: 300, color: 0x664422, distance: 7000 },
-  { name: 'UFO', hp: 130, reward: 400, color: 0x44AA66, distance: 11000 }
+  { name: '거대 암모나이트', hp: 50, reward: 150, heartReward: 1, color: 0xDDAA22, distance: 2000 },
+  { name: '메갈로돈', hp: 70, reward: 300, heartReward: 1, color: 0x4466AA, distance: 6000 },
+  { name: '티라노사우루스', hp: 100, reward: 1000, heartReward: 2, color: 0x664422, distance: 9500 },
+  { name: 'UFO', hp: 130, reward: 1500, heartReward: 2, color: 0x44AA66, distance: 13000 }
 ];
 
 function getBossForDistance(dist) {
@@ -5054,6 +5057,15 @@ function getBossForDistance(dist) {
   return null;
 }
 
+function isSpecialAbilityActive() {
+  if (game.invincible) return true;
+  if (typeof abilityState !== 'undefined' && abilityState) {
+    if (abilityState.boosterActive) return true;
+    if (abilityState.slowmoActive) return true;
+  }
+  return false;
+}
+
 function checkBossTrigger() {
   if (bossState.active) return;
   //
@@ -5061,17 +5073,32 @@ function checkBossTrigger() {
     bossState.cooldown -= 16; // ~60fps
     return;
   }
+
+  // 대기 중인 보스가 있으면 능력 해제 후 스폰
+  if (bossState.pendingBoss) {
+    if (!isSpecialAbilityActive()) {
+      var pending = bossState.pendingBoss;
+      bossState.pendingBoss = null;
+      spawnBoss(pending.config, pending.index);
+    }
+    return;
+  }
+
   var d = Math.floor(game.distance);
   //
-  var interval = 2000;
-  var triggerDist = Math.floor(d / interval) * interval;
-  if (triggerDist < interval) return;
-  if (bossState.triggered.indexOf(triggerDist) !== -1) return;
-
-  bossState.triggered.push(triggerDist);
-  var cycleIndex = (Math.floor(triggerDist / interval) - 1) % bossConfigs.length;
-  var config = bossConfigs[cycleIndex];
-  spawnBoss(config, cycleIndex);
+  for (var i = 0; i < bossConfigs.length; i++) {
+    var config = bossConfigs[i];
+    if (d >= config.distance && bossState.triggered.indexOf(config.distance) === -1) {
+      bossState.triggered.push(config.distance);
+      // 특수 능력 사용 중이면 대기
+      if (isSpecialAbilityActive()) {
+        bossState.pendingBoss = { config: config, index: i };
+      } else {
+        spawnBoss(config, i);
+      }
+      return;
+    }
+  }
 }
 
 function createBossMesh(config, cycleIndex) {
@@ -5427,6 +5454,7 @@ function spawnBoss(config, typeIndex) {
     if (!bossState.active) return;
     bossState.timer = bossState.maxTimer;
     bossState.reward = config.reward;
+    bossState.heartReward = config.heartReward || 0;
     bossState.name = config.name;
     bossState.oscillateTime = 0;
     bossState.missiles = [];
@@ -5813,6 +5841,12 @@ function defeatBoss() {
   localStorage.setItem('totalCoins', (totalCoins + reward).toString());
   var coinsEl = document.getElementById('coinsValue');
   if (coinsEl) coinsEl.textContent = game.coins;
+
+  // 하트 보상
+  var hearts = bossState.heartReward || 0;
+  for (var h = 0; h < hearts; h++) {
+    addHeart();
+  }
 
   //
   showBossReward(reward);
