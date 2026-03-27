@@ -3106,10 +3106,7 @@ function updateLoginUI() {
     btn.style.color = 'rgba(255,255,255,0.7)';
     btn.style.borderColor = 'rgba(255,255,255,0.2)';
     btn.style.cursor = 'pointer';
-    btn.onclick = function() {
-      try { window.top.location.href = 'https://finch.co.kr'; }
-      catch(e) { window.open('https://finch.co.kr', '_blank'); }
-    };
+    btn.onclick = function() { window.open('https://finch.co.kr', '_top'); };
   }
 }
 
