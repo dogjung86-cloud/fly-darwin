@@ -3063,11 +3063,23 @@ function getSupabase() {
   return supabaseClient;
 }
 
-// Finch 로그인 상태 확인
+// Finch 로그인 상태 확인 (URL 토큰 또는 기존 세션)
 async function initAuth() {
   var sb = getSupabase();
   if (!sb) return;
   try {
+    // URL 파라미터에서 토큰 확인 (finch.co.kr iframe에서 전달)
+    var params = new URLSearchParams(window.location.search);
+    var accessToken = params.get('access_token');
+    var refreshToken = params.get('refresh_token');
+    if (accessToken && refreshToken) {
+      await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      // URL에서 토큰 제거 (보안)
+      if (window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+
     var { data } = await sb.auth.getUser();
     currentUser = data.user || null;
     sb.auth.onAuthStateChange(function(event, session) {
