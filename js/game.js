@@ -3093,20 +3093,23 @@ async function initAuth() {
 }
 
 function updateLoginUI() {
-  var btn = document.getElementById('cloudSaveBtn');
-  if (!btn) return;
-  if (currentUser) {
-    btn.innerHTML = '☁️ 저장됨 ✓';
-    btn.style.color = '#4CAF50';
-    btn.style.borderColor = 'rgba(76,175,80,0.3)';
-    btn.onclick = null;
-    btn.style.cursor = 'default';
-  } else {
-    btn.innerHTML = '🔒 로그인하면 상점과 아이템 기록이 안전해요';
-    btn.style.color = 'rgba(255,255,255,0.7)';
-    btn.style.borderColor = 'rgba(255,255,255,0.2)';
-    btn.style.cursor = 'pointer';
-    btn.onclick = function() { window.open('https://www.finch.co.kr?login=true', '_top'); };
+  var btns = [document.getElementById('cloudSaveBtn'), document.getElementById('gameOverCloudSaveBtn')];
+  for (var i = 0; i < btns.length; i++) {
+    var btn = btns[i];
+    if (!btn) continue;
+    if (currentUser) {
+      btn.innerHTML = '☁️ 저장됨 ✓';
+      btn.style.color = '#4CAF50';
+      btn.style.borderColor = 'rgba(76,175,80,0.3)';
+      btn.onclick = null;
+      btn.style.cursor = 'default';
+    } else {
+      btn.innerHTML = '🔒 로그인하면 상점과 아이템 기록이 안전해요';
+      btn.style.color = 'rgba(255,255,255,0.7)';
+      btn.style.borderColor = 'rgba(255,255,255,0.2)';
+      btn.style.cursor = 'pointer';
+      btn.onclick = function() { window.open('https://www.finch.co.kr?login=true', '_top'); };
+    }
   }
 }
 
