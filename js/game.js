@@ -430,21 +430,35 @@ function handleMouseMove(event) {
 
 function handleTouchStart(event) {
     var target = event.target;
-    // ?쇱떆?뺤? 踰꾪듉/?ㅻ쾭?덉씠 ?곗튂 ?쒖뿉??preventDefault ?섏? ?딆쓬
-    if (target.id === 'mobilePauseBtn' || target.id === 'pauseOverlay' || target.closest('#pauseOverlay')) {
-      return;
-    }
+    // UI 버튼 터치는 그대로 통과
+    if (target.id === 'mobilePauseBtn' || target.id === 'pauseOverlay' || target.closest('#pauseOverlay')) return;
+    if (target.id === 'bossFireBtn' || target.closest('#bossFireUI')) return;
+    if (target.id === 'abilityBtn' || target.closest('#abilityUI')) return;
+    if (target.id === 'ufoLaserBtn' || target.id === 'ufoBoosterBtn' || target.closest('#ufoDualUI')) return;
     event.preventDefault();
-    var tx = -1 + (event.touches[0].pageX / WIDTH)*2;
-    var ty = 1 - (event.touches[0].pageY / HEIGHT)*2;
-    mousePos = {x:tx, y:ty};
+    // 멀티터치: UI 버튼이 아닌 첫 번째 터치로 조작
+    for (var i = 0; i < event.touches.length; i++) {
+      var t = event.touches[i];
+      var el = document.elementFromPoint(t.pageX, t.pageY);
+      if (el && (el.closest('#bossFireUI') || el.closest('#abilityUI') || el.closest('#ufoDualUI'))) continue;
+      var tx = -1 + (t.pageX / WIDTH) * 2;
+      var ty = 1 - (t.pageY / HEIGHT) * 2;
+      mousePos = {x:tx, y:ty};
+      break;
+    }
 }
 
 function handleTouchMove(event) {
     event.preventDefault();
-    var tx = -1 + (event.touches[0].pageX / WIDTH)*2;
-    var ty = 1 - (event.touches[0].pageY / HEIGHT)*2;
-    mousePos = {x:tx, y:ty};
+    for (var i = 0; i < event.touches.length; i++) {
+      var t = event.touches[i];
+      var el = document.elementFromPoint(t.pageX, t.pageY);
+      if (el && (el.closest('#bossFireUI') || el.closest('#abilityUI') || el.closest('#ufoDualUI'))) continue;
+      var tx = -1 + (t.pageX / WIDTH) * 2;
+      var ty = 1 - (t.pageY / HEIGHT) * 2;
+      mousePos = {x:tx, y:ty};
+      break;
+    }
 }
 var mouseHoldInterval = null;
 var mouseIsDown = false;
@@ -457,7 +471,9 @@ function handleMouseDown(event) {
 
   //
   if (typeof bossState !== 'undefined' && bossState.active) {
-    fireBossMissile();
+    var isUfoBoss = (shopState && shopState.selectedVehicle === 'UFO' && abilityState.ufoLaserUses > 0);
+    if (isUfoBoss) { fireLaser(); abilityState.ufoLaserUses--; updateAbilityUI(); }
+    else fireBossMissile();
     clearInterval(mouseHoldInterval);
     mouseHoldInterval = setInterval(function() {
       if (!mouseIsDown || game.status !== 'playing' || !bossState.active) {
@@ -465,8 +481,10 @@ function handleMouseDown(event) {
         mouseHoldInterval = null;
         return;
       }
-      fireBossMissile();
-    }, 150);
+      var stillUfo = (shopState && shopState.selectedVehicle === 'UFO' && abilityState.ufoLaserUses > 0);
+      if (stillUfo) { fireLaser(); abilityState.ufoLaserUses--; updateAbilityUI(); }
+      else fireBossMissile();
+    }, 100);
     return;
   }
 
@@ -502,7 +520,11 @@ function handleMouseUp(event){
 
 
 function handleTouchEnd(event){
-  //
+  mouseIsDown = false;
+  if (mouseHoldInterval) {
+    clearInterval(mouseHoldInterval);
+    mouseHoldInterval = null;
+  }
 }
 
 // LIGHTS
@@ -1642,6 +1664,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
           game.planeCollisionSpeedY = 100 * diffPos.y / d;
         }
         ambientLight.intensity = 2;
+        setTimeout(function(){ ambientLight.intensity = .5; }, 150);
 
         //
         if (ennemy.type === 'thunder' || ennemy.type === 'fireWall') {
@@ -1702,6 +1725,7 @@ function updateFlyingAsteroids() {
         game.planeCollisionSpeedX = 100 * diffPos.x / d;
         game.planeCollisionSpeedY = 100 * diffPos.y / d;
         ambientLight.intensity = 2;
+        setTimeout(function(){ ambientLight.intensity = .5; }, 150);
         playDestroySound();
         removeEnergy();
       }
@@ -2077,7 +2101,10 @@ var invincibleGlow = null;
 
 function activateInvincible(){
   game.invincible = true;
-  game.invincibleTime = game.invincibleDuration;
+  // 다윈의 핀치 패시브: 무적 지속시간 2배
+  var dur = game.invincibleDuration;
+  if (game.currentForm === "Darwin's Finch") dur *= 2;
+  game.invincibleTime = dur;
 
   //
   if (!invincibleGlow){
@@ -2489,96 +2516,120 @@ function loop(){
 
   if (game.status=="playing"){
 
-    // Add energy coins every 100m;
-    if (Math.floor(game.distance)%game.distanceForCoinsSpawn == 0 && Math.floor(game.distance) > game.coinLastSpawn){
-      game.coinLastSpawn = Math.floor(game.distance);
-      coinsHolder.spawnCoins();
-    }
+    // === 보스전: 완전 정지, 전투만 ===
+    var bossActive = (typeof bossState !== 'undefined' && bossState.active);
 
-    // Spawn invincible fruit
-    if (Math.floor(game.distance)%game.distanceForInvincibleSpawn == 0 && Math.floor(game.distance) > game.invincibleFruitLastSpawn){
-      game.invincibleFruitLastSpawn = Math.floor(game.distance);
-      invincibleFruitHolder.spawnFruit();
-    }
+    if (bossActive) {
+      // 보스전 중: 스폰 없음, 거리 증가 없음, 속도 0
+      game.speed = 0;
+      game.baseSpeed = 0;
+      try {
+        if (typeof updateBoss === 'function') updateBoss(deltaTime);
+      } catch(bossErr) { console.warn('Boss error:', bossErr); }
+      updatePlane();
+      updateHearts();
+      if (typeof updateAbilities === 'function') updateAbilities(deltaTime);
+      if (typeof updateDestroyParticles === 'function') updateDestroyParticles(deltaTime);
 
-    // Spawn heart item
-    if (Math.floor(game.distance)%game.distanceForHeartItemSpawn == 0 && Math.floor(game.distance) > game.heartItemLastSpawn){
-      game.heartItemLastSpawn = Math.floor(game.distance);
-      heartItemHolder.spawnItem();
-    }
+    } else {
+      // === 일반 비행 ===
 
-    if (Math.floor(game.distance)%game.distanceForSpeedUpdate == 0 && Math.floor(game.distance) > game.speedLastUpdate){
-      game.speedLastUpdate = Math.floor(game.distance);
-      game.targetBaseSpeed += game.incrementSpeedByTime*deltaTime;
-    }
-
-
-    if (Math.floor(game.distance)%game.distanceForEnnemiesSpawn == 0 && Math.floor(game.distance) > game.ennemyLastSpawn){
-      game.ennemyLastSpawn = Math.floor(game.distance);
-      ennemiesHolder.spawnEnnemies();
-    }
-
-    //
-    if (game.level >= 3 && Math.floor(game.distance) - game.flyingAsteroidLastSpawn >= game.distanceForFlyingAsteroidSpawn){
-      game.flyingAsteroidLastSpawn = Math.floor(game.distance);
-      spawnFlyingAsteroid();
-    }
-
-    //
-    updateFlyingAsteroids();
-
-    var expectedLevel = Math.floor(game.distance / game.distanceForLevelUpdate) + 1;
-    if (expectedLevel > game.level){
-      game.level = expectedLevel;
-      fieldLevel.innerHTML = Math.floor(game.level);
-      showLevelUpText(game.level);
-
-      game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel*game.level
-    }
-
-    // Checking for Transformation
-    var canEvolve = !shopState.selectedVehicle || (isEvoVehicle(shopState.selectedVehicle) && shopState.autoEvolve);
-    if (canEvolve) {
-      if (game.distance > game.transformDistance1 && game.currentForm === "Amoeba") {
-        transformPlane("Anomalocaris");
-        unlockEvoForm("Anomalocaris", 2);
-      } else if (game.distance > game.transformDistance2 && game.currentForm === "Anomalocaris") {
-        transformPlane("Dunkleosteus");
-        unlockEvoForm("Dunkleosteus", 3);
-      } else if (game.distance > game.transformDistance3 && game.currentForm === "Dunkleosteus") {
-        transformPlane("Tiktaalik");
-        unlockEvoForm("Tiktaalik", 4);
-      } else if (game.distance > game.transformDistance4 && game.currentForm === "Tiktaalik") {
-        transformPlane("Plesiosaur");
-        unlockEvoForm("Plesiosaur", 5);
-      } else if (game.distance > game.transformDistance5 && game.currentForm === "Plesiosaur") {
-        transformPlane("Quetzalcoatlus");
-        unlockEvoForm("Quetzalcoatlus", 6);
-      } else if (game.distance > game.transformDistance6 && game.currentForm === "Quetzalcoatlus") {
-        transformPlane("Darwin's Finch");
-        unlockEvoForm("Darwin's Finch", 7);
-        markDarwinFinchReached();
+      // Add energy coins every 100m;
+      if (Math.floor(game.distance)%game.distanceForCoinsSpawn == 0 && Math.floor(game.distance) > game.coinLastSpawn){
+        game.coinLastSpawn = Math.floor(game.distance);
+        coinsHolder.spawnCoins();
       }
+
+      // Spawn invincible fruit
+      if (Math.floor(game.distance)%game.distanceForInvincibleSpawn == 0 && Math.floor(game.distance) > game.invincibleFruitLastSpawn){
+        game.invincibleFruitLastSpawn = Math.floor(game.distance);
+        invincibleFruitHolder.spawnFruit();
+      }
+
+      // Spawn heart item (틱타알릭 패시브: 출현빈도 1.5배 → 간격 2/3)
+      var heartSpawnDist = game.distanceForHeartItemSpawn;
+      if (game.currentForm === 'Tiktaalik') heartSpawnDist = Math.round(heartSpawnDist / 1.5);
+      if (Math.floor(game.distance) % heartSpawnDist == 0 && Math.floor(game.distance) > game.heartItemLastSpawn){
+        game.heartItemLastSpawn = Math.floor(game.distance);
+        heartItemHolder.spawnItem();
+      }
+
+      if (Math.floor(game.distance)%game.distanceForSpeedUpdate == 0 && Math.floor(game.distance) > game.speedLastUpdate){
+        game.speedLastUpdate = Math.floor(game.distance);
+        game.targetBaseSpeed += game.incrementSpeedByTime*deltaTime;
+      }
+
+
+      // 장애물 스폰 (플레시오사우르스 패시브: 간격 +30%)
+      var ennemySpawnDist = game.distanceForEnnemiesSpawn;
+      if (game.currentForm === 'Plesiosaur') ennemySpawnDist = Math.round(ennemySpawnDist * 1.3);
+      if (Math.floor(game.distance) % ennemySpawnDist == 0 && Math.floor(game.distance) > game.ennemyLastSpawn){
+        game.ennemyLastSpawn = Math.floor(game.distance);
+        ennemiesHolder.spawnEnnemies();
+      }
+
+      //
+      if (game.level >= 3 && Math.floor(game.distance) - game.flyingAsteroidLastSpawn >= game.distanceForFlyingAsteroidSpawn){
+        game.flyingAsteroidLastSpawn = Math.floor(game.distance);
+        spawnFlyingAsteroid();
+      }
+
+      //
+      updateFlyingAsteroids();
+
+      var expectedLevel = Math.floor(game.distance / game.distanceForLevelUpdate) + 1;
+      if (expectedLevel > game.level){
+        game.level = expectedLevel;
+        fieldLevel.innerHTML = Math.floor(game.level);
+        showLevelUpText(game.level);
+
+        game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel*game.level
+      }
+
+      // Checking for Transformation
+      var canEvolve = !shopState.selectedVehicle || (isEvoVehicle(shopState.selectedVehicle) && shopState.autoEvolve);
+      if (canEvolve) {
+        if (game.distance > game.transformDistance1 && game.currentForm === "Amoeba") {
+          transformPlane("Anomalocaris");
+          unlockEvoForm("Anomalocaris", 2);
+        } else if (game.distance > game.transformDistance2 && game.currentForm === "Anomalocaris") {
+          transformPlane("Dunkleosteus");
+          unlockEvoForm("Dunkleosteus", 3);
+        } else if (game.distance > game.transformDistance3 && game.currentForm === "Dunkleosteus") {
+          transformPlane("Tiktaalik");
+          unlockEvoForm("Tiktaalik", 4);
+        } else if (game.distance > game.transformDistance4 && game.currentForm === "Tiktaalik") {
+          transformPlane("Plesiosaur");
+          unlockEvoForm("Plesiosaur", 5);
+        } else if (game.distance > game.transformDistance5 && game.currentForm === "Plesiosaur") {
+          transformPlane("Quetzalcoatlus");
+          unlockEvoForm("Quetzalcoatlus", 6);
+        } else if (game.distance > game.transformDistance6 && game.currentForm === "Quetzalcoatlus") {
+          transformPlane("Darwin's Finch");
+          unlockEvoForm("Darwin's Finch", 7);
+          markDarwinFinchReached();
+        }
+      }
+
+      updateTurbulence();
+      //
+      try {
+        if (typeof checkBossTrigger === 'function') checkBossTrigger();
+      } catch(bossErr) { console.warn('Boss error:', bossErr); }
+      updatePlane();
+      updateDistance();
+      updateHearts();
+      game.baseSpeed += (game.targetBaseSpeed - game.baseSpeed) * deltaTime * 0.02;
+      if (game.baseSpeed > game.maxSpeed) game.baseSpeed = game.maxSpeed;
+      //
+      var abilityMult = (typeof getAbilitySpeedMultiplier === 'function') ? getAbilitySpeedMultiplier() : 1.0;
+      game.speed = game.baseSpeed * game.planeSpeed * abilityMult;
+
+      //
+      if (typeof updateAbilities === 'function') updateAbilities(deltaTime);
+      if (typeof updateDestroyParticles === 'function') updateDestroyParticles(deltaTime);
+      if (typeof updateDarwinPassive === 'function') updateDarwinPassive(deltaTime);
     }
-
-    updateTurbulence();
-    //
-    try {
-      if (typeof checkBossTrigger === 'function') checkBossTrigger();
-      if (typeof updateBoss === 'function') updateBoss(deltaTime);
-    } catch(bossErr) { console.warn('Boss error:', bossErr); }
-    updatePlane();
-    updateDistance();
-    updateHearts();
-    game.baseSpeed += (game.targetBaseSpeed - game.baseSpeed) * deltaTime * 0.02;
-    if (game.baseSpeed > game.maxSpeed) game.baseSpeed = game.maxSpeed;
-    //
-    var abilityMult = (typeof getAbilitySpeedMultiplier === 'function') ? getAbilitySpeedMultiplier() : 1.0;
-    game.speed = game.baseSpeed * game.planeSpeed * abilityMult;
-
-    //
-    if (typeof updateAbilities === 'function') updateAbilities(deltaTime);
-    if (typeof updateDestroyParticles === 'function') updateDestroyParticles(deltaTime);
 
   }else if(game.status=="gameover"){
     game.speed *= .99;
@@ -2681,8 +2732,9 @@ function addCoin(){
     coinMultiplier = 3;
   }
   //
-  if (shopState && shopState.purchasedUpgrades && shopState.purchasedUpgrades.indexOf('coinBooster') !== -1) {
-    coinMultiplier *= 2;
+  // 케찰코아틀루스 패시브: 코인 +50%
+  if (game.currentForm === 'Quetzalcoatlus') {
+    coinMultiplier *= 1.5;
   }
   var earned = game.coinValue * coinMultiplier;
   game.coins += earned;
@@ -2735,9 +2787,61 @@ function showHeartPickup() {
 
 function removeEnergy(){
   if (game.invincible) return;
+  // 아노말로카리스 패시브: 30% 확률 데미지 무시
+  if (game.currentForm === 'Anomalocaris' && Math.random() < 0.3) {
+    showEvoPassiveText('갑각 방어!');
+    return;
+  }
+  // 아인슈타인 패시브: 50% 확률로 코인 10개 소실로 대체
+  if (shopState && shopState.selectedVehicle === 'Einstein' && Math.random() < 0.5 && game.coins >= 10) {
+    game.coins -= 10;
+    game.coinsEarnedThisRound -= 10;
+    var totalC = parseInt(localStorage.getItem('totalCoins') || '0');
+    localStorage.setItem('totalCoins', Math.max(0, totalC - 10).toString());
+    var coinsEl = document.getElementById('coinsValue');
+    if (coinsEl) coinsEl.textContent = game.coins;
+    showEvoPassiveText('코인 방어! -10🪙');
+    return;
+  }
   game.hearts--;
   game.hearts = Math.max(0, game.hearts);
   updateHearts();
+  // 피격 후 무적 (기본 0.5초, 라이트 형제 3.5초)
+  if (game.hearts > 0) {
+    game.invincible = true;
+    var hitInvDur = (shopState && shopState.selectedVehicle === 'Wright Flyer') ? 3500 : 500;
+    game.invincibleTime = hitInvDur;
+  }
+}
+
+// 진화체 패시브 알림
+function showEvoPassiveText(msg) {
+  var el = document.getElementById('levelUpText');
+  if (el) {
+    el.innerHTML = '<p class="level-label">🛡️ ' + msg + '</p>';
+    el.classList.add('show');
+    setTimeout(function() { el.classList.remove('show'); }, 1000);
+  }
+}
+
+// 다윈의 핀치 패시브: 30초마다 하트 회복
+var darwinHealTimer = 0;
+function updateDarwinPassive(dt) {
+  if (game.currentForm !== "Darwin's Finch") { darwinHealTimer = 0; return; }
+  darwinHealTimer += dt;
+  if (darwinHealTimer >= 20000) {
+    darwinHealTimer = 0;
+    if (game.hearts < game.maxHearts) {
+      addHeart();
+      // 큰 알림
+      var el = document.getElementById('levelUpText');
+      if (el) {
+        el.innerHTML = '<p class="level-label" style="color:#FF6B6B;">✨ 다윈의 핀치 ✨</p><p class="level-number" style="font-size:1.5em;">❤️ 하트 회복!</p>';
+        el.classList.add('show');
+        setTimeout(function() { el.classList.remove('show'); }, 1500);
+      }
+    }
+  }
 }
 
 
@@ -2852,11 +2956,35 @@ function playTurbulenceSound() {
 
 function updatePlane(){
 
-  //
+  // === 보스전: 자유 2D 이동 + 줌아웃 ===
+  if (typeof bossState !== 'undefined' && bossState.active) {
+    var bossTargetX = mousePos.x < 0 ? mousePos.x * 350 : mousePos.x * 80;
+    var bossTargetY = game.planeDefaultHeight + mousePos.y * 150;
+
+    airplane.mesh.position.x += (bossTargetX - airplane.mesh.position.x) * 0.12;
+    airplane.mesh.position.y += (bossTargetY - airplane.mesh.position.y) * 0.12;
+
+    airplane.mesh.rotation.z = (bossTargetY - airplane.mesh.position.y) * 0.015;
+    airplane.mesh.rotation.x = (airplane.mesh.position.y - bossTargetY) * 0.008;
+
+    // 넓은 시야
+    var bossFov = isMobile ? 65 : 80;
+    camera.fov += (bossFov - camera.fov) * 0.05;
+    camera.updateProjectionMatrix();
+    camera.position.y += (game.planeDefaultHeight - camera.position.y) * 0.03;
+    camera.position.x += (0 - camera.position.x) * 0.03;
+
+    game.planeSpeed = game.planeMinSpeed;
+    airplane.pilot.updateHairs();
+    if (airplane.updateWings) airplane.updateWings();
+    return;
+  }
+
+  // === 일반 비행 ===
   var effMouseX = mousePos.x;
   var effMouseY = mousePos.y;
   if (game.turbulenceActive && game.turbulenceLevel > 0) {
-    var noiseAmp = game.turbulenceLevel * 0.08; // Lv1:0.08, Lv2:0.16, Lv3:0.24
+    var noiseAmp = game.turbulenceLevel * 0.08;
     var t = game.turbulenceTimer * 0.006;
     effMouseX += Math.sin(t * 3.7) * noiseAmp + Math.sin(t * 7.1) * noiseAmp * 0.5;
     effMouseY += Math.cos(t * 4.3) * noiseAmp + Math.cos(t * 8.9) * noiseAmp * 0.3;
@@ -2873,8 +3001,11 @@ function updatePlane(){
   game.planeCollisionDisplacementY += game.planeCollisionSpeedY;
   targetY += game.planeCollisionDisplacementY;
 
-  airplane.mesh.position.y += (targetY-airplane.mesh.position.y)*deltaTime*game.planeMoveSensivity;
-  airplane.mesh.position.x += (targetX-airplane.mesh.position.x)*deltaTime*game.planeMoveSensivity;
+  // 케찰코아틀루스 패시브: 조작 민감도 +30%
+  var moveSens = game.planeMoveSensivity;
+  if (game.currentForm === 'Dunkleosteus') moveSens *= 1.3;
+  airplane.mesh.position.y += (targetY-airplane.mesh.position.y)*deltaTime*moveSens;
+  airplane.mesh.position.x += (targetX-airplane.mesh.position.x)*deltaTime*moveSens;
 
   airplane.mesh.rotation.z = (targetY-airplane.mesh.position.y)*deltaTime*game.planeRotXSensivity;
   airplane.mesh.rotation.x = (airplane.mesh.position.y-targetY)*deltaTime*game.planeRotZSensivity;
@@ -2889,7 +3020,7 @@ function updatePlane(){
 
   //
   if (game.turbulenceActive && game.turbulenceLevel > 0) {
-    var shakeAmp = game.turbulenceLevel * 1.5; // Lv1:1.5, Lv2:3, Lv3:4.5
+    var shakeAmp = game.turbulenceLevel * 1.5;
     game.turbulenceCamShake.x = (Math.random() - 0.5) * shakeAmp;
     game.turbulenceCamShake.y = (Math.random() - 0.5) * shakeAmp;
     camera.position.x += game.turbulenceCamShake.x;
@@ -3503,7 +3634,39 @@ function initStartScreen() {
     //
     shopState = loadShopData();
     resetGame();
+    // resetGame이 currentForm을 Amoeba로 리셋하므로 선택 비행체로 복원
+    if (shopState.selectedVehicle) {
+      game.currentForm = shopState.selectedVehicle;
+    }
     setupAbilityForVehicle();
+    // 스페이스셔틀/UFO: 시작 거리 설정
+    var startDist = 0;
+    if (shopState.selectedVehicle === 'SpaceShuttle') startDist = 3000;
+    if (shopState.selectedVehicle === 'UFO') startDist = 5000;
+    if (startDist > 0) {
+      game.distance = startDist;
+      // 모든 스폰 타이머를 시작 거리로 맞춤 (과거 이벤트 스킵)
+      game.coinLastSpawn = startDist;
+      game.ennemyLastSpawn = startDist;
+      game.invincibleFruitLastSpawn = startDist;
+      game.heartItemLastSpawn = startDist;
+      game.speedLastUpdate = startDist;
+      game.flyingAsteroidLastSpawn = startDist;
+      game.level = Math.floor(startDist / game.distanceForLevelUpdate) + 1;
+      game.targetBaseSpeed = game.initSpeed + game.incrementSpeedByLevel * game.level;
+      game.baseSpeed = game.targetBaseSpeed;
+      // 보스/난기류 트리거 스킵
+      if (typeof bossState !== 'undefined') {
+        for (var bd = 2000; bd <= startDist; bd += 2000) bossState.triggered.push(bd);
+      }
+      game.turbulenceTriggered = [];
+      var turbDists = typeof getTurbulenceTriggerDistances === 'function' ? getTurbulenceTriggerDistances() : [3000,5500,9000,13000,17000,21000];
+      for (var td = 0; td < turbDists.length; td++) {
+        if (turbDists[td] <= startDist) game.turbulenceTriggered.push(turbDists[td]);
+      }
+      fieldLevel.innerHTML = Math.floor(game.level);
+      fieldDistance.innerHTML = Math.floor(game.distance);
+    }
     game.status = 'playing';
     overlay.classList.add('hidden');
     oldTime = new Date().getTime();
@@ -3577,29 +3740,27 @@ function initPauseUI() {
 
 var shopVehicleData = [
   { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개로 시작", unlockForm: "Anomalocaris" },
-  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "슬로우 모션 3번 사용 가능(마우스 왼쪽 버튼)", unlockForm: "Dunkleosteus" },
-  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "무적 효과 2번 사용 가능(마우스 왼쪽 버튼)", unlockForm: "Tiktaalik" },
-  { id: "Jetliner", name: "여객기", price: 5000, ability: "코인 X3 획득", unlockForm: "Plesiosaur" },
-  { id: "Rocket", name: "로켓", price: 6000, ability: "미사일 100발(철퇌, 운행석, 번개구름 파괴) (마우스 왼쪽 버튼)", unlockForm: "Quetzalcoatlus" },
-  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 8000, ability: "500m 부스터 2회(모든 장애물 파괴)", unlockForm: "Darwin's Finch" },
-  { id: "UFO", name: "UFO", price: 12000, ability: "1000m 부스터 2회 + 레이저 200발(모든 장애물 파괴)", unlockForm: "Darwin's Finch" }
+  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "⚡ 슬로우 모션 3회 | 🛡️ 피격 시 50% 확률로 코인 10개 소실로 대체", unlockForm: "Dunkleosteus" },
+  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "⚡ 무적 2회 | 🛡️ 피격 후 무적시간 7배", unlockForm: "Tiktaalik" },
+  { id: "Jetliner", name: "여객기", price: 4000, ability: "코인 X3 획득", unlockForm: "Plesiosaur" },
+  { id: "Rocket", name: "로켓", price: 5000, ability: "⚡ 미사일 100발 | 🛡️ 장애물 파괴 시 코인 10개 드롭", unlockForm: "Quetzalcoatlus" },
+  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 8000, ability: "⚡ 3000m에서 시작 + 500m 무적부스터 2회", unlockForm: "Darwin's Finch" },
+  { id: "UFO", name: "UFO", price: 10000, ability: "⚡ 5000m에서 시작 + 1000m 무적부스터 2회 + 레이저 200발", unlockForm: "Darwin's Finch" }
 ];
 
 var shopUpgradeData = [
   { id: "extraHeart1", name: "하트 +1", icon: "❤️", desc: "시작 하트 3에서 4로", price: 300 },
-  { id: "extraHeart2", name: "하트 +2", icon: "💞", desc: "시작 하트 4에서 5로", price: 800, requires: "extraHeart1" },
-  { id: "continueDiscount", name: "컨티뉴 할인", icon: "🏷️", desc: "컨티뉴 비용 30% 감소", price: 500 },
-  { id: "coinBooster", name: "코인 부스터", icon: "💰", desc: "코인 획득량 2배", price: 1000 }
+  { id: "extraHeart2", name: "하트 +2", icon: "💞", desc: "시작 하트 4에서 5로", price: 800, requires: "extraHeart1" }
 ];
 
 var evoVehicleData = [
-  { id: "Amoeba", name: "아메바", levelReq: 1 },
-  { id: "Anomalocaris", name: "아노말로카리스", levelReq: 2 },
-  { id: "Dunkleosteus", name: "던클레오스테우스", levelReq: 3 },
-  { id: "Tiktaalik", name: "틱타알릭", levelReq: 4 },
-  { id: "Plesiosaur", name: "플레시오사우루스", levelReq: 5 },
-  { id: "Quetzalcoatlus", name: "케찰코아틀루스", levelReq: 6 },
-  { id: "Darwin's Finch", name: "다윈의 핀치", levelReq: 7 }
+  { id: "Amoeba", name: "아메바", levelReq: 1, passive: "" },
+  { id: "Anomalocaris", name: "아노말로카리스", levelReq: 2, passive: "🛡️ 피격 시 30% 확률 데미지 무시" },
+  { id: "Dunkleosteus", name: "둔클레오스테우스", levelReq: 3, passive: "🦅 조작 민감도 +30%" },
+  { id: "Tiktaalik", name: "틱타알릭", levelReq: 4, passive: "❤️ 하트 아이템 출현빈도 1.5배" },
+  { id: "Plesiosaur", name: "플레시오사우루스", levelReq: 5, passive: "🌊 장애물 스폰 간격 +30%" },
+  { id: "Quetzalcoatlus", name: "케찰코아틀루스", levelReq: 6, passive: "🪙 코인 획득량 +50%" },
+  { id: "Darwin's Finch", name: "다윈의 핀치", levelReq: 7, passive: "✨ 20초마다 하트 회복 + 무적 2배" }
 ];
 
 // Shop save/load
@@ -3642,6 +3803,16 @@ var shopState = loadShopData();
 // Shop 3D preview system
 var shopPreviews = [];
 var shopAnimationId = null;
+
+function makePreviewSilhouette(preview) {
+  if (!preview || !preview.model || !preview.model.mesh) return;
+  var whiteMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+  preview.model.mesh.traverse(function(child) {
+    if (child.isMesh || (child instanceof THREE.Mesh)) {
+      child.material = whiteMat;
+    }
+  });
+}
 
 function createShopPreview(containerId, formName) {
   var container = document.getElementById(containerId);
@@ -3732,13 +3903,13 @@ function renderShopVehicles() {
     var previewId = 'vehiclePreview_' + i;
     var previewHTML = '<div class="vehicle-preview" id="' + previewId + '">';
     if (!isUnlocked) {
-      previewHTML += '<div class="vehicle-lock-overlay">🔒</div>';
+      previewHTML += '<div class="vehicle-lock-overlay"><span style="font-size:56px;display:inline-block;animation:spinQuestion 3s linear infinite;">❓</span></div>';
     }
     previewHTML += '</div>';
 
     card.innerHTML = previewHTML +
-      '<p class="vehicle-name">' + v.name + '</p>' +
-      '<p class="vehicle-ability">' + v.ability + '</p>';
+      '<p class="vehicle-name">' + (isUnlocked ? v.name : '???') + '</p>' +
+      '<p class="vehicle-ability">' + (isUnlocked ? v.ability : '해금 후 확인 가능') + '</p>';
 
     // Button
     var btn = document.createElement('button');
@@ -3779,7 +3950,12 @@ function renderShopVehicles() {
   setTimeout(function() {
     for (var i = 0; i < shopVehicleData.length; i++) {
       var preview = createShopPreview('vehiclePreview_' + i, shopVehicleData[i].id);
-      if (preview) shopPreviews.push(preview);
+      if (preview) {
+        var sv = shopVehicleData[i];
+        var unlocked = sv.unlockForm ? (shopState.unlockedEvoForms.indexOf(sv.unlockForm) !== -1) : shopState.darwinFinchReached;
+        if (!unlocked) makePreviewSilhouette(preview);
+        shopPreviews.push(preview);
+      }
     }
     if (shopPreviews.length > 0 && !shopAnimationId) {
       animateShopPreviews();
@@ -3844,13 +4020,15 @@ function renderEvoVehicles() {
     var previewId = 'evoPreview_' + i;
     var previewHTML = '<div class="vehicle-preview" id="' + previewId + '">';
     if (!isUnlocked) {
-      previewHTML += '<div class="vehicle-lock-overlay">🔒</div>';
+      previewHTML += '<div class="vehicle-lock-overlay"><span style="font-size:56px;display:inline-block;animation:spinQuestion 3s linear infinite;">❓</span></div>';
     }
     previewHTML += '</div>';
 
+    var passiveText = (isUnlocked && v.passive) ? '<p class="vehicle-ability" style="color:#FFD700;margin-top:4px;">' + v.passive + '</p>' : '';
     card.innerHTML = previewHTML +
-      '<p class="vehicle-name">' + v.name + '</p>' +
-      '\x3cp class="vehicle-ability"\x3e진화 레벨 ' + v.levelReq + ' 도달 후 해금\x3c/p\x3e';
+      '<p class="vehicle-name">' + (isUnlocked ? v.name : '???') + '</p>' +
+      '<p class="vehicle-ability">' + (isUnlocked ? '진화 레벨 ' + v.levelReq + ' 도달 시 해금' : '해금 후 확인 가능') + '</p>' +
+      passiveText;
 
     var btn = document.createElement('button');
     btn.className = 'vehicle-btn';
@@ -3880,7 +4058,10 @@ function renderEvoVehicles() {
   setTimeout(function() {
     for (var i = 0; i < evoVehicleData.length; i++) {
       var preview = createShopPreview('evoPreview_' + i, evoVehicleData[i].id);
-      if (preview) shopPreviews.push(preview);
+      if (preview) {
+        if (shopState.unlockedEvoForms.indexOf(evoVehicleData[i].id) === -1) makePreviewSilhouette(preview);
+        shopPreviews.push(preview);
+      }
     }
     if (shopPreviews.length > 0 && !shopAnimationId) {
       animateShopPreviews();
@@ -3981,7 +4162,7 @@ function renderAutoEvolveToggle() {
 
   var desc = document.createElement('div');
   desc.style.cssText = 'font-size:13px;color:#bbb;margin-top:10px;text-align:center;line-height:1.4;word-break:keep-all;';
-  desc.textContent = '자동 진화를 활성화하면 게임 중에 레벨 거리에 따라 진화합니다';
+  desc.textContent = '자동 진화를 끄면, 선택한 비행체로만 플레이가 가능합니다';
 
   toggleContainer.appendChild(toggle);
   toggleContainer.appendChild(desc);
@@ -4471,7 +4652,6 @@ function checkProjectileCollision(proj) {
       var dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 30) {
-        //
         var destroyPos = enemyWorldPos.clone();
         var destroyColor = getEnemyDestroyColor(ennemy.type);
         ennemiesHolder.mesh.remove(ennemy.mesh);
@@ -4479,6 +4659,8 @@ function checkProjectileCollision(proj) {
         proj.life = 0;
         spawnDestroyParticles(destroyPos, destroyColor);
         playShatterSound();
+        // 로켓 패시브: 미사일 파괴 시 코인 드롭
+        if (shopState && shopState.selectedVehicle === 'Rocket') { for(var rc=0;rc<10;rc++) addCoin(); }
         return true;
       }
     }
@@ -4501,6 +4683,7 @@ function checkProjectileCollision(proj) {
         proj.life = 0;
         spawnDestroyParticles(destroyPos2, getEnemyDestroyColor('asteroid'));
         playShatterSound();
+        if (shopState && shopState.selectedVehicle === 'Rocket') { for(var rc=0;rc<10;rc++) addCoin(); }
         return true;
       }
     }
@@ -4736,10 +4919,10 @@ var bossState = {
 };
 
 var bossConfigs = [
-  { name: '거대 암모나이트', hp: 15, reward: 150, color: 0xDDAA22, distance: 2000 },
-  { name: '메갈로돈', hp: 20, reward: 200, color: 0x4466AA, distance: 4000 },
-  { name: '티라노사우루스', hp: 30, reward: 300, color: 0x664422, distance: 7000 },
-  { name: 'UFO', hp: 40, reward: 400, color: 0x44AA66, distance: 11000 }
+  { name: '거대 암모나이트', hp: 50, reward: 150, color: 0xDDAA22, distance: 2000 },
+  { name: '메갈로돈', hp: 70, reward: 200, color: 0x4466AA, distance: 4000 },
+  { name: '티라노사우루스', hp: 100, reward: 300, color: 0x664422, distance: 7000 },
+  { name: 'UFO', hp: 130, reward: 400, color: 0x44AA66, distance: 11000 }
 ];
 
 function getBossForDistance(dist) {
@@ -4777,307 +4960,376 @@ function checkBossTrigger() {
 function createBossMesh(config, cycleIndex) {
   var group = new THREE.Object3D();
   var type = cycleIndex % 4;
+  var S = 2;
+  var gapBox = new THREE.BoxGeometry(S * 0.93, S * 0.93, S * 0.93);
+  var mats = {};
+  var grid;
+
+  function gm(c) {
+    if (!mats[c]) mats[c] = new THREE.MeshPhongMaterial({ color: c, flatShading: true });
+    return mats[c];
+  }
+  function sv(x, y, z, c) {
+    grid[Math.round(x) + ',' + Math.round(y) + ',' + Math.round(z)] = c;
+  }
+  function fillBox(x1, y1, z1, x2, y2, z2, c) {
+    for (var x = x1; x <= x2; x++)
+      for (var y = y1; y <= y2; y++)
+        for (var z = z1; z <= z2; z++) sv(x, y, z, c);
+  }
+  function fillEllipsoid(cx, cy, cz, rx, ry, rz, c, splitY, c2) {
+    for (var x = Math.ceil(cx - rx); x <= Math.floor(cx + rx); x++)
+      for (var y = Math.ceil(cy - ry); y <= Math.floor(cy + ry); y++)
+        for (var z = Math.ceil(cz - rz); z <= Math.floor(cz + rz); z++) {
+          var dx = (x - cx) / rx, dy = (y - cy) / ry, dz = (z - cz) / rz;
+          if (dx * dx + dy * dy + dz * dz <= 1)
+            sv(x, y, z, (splitY !== undefined && y < splitY) ? c2 : c);
+        }
+  }
+  function buildGrid(parent) {
+    var byColor = {};
+    for (var key in grid) {
+      var c = grid[key];
+      if (!byColor[c]) byColor[c] = [];
+      var p = key.split(',');
+      byColor[c].push([parseInt(p[0]), parseInt(p[1]), parseInt(p[2])]);
+    }
+    for (var color in byColor) {
+      var arr = byColor[color];
+      var done = false;
+      try {
+        var geo = new THREE.Geometry();
+        for (var i = 0; i < arr.length; i++) {
+          var b = gapBox.clone();
+          b.translate(arr[i][0] * S, arr[i][1] * S, arr[i][2] * S);
+          geo.merge(b);
+        }
+        parent.add(new THREE.Mesh(geo, gm(parseInt(color))));
+        done = true;
+      } catch (e) {}
+      if (!done) {
+        for (var j = 0; j < arr.length; j++) {
+          var m = new THREE.Mesh(gapBox, gm(parseInt(color)));
+          m.position.set(arr[j][0] * S, arr[j][1] * S, arr[j][2] * S);
+          parent.add(m);
+        }
+      }
+    }
+  }
 
   if (type === 0) {
-    //
-    //
-    var shellGroup = new THREE.Object3D();
-    var spiralSteps = 36;
-    var sa = 3, sb = 0.17;
-    for (var si = 0; si < spiralSteps; si++) {
-      var theta = si * 0.45;
-      var sr = sa * Math.exp(sb * theta);
-      var sz = 1.2 + sr * 0.3;
-      var sphereGeom = new THREE.SphereGeometry(sz, 6, 5);
-      var isStripe = (si % 3 === 0);
-      var sphereMat = new THREE.MeshPhongMaterial({
-        color: isStripe ? 0x332200 : 0xDDAA22,
-        flatShading: true
-      });
-      var sphere = new THREE.Mesh(sphereGeom, sphereMat);
-      sphere.position.set(
-        Math.cos(theta) * sr + 8,
-        Math.sin(theta) * sr + 2,
-        0
-      );
-      shellGroup.add(sphere);
+    // ========== 거대 암모나이트 (복셀) ==========
+    grid = {};
+    var GOLD = 0xDDAA22, DARK = 0x443311, SAL = 0xEE8877, COR = 0xDD6644;
+    // 나선형 껍질
+    for (var t = 0.8; t < 16; t += 0.3) {
+      var r = 1.5 * Math.exp(0.12 * t);
+      if (r > 11) break;
+      var cx = Math.cos(t) * r + 6;
+      var cy = Math.sin(t) * r + 2;
+      var col = (Math.floor(t * 1.5) % 2 === 0) ? GOLD : DARK;
+      var th = Math.min(2, Math.floor(r * 0.14) + 1);
+      for (var ddx = -th; ddx <= th; ddx++)
+        for (var ddy = -th; ddy <= th; ddy++)
+          if (ddx * ddx + ddy * ddy <= th * th + 0.5) {
+            sv(cx + ddx, cy + ddy, 0, col);
+            sv(cx + ddx, cy + ddy, 1, col);
+            sv(cx + ddx, cy + ddy, -1, col);
+          }
     }
-    //
-    var ctrGeom = new THREE.SphereGeometry(3.5, 6, 6);
-    var ctrMat = new THREE.MeshPhongMaterial({ color: 0xCCAA33, flatShading: true });
-    var ctr = new THREE.Mesh(ctrGeom, ctrMat);
-    ctr.position.set(8, 2, 0);
-    shellGroup.add(ctr);
-    group.add(shellGroup);
-
-    //
-    var bdGeom = new THREE.CylinderGeometry(7, 5, 22, 8);
-    var bdMat = new THREE.MeshPhongMaterial({ color: 0xEE8877, flatShading: true });
-    var bd = new THREE.Mesh(bdGeom, bdMat);
-    bd.rotation.z = Math.PI / 2;
-    bd.position.set(-15, -6, 0);
-    group.add(bd);
-
-    //
-    var eGeom = new THREE.SphereGeometry(3, 8, 8);
-    var eMat = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
-    var eMesh = new THREE.Mesh(eGeom, eMat);
-    eMesh.position.set(-8, -3, 7);
-    group.add(eMesh);
-    var pGeom = new THREE.SphereGeometry(1.5, 6, 6);
-    var pMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
-    var pMesh = new THREE.Mesh(pGeom, pMat);
-    pMesh.position.set(-8, -3, 9.5);
-    group.add(pMesh);
-
-    //
+    fillEllipsoid(6, 2, 0, 2, 2, 1, 0xBB9922);
+    fillEllipsoid(-2, -3, 0, 5, 3, 2, SAL);
+    sv(-5, -1, 2, 0xFFFFFF); sv(-5, 0, 2, 0xFFFFFF); sv(-5, -1, 3, 0x222222);
+    buildGrid(group);
+    // 촉수 (애니메이션용 별도 그룹)
     group.tentacles = [];
-    for (var t = 0; t < 10; t++) {
-      var tGrp = new THREE.Object3D();
-      var nSeg = 4 + Math.floor(Math.random() * 2);
-      var cx = 0;
-      for (var sg = 0; sg < nSeg; sg++) {
-        var sLen = 5 + Math.random() * 3;
-        var tk = 1.8 - sg * 0.25;
-        if (tk < 0.4) tk = 0.4;
-        var sgGeom = new THREE.CylinderGeometry(tk, tk * 0.8, sLen, 5);
-        var sgMat = new THREE.MeshPhongMaterial({
-          color: sg < 2 ? 0xEE8877 : 0xDD6644,
-          flatShading: true
-        });
-        var sgMesh = new THREE.Mesh(sgGeom, sgMat);
-        sgMesh.rotation.z = Math.PI / 2;
-        sgMesh.position.set(cx - sLen / 2, 0, 0);
-        tGrp.add(sgMesh);
-        cx -= sLen;
+    for (var ti = 0; ti < 10; ti++) {
+      var tgrp = new THREE.Object3D();
+      grid = {};
+      var spread = (ti / 9 - 0.5) * 2;
+      var len = 6 + Math.floor(Math.random() * 4);
+      for (var seg = 0; seg < len; seg++) {
+        var ty = Math.round(Math.sin(seg * 0.5 + ti * 0.4) * 0.5);
+        sv(-seg, ty, 0, seg < 2 ? SAL : COR);
       }
-      var sprd = (t / 9 - 0.5) * 2;
-      tGrp.position.set(-25, -6 + sprd * 4, sprd * 4);
-      tGrp.rotation.z = sprd * 0.12;
-      tGrp.rotation.y = sprd * 0.08;
-      group.add(tGrp);
-      group.tentacles.push(tGrp);
+      buildGrid(tgrp);
+      tgrp.position.set(-8 * S, (-4 + spread * 3) * S, spread * 3 * S);
+      group.add(tgrp);
+      group.tentacles.push(tgrp);
     }
+
   } else if (type === 1) {
-    //
-    // 紐명넻
-    var bodyG = new THREE.SphereGeometry(12, 8, 6);
-    var bodyM = new THREE.MeshPhongMaterial({ color: 0x8899AA, flatShading: true });
-    var bodyMesh = new THREE.Mesh(bodyG, bodyM);
-    bodyMesh.scale.set(2.1, 1, 0.85);
-    group.add(bodyMesh);
-    //
-    var bellyG = new THREE.SphereGeometry(10, 8, 6);
-    var bellyM = new THREE.MeshPhongMaterial({ color: 0xDDDDCC, flatShading: true });
-    var belly = new THREE.Mesh(bellyG, bellyM);
-    belly.scale.set(2.2, 0.8, 0.9);
-    belly.position.set(2, -5, 0);
-    group.add(belly);
-    //
-    var headG = new THREE.SphereGeometry(11, 8, 6);
-    var headM = new THREE.MeshPhongMaterial({ color: 0x8899AA, flatShading: true });
-    var headMesh = new THREE.Mesh(headG, headM);
-    headMesh.position.set(-22, 2, 0);
-    group.add(headMesh);
-    //
-    var upperJawG = new THREE.BoxGeometry(14, 4, 16);
-    var jawM = new THREE.MeshPhongMaterial({ color: 0x993333, flatShading: true });
-    var upperJaw = new THREE.Mesh(upperJawG, jawM);
-    upperJaw.position.set(-30, 2, 0);
-    group.add(upperJaw);
-    var lowerJawG = new THREE.BoxGeometry(12, 3, 14);
-    var lowerJaw = new THREE.Mesh(lowerJawG, jawM);
-    lowerJaw.position.set(-29, -4, 0);
-    lowerJaw.rotation.z = 0.2;
-    group.add(lowerJaw);
-    //
-    for (var ti = 0; ti < 8; ti++) {
-      var tG = new THREE.CylinderGeometry(0, 0.8, 3.5, 4);
-      var tM = new THREE.MeshPhongMaterial({ color: 0xFFFFEE });
-      var tUp = new THREE.Mesh(tG, tM);
-      tUp.position.set(-26 - ti * 1.2, -1, -5 + ti * 1.3);
-      tUp.rotation.x = Math.PI;
-      group.add(tUp);
-      var tDn = new THREE.Mesh(tG.clone(), tM.clone());
-      tDn.position.set(-25 - ti * 1.2, -3, -5 + ti * 1.3);
-      group.add(tDn);
+    // ========== 메갈로돈 (복셀) ==========
+    grid = {};
+    var GR = 0x8899AA, BEL = 0xCCCCBB, JW = 0x883333, THC = 0xEEEEDD, FN = 0x667788;
+    fillEllipsoid(0, 0, 0, 11, 5, 3, GR, -1, BEL);
+    for (var hx = -11; hx >= -17; hx--) {
+      var hf = (-hx - 11) / 6;
+      var hry = Math.max(2, Math.round(5 * (1 - hf * 0.4)));
+      for (var hy = -hry; hy <= hry; hy++)
+        for (var hz = -2; hz <= 2; hz++)
+          if (hy * hy / (hry * hry + 0.1) + hz * hz / 5 <= 1)
+            sv(hx, hy, hz, hy < -1 ? BEL : GR);
     }
-    //
-    var dorG = new THREE.CylinderGeometry(0, 4, 18, 4);
-    var dorM = new THREE.MeshPhongMaterial({ color: 0x667788, flatShading: true });
-    var dorsal = new THREE.Mesh(dorG, dorM);
-    dorsal.position.set(0, 16, 0);
-    dorsal.rotation.z = 0.15;
-    group.add(dorsal);
-    //
-    var tailG = new THREE.CylinderGeometry(0, 6, 15, 4);
-    var tail = new THREE.Mesh(tailG, dorM.clone());
-    tail.position.set(28, 6, 0);
-    tail.rotation.z = -0.8;
-    group.add(tail);
-    var tailLow = new THREE.Mesh(tailG.clone(), dorM.clone());
-    tailLow.position.set(28, -4, 0);
-    tailLow.rotation.z = 0.6;
-    group.add(tailLow);
-    //
-    var sharkEyeG = new THREE.SphereGeometry(2.5, 6, 6);
-    var sharkEyeM = new THREE.MeshPhongMaterial({ color: 0x111111 });
-    var sharkEye = new THREE.Mesh(sharkEyeG, sharkEyeM);
-    sharkEye.position.set(-18, 6, 9);
-    group.add(sharkEye);
+    fillBox(-23, 1, -3, -17, 3, 3, GR);
+    fillBox(-23, -2, -2, -17, 0, 2, JW);
+    for (var tx = -23; tx <= -17; tx++) {
+      sv(tx, 0, -3, THC); sv(tx, 0, -1, THC); sv(tx, 0, 1, THC); sv(tx, 0, 3, THC);
+    }
+    for (var fx = -3; fx <= 5; fx++) {
+      var fh = Math.max(0, Math.round(6 - Math.abs(fx - 1) * 1.2));
+      for (var fy = 5; fy < 5 + fh; fy++) sv(fx, fy, 0, FN);
+    }
+    for (var pf = 0; pf < 5; pf++) {
+      sv(-3 - pf, -4 - pf, 3, FN); sv(-3 - pf, -4 - pf, -3, FN);
+      if (pf < 3) { sv(-3 - pf, -4 - pf, 4, FN); sv(-3 - pf, -4 - pf, -4, FN); }
+    }
+    for (var ttx = 11; ttx <= 18; ttx++) {
+      var ttf = (ttx - 11) / 7;
+      for (var tty = -Math.round(ttf * 4); tty <= Math.round(ttf * 6); tty++) sv(ttx, tty, 0, FN);
+      if (ttf > 0.3) for (var tty2 = -Math.round(ttf * 2); tty2 <= Math.round(ttf * 3); tty2++) sv(ttx, tty2, 1, FN);
+    }
+    sv(-13, 3, 3, 0xFFFFFF); sv(-13, 3, 4, 0x111111);
+    buildGrid(group);
+    // 아래턱 (별도 그룹 - 애니메이션용)
+    var sharkJaw = new THREE.Object3D();
+    sharkJaw.position.set(-17 * S, -1 * S, 0);
+    grid = {};
+    fillBox(-5, -3, -2, 0, -1, 2, GR);
+    for (var jtx = -5; jtx <= 0; jtx += 2) {
+      sv(jtx, 0, -2, THC); sv(jtx, 0, 0, THC); sv(jtx, 0, 2, THC);
+    }
+    buildGrid(sharkJaw);
+    group.add(sharkJaw);
+    group.lowerJaw = sharkJaw;
+
   } else if (type === 2) {
-    //
-    var dkBrown = 0x665533;
-    var ltBrown = 0x887755;
-    // 紐명넻
-    var torsoG = new THREE.SphereGeometry(14, 8, 6);
-    var torsoM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
-    var torso = new THREE.Mesh(torsoG, torsoM);
-    torso.scale.set(1.3, 1, 0.7);
-    group.add(torso);
-    // 癒몃━
-    var rHeadG = new THREE.BoxGeometry(22, 16, 16);
-    var rHeadM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
-    var rHead = new THREE.Mesh(rHeadG, rHeadM);
-    rHead.position.set(-25, 12, 0);
-    group.add(rHead);
-    //
-    var snoutG = new THREE.BoxGeometry(14, 8, 14);
-    var snout = new THREE.Mesh(snoutG, rHeadM.clone());
-    snout.position.set(-36, 8, 0);
-    group.add(snout);
-    //
-    var rJawG = new THREE.BoxGeometry(16, 5, 13);
-    var rJawM = new THREE.MeshPhongMaterial({ color: 0x884433, flatShading: true });
-    var rJaw = new THREE.Mesh(rJawG, rJawM);
-    rJaw.position.set(-32, 0, 0);
-    rJaw.rotation.z = 0.15;
-    group.add(rJaw);
-    //
-    for (var ri = 0; ri < 7; ri++) {
-      var rtG = new THREE.CylinderGeometry(0, 1, 4, 4);
-      var rtM = new THREE.MeshPhongMaterial({ color: 0xFFFFDD });
-      var rtMesh = new THREE.Mesh(rtG, rtM);
-      rtMesh.position.set(-28 - ri * 2, 3, 7);
-      rtMesh.rotation.x = Math.PI;
-      group.add(rtMesh);
+    // ========== 티라노사우루스 (복셀) ==========
+    grid = {};
+    var DK = 0x5C4A32, LT = 0x8B7355, JC = 0x773322, TC2 = 0xEEEECC, CL = 0x444444;
+    fillEllipsoid(2, 0, 0, 7, 5, 3, DK);
+    fillEllipsoid(2, -2, 0, 5, 2, 2, LT);
+    for (var nx = -3; nx <= 1; nx++) {
+      var nny = 5 + Math.round((1 - nx) * 1.2);
+      fillEllipsoid(nx, nny, 0, 1.5, 2.5, 2, DK);
     }
-    //
-    var neckG = new THREE.CylinderGeometry(8, 10, 12, 6);
-    var neckM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
-    var neck = new THREE.Mesh(neckG, neckM);
-    neck.position.set(-12, 8, 0);
-    neck.rotation.z = 0.4;
-    group.add(neck);
-    //
-    var tailRG = new THREE.CylinderGeometry(0, 7, 35, 6);
-    var tailRM = new THREE.MeshPhongMaterial({ color: dkBrown, flatShading: true });
-    var tailR = new THREE.Mesh(tailRG, tailRM);
-    tailR.position.set(28, 2, 0);
-    tailR.rotation.z = Math.PI / 2 + 0.2;
-    group.add(tailR);
-    //
-    var legFG = new THREE.CylinderGeometry(3.5, 3, 18, 5);
-    var legFM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
-    var legF = new THREE.Mesh(legFG, legFM);
-    legF.position.set(-5, -16, 6);
-    group.add(legF);
-    var legBG = new THREE.CylinderGeometry(4, 3.5, 20, 5);
-    var legB = new THREE.Mesh(legBG, legFM.clone());
-    legB.position.set(12, -17, 6);
-    group.add(legB);
-    //
-    var armG = new THREE.CylinderGeometry(1.5, 1, 7, 4);
-    var armM = new THREE.MeshPhongMaterial({ color: ltBrown, flatShading: true });
-    var arm = new THREE.Mesh(armG, armM);
-    arm.position.set(-15, -2, 9);
-    arm.rotation.z = 0.5;
-    group.add(arm);
-    //
-    var rexEyeG = new THREE.SphereGeometry(2.5, 6, 6);
-    var rexEyeM = new THREE.MeshPhongMaterial({ color: 0xFFDD00, emissive: 0xAA8800 });
-    var rexEye = new THREE.Mesh(rexEyeG, rexEyeM);
-    rexEye.position.set(-28, 16, 8);
-    group.add(rexEye);
+    fillBox(-14, 10, -3, -4, 16, 3, LT);
+    fillBox(-14, 16, -2, -6, 17, 2, DK);
+    fillBox(-21, 11, -2, -14, 15, 2, LT);
+    fillBox(-19, 9, -2, -14, 11, 2, 0x331111);
+    for (var utx = -21; utx <= -14; utx += 2) {
+      sv(utx, 10, -2, TC2); sv(utx, 10, 0, TC2); sv(utx, 10, 2, TC2);
+    }
+    sv(-10, 15, 3, 0xFFCC00); sv(-10, 15, 4, 0x222222); sv(-10, 14, 3, 0xFFCC00);
+    sv(-4, 3, 3, LT); sv(-5, 2, 3, LT); sv(-5, 1, 3, LT); sv(-6, 0, 3, CL);
+    sv(-4, 3, -3, LT); sv(-5, 2, -3, LT); sv(-5, 1, -3, LT); sv(-6, 0, -3, CL);
+    fillBox(-1, -12, 2, 2, -1, 4, LT);
+    fillBox(-2, -14, 1, 3, -12, 5, DK);
+    sv(-2, -14, 3, CL); sv(3, -14, 3, CL); sv(0, -14, 3, CL);
+    fillBox(-1, -12, -4, 2, -1, -2, LT);
+    fillBox(-2, -14, -5, 3, -12, -1, DK);
+    sv(-2, -14, -3, CL); sv(3, -14, -3, CL); sv(0, -14, -3, CL);
+    for (var rtx = 9; rtx <= 25; rtx++) {
+      var rtf = (rtx - 9) / 16;
+      var rtw = Math.max(1, Math.round(2.5 * (1 - rtf)));
+      var rth = Math.max(1, Math.round(3 * (1 - rtf)));
+      for (var rty = -rth; rty <= rth; rty++)
+        for (var rtz = -rtw; rtz <= rtw; rtz++)
+          sv(rtx, rty + 1, rtz, DK);
+    }
+    buildGrid(group);
+    // 아래턱 (별도 그룹 - 애니메이션용)
+    var rexJaw = new THREE.Object3D();
+    rexJaw.position.set(-14 * S, 9 * S, 0);
+    grid = {};
+    fillBox(-5, -3, -2, 0, 0, 2, JC);
+    for (var jltx = -5; jltx <= 0; jltx += 2) {
+      sv(jltx, 1, -1, TC2); sv(jltx, 1, 1, TC2);
+    }
+    buildGrid(rexJaw);
+    group.add(rexJaw);
+    group.lowerJaw = rexJaw;
+
   } else {
-    // ?멸퀎 紐⑥꽑 ??UFO (?섑룊 諛곗튂)
-    var lowerDiscG = new THREE.CylinderGeometry(32, 38, 6, 16);
-    var lowerDiscM = new THREE.MeshPhongMaterial({ color: 0x888899, flatShading: true });
-    var lowerDisc = new THREE.Mesh(lowerDiscG, lowerDiscM);
-    group.add(lowerDisc);
-    var upperDiscG = new THREE.CylinderGeometry(28, 32, 5, 16);
-    var upperDiscM = new THREE.MeshPhongMaterial({ color: 0x99AABB, flatShading: true });
-    var upperDisc = new THREE.Mesh(upperDiscG, upperDiscM);
-    upperDisc.position.set(0, 4, 0);
-    group.add(upperDisc);
-    //
-    var bandG = new THREE.TorusGeometry(33, 1.5, 6, 16);
-    var bandM = new THREE.MeshPhongMaterial({ color: 0xCC8844, flatShading: true });
-    var band = new THREE.Mesh(bandG, bandM);
-    band.rotation.x = Math.PI / 2;
-    group.add(band);
-    //
-    var udomeG = new THREE.SphereGeometry(14, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-    var udomeM = new THREE.MeshPhongMaterial({ color: 0xAADDFF, transparent: true, opacity: 0.5, emissive: 0x446688 });
-    var udome = new THREE.Mesh(udomeG, udomeM);
-    udome.position.set(0, 7, 0);
-    group.add(udome);
-    //
-    for (var ep = 0; ep < 5; ep++) {
-      var podG = new THREE.CylinderGeometry(3, 4, 6, 6);
-      var podM = new THREE.MeshPhongMaterial({ color: 0x556677, flatShading: true });
-      var pod = new THREE.Mesh(podG, podM);
-      var pAngle = (ep / 5) * Math.PI * 2;
-      pod.position.set(Math.cos(pAngle) * 22, -6, Math.sin(pAngle) * 22);
-      group.add(pod);
-      var glowG = new THREE.SphereGeometry(2.5, 4, 4);
-      var glowM = new THREE.MeshPhongMaterial({ color: 0x00CCFF, emissive: 0x0088FF });
-      var glow = new THREE.Mesh(glowG, glowM);
-      glow.position.set(Math.cos(pAngle) * 22, -9, Math.sin(pAngle) * 22);
-      group.add(glow);
+    // ========== UFO (복셀) ==========
+    grid = {};
+    var DSC = 0x777788, UPR = 0x99AABB, BND = 0xCC8844, DME = 0x88CCEE;
+    var GLW = 0x00CCFF, POD = 0x556677, RNG = 0xFFAA00;
+    for (var ux = -14; ux <= 14; ux++) {
+      var uxf = Math.abs(ux) / 14;
+      var uzw = Math.max(1, Math.round(4 * (1 - uxf * uxf)));
+      for (var uz = -uzw; uz <= uzw; uz++) {
+        sv(ux, 0, uz, DSC); sv(ux, -1, uz, DSC);
+        if (uxf < 0.8) sv(ux, -2, uz, DSC);
+      }
     }
-    //
-    var ringG = new THREE.TorusGeometry(26, 0.8, 4, 20);
-    var ringM = new THREE.MeshPhongMaterial({ color: 0xFFAA00, emissive: 0xFF8800 });
-    var ring = new THREE.Mesh(ringG, ringM);
-    ring.rotation.x = Math.PI / 2;
-    ring.position.set(0, -3, 0);
-    group.add(ring);
+    for (var ux2 = -11; ux2 <= 11; ux2++) {
+      var uxf2 = Math.abs(ux2) / 11;
+      var uzw2 = Math.max(1, Math.round(3 * (1 - uxf2 * uxf2)));
+      for (var uz2 = -uzw2; uz2 <= uzw2; uz2++) {
+        sv(ux2, 1, uz2, UPR);
+        if (uxf2 < 0.7) sv(ux2, 2, uz2, UPR);
+      }
+    }
+    for (var bx = -14; bx <= 14; bx++) {
+      var bxf = Math.abs(bx) / 14;
+      var zEdge = Math.max(1, Math.round(4 * (1 - bxf * bxf)));
+      sv(bx, 0, zEdge, BND); sv(bx, 0, -zEdge, BND);
+    }
+    for (var ddx2 = -5; ddx2 <= 5; ddx2++)
+      for (var ddy2 = 3; ddy2 <= 7; ddy2++)
+        for (var ddz2 = -5; ddz2 <= 5; ddz2++) {
+          var dd = ddx2*ddx2/25 + (ddy2-3)*(ddy2-3)/16 + ddz2*ddz2/25;
+          if (dd <= 1) sv(ddx2, ddy2, ddz2, DME);
+        }
+    var podXs = [-10, -5, 0, 5, 10];
+    for (var pi = 0; pi < podXs.length; pi++) {
+      fillBox(podXs[pi]-1, -4, -1, podXs[pi]+1, -3, 1, POD);
+      sv(podXs[pi], -5, 0, GLW);
+    }
+    for (var rrx = -12; rrx <= 12; rrx += 2) sv(rrx, -2, 0, RNG);
+    sv(-2, 5, 3, 0x44FF44); sv(2, 5, 3, 0x44FF44);
+    sv(-2, 6, 3, 0x222222); sv(2, 6, 3, 0x222222);
+    buildGrid(group);
+    // 발광 파트 (애니메이션용)
+    group.glowParts = [];
+    var glowMat = new THREE.MeshPhongMaterial({ color: 0x00CCFF, emissive: 0x0088FF, flatShading: true });
+    for (var gpi = 0; gpi < podXs.length; gpi++) {
+      var gm2 = new THREE.Mesh(new THREE.BoxGeometry(S*1.5, S*1.5, S*1.5), glowMat);
+      gm2.position.set(podXs[gpi] * S, -5 * S, 0);
+      group.add(gm2);
+      group.glowParts.push(gm2);
+    }
   }
 
   return group;
 }
 
+function clearAllObstacles() {
+  // 장애물 제거
+  if (ennemiesHolder && ennemiesHolder.ennemiesInUse) {
+    for (var i = ennemiesHolder.ennemiesInUse.length - 1; i >= 0; i--) {
+      ennemiesHolder.mesh.remove(ennemiesHolder.ennemiesInUse[i].mesh);
+    }
+    ennemiesHolder.ennemiesInUse = [];
+  }
+  // 비행 소행성 제거
+  if (typeof flyingAsteroids !== 'undefined') {
+    for (var j = flyingAsteroids.length - 1; j >= 0; j--) {
+      scene.remove(flyingAsteroids[j].mesh);
+    }
+    flyingAsteroids = [];
+  }
+  // 코인 제거
+  if (coinsHolder && coinsHolder.coinsInUse) {
+    for (var k = coinsHolder.coinsInUse.length - 1; k >= 0; k--) {
+      coinsHolder.mesh.remove(coinsHolder.coinsInUse[k].mesh);
+      coinsHolder.coinsPool.push(coinsHolder.coinsInUse[k]);
+    }
+    coinsHolder.coinsInUse = [];
+  }
+  // 무적 아이템 제거
+  if (invincibleFruitHolder && invincibleFruitHolder.fruitsInUse) {
+    for (var f = invincibleFruitHolder.fruitsInUse.length - 1; f >= 0; f--) {
+      invincibleFruitHolder.mesh.remove(invincibleFruitHolder.fruitsInUse[f].mesh);
+      invincibleFruitHolder.fruitsPool.push(invincibleFruitHolder.fruitsInUse[f]);
+    }
+    invincibleFruitHolder.fruitsInUse = [];
+  }
+  // 하트 아이템 제거
+  if (heartItemHolder && heartItemHolder.itemsInUse) {
+    for (var h = heartItemHolder.itemsInUse.length - 1; h >= 0; h--) {
+      heartItemHolder.mesh.remove(heartItemHolder.itemsInUse[h].mesh);
+      heartItemHolder.itemsPool.push(heartItemHolder.itemsInUse[h]);
+    }
+    heartItemHolder.itemsInUse = [];
+  }
+}
+
+function playBossWarningSound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+    // 경고 사이렌
+    for (var i = 0; i < 3; i++) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, now + i * 0.4);
+      osc.frequency.linearRampToValueAtTime(800, now + i * 0.4 + 0.2);
+      gain.gain.setValueAtTime(0.12, now + i * 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.4 + 0.35);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + i * 0.4); osc.stop(now + i * 0.4 + 0.4);
+    }
+  } catch(e) {}
+}
+
+function showBossWarning(name, callback) {
+  playBossWarningSound();
+
+  var warn = document.createElement('div');
+  warn.id = 'bossWarning';
+  warn.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:2500;display:flex;flex-direction:column;justify-content:center;align-items:center;pointer-events:none;background:rgba(255,0,0,0.08);';
+  warn.innerHTML =
+    '<div style="font-size:64px;color:#FF3333;font-family:Playfair Display,serif;font-weight:700;text-shadow:0 0 40px rgba(255,0,0,0.8);opacity:0;animation:bossWarnIn 0.5s ease forwards;">⚠ WARNING ⚠</div>' +
+    '<div style="font-size:36px;color:#FFD700;font-family:Playfair Display,serif;font-weight:700;margin-top:12px;text-shadow:0 0 20px rgba(255,215,0,0.6);opacity:0;animation:bossWarnIn 0.5s ease 0.4s forwards;">BOSS: ' + name + '</div>';
+  document.body.appendChild(warn);
+
+  if (!document.getElementById('bossWarnStyle')) {
+    var style = document.createElement('style');
+    style.id = 'bossWarnStyle';
+    style.textContent = '@keyframes bossWarnIn{0%{opacity:0;transform:scale(0.5)}50%{opacity:1;transform:scale(1.1)}100%{opacity:1;transform:scale(1)}}@keyframes bossWarnFlash{0%,100%{background:rgba(255,0,0,0.05)}50%{background:rgba(255,0,0,0.15)}}';
+    document.head.appendChild(style);
+  }
+  warn.style.animation = 'bossWarnFlash 0.3s ease 3';
+
+  setTimeout(function() {
+    if (warn.parentNode) warn.remove();
+    if (callback) callback();
+  }, 1800);
+}
+
 function spawnBoss(config, typeIndex) {
+  // 장애물 먼저 제거 & 비행 정지
+  clearAllObstacles();
+  bossState.savedSpeed = game.speed;
+  bossState.savedBaseSpeed = game.baseSpeed;
+  game.baseSpeed = 0;
+  game.speed = 0;
+  // 경고 표시 중이므로 active 설정 (스폰/비행 차단용)
   bossState.active = true;
+  bossState.entering = true;
   bossState.hp = config.hp;
   bossState.maxHp = config.hp;
-  bossState.timer = bossState.maxTimer;
-  bossState.reward = config.reward;
-  bossState.name = config.name;
-  bossState.entering = true;
-  bossState.oscillateTime = 0;
-  bossState.missiles = [];
 
   var cycleIndex = (typeIndex !== undefined) ? typeIndex : 0;
-  bossState.bossType = cycleIndex % 4;
-  bossState.mesh = createBossMesh(config, cycleIndex);
-  bossState.mesh.position.set(250, game.planeDefaultHeight + 30, 0);
-  bossState.mesh.scale.set(1.5, 1.5, 1.5);
-  scene.add(bossState.mesh);
 
-  // UI
-  var ui = document.getElementById('bossUI');
-  if (ui) ui.style.display = 'block';
-  var nameEl = document.getElementById('bossName');
-  if (nameEl) nameEl.textContent = 'BOSS ' + config.name;
-  //
-  var fireUI = document.getElementById('bossFireUI');
-  if (fireUI) fireUI.style.display = 'flex';
-  updateBossUI();
+  // 경고 연출 후 실제 보스 등장
+  showBossWarning(config.name, function() {
+    if (!bossState.active) return;
+    bossState.timer = bossState.maxTimer;
+    bossState.reward = config.reward;
+    bossState.name = config.name;
+    bossState.oscillateTime = 0;
+    bossState.missiles = [];
 
-  //
-  showBossGuide();
+    bossState.bossType = cycleIndex % 4;
+    bossState.mesh = createBossMesh(config, cycleIndex);
+    bossState.mesh.position.set(350, game.planeDefaultHeight + 30, 0);
+    bossState.mesh.scale.set(1.5, 1.5, 1.5);
+    scene.add(bossState.mesh);
+
+    // UI
+    var ui = document.getElementById('bossUI');
+    if (ui) ui.style.display = 'block';
+    var nameEl = document.getElementById('bossName');
+    if (nameEl) nameEl.textContent = 'BOSS ' + config.name;
+    var fireUI = document.getElementById('bossFireUI');
+    if (fireUI) fireUI.style.display = 'flex';
+    updateBossUI();
+    showBossGuide();
+  });
 }
 
 function updateBossUI() {
@@ -5090,7 +5342,7 @@ function updateBossUI() {
 function updateBoss(dt) {
   if (!bossState.active || !bossState.mesh) return;
 
-  //
+  // 입장 애니메이션
   if (bossState.entering) {
     bossState.mesh.position.x += (bossState.targetX - bossState.mesh.position.x) * 0.03;
     if (Math.abs(bossState.mesh.position.x - bossState.targetX) < 2) {
@@ -5098,29 +5350,149 @@ function updateBoss(dt) {
     }
   }
 
-  //
+  // 상하 움직임
   bossState.oscillateTime += dt * 0.002;
   bossState.mesh.position.y = game.planeDefaultHeight + 30 + Math.sin(bossState.oscillateTime) * 40;
-  //
-  if (bossState.bossType !== 0) {
-    bossState.mesh.rotation.y += 0.01;
-  }
 
-  //
-  if (bossState.bossType === 0 && bossState.mesh && bossState.mesh.tentacles) {
-    var time = bossState.oscillateTime;
+  // === 보스별 애니메이션 ===
+  var time = bossState.oscillateTime;
+
+  // 암모나이트: 촉수 흔들기
+  if (bossState.bossType === 0 && bossState.mesh.tentacles) {
     for (var ti = 0; ti < bossState.mesh.tentacles.length; ti++) {
       var tent = bossState.mesh.tentacles[ti];
-      tent.rotation.x = Math.sin(time * 2 + ti) * 0.3;
-      tent.rotation.z = Math.sin(time * 1.5 + ti * 0.7) * 0.2;
+      tent.rotation.x = Math.sin(time * 2 + ti) * 0.4;
+      tent.rotation.z = Math.sin(time * 1.5 + ti * 0.7) * 0.3;
+    }
+  }
+  // 메갈로돈 & 티라노: 입 벌렸다 닫기
+  if ((bossState.bossType === 1 || bossState.bossType === 2) && bossState.mesh.lowerJaw) {
+    var jawOpen = Math.max(0, Math.sin(time * 1.8)) * 0.4;
+    bossState.mesh.lowerJaw.rotation.z = jawOpen;
+  }
+  // UFO: 하부 발광 펄스
+  if (bossState.bossType === 3 && bossState.mesh.glowParts) {
+    for (var gi = 0; gi < bossState.mesh.glowParts.length; gi++) {
+      var pulse = 0.6 + Math.sin(time * 4 + gi * 1.3) * 0.6;
+      bossState.mesh.glowParts[gi].scale.set(pulse, pulse, pulse);
     }
   }
 
-  //
+  // === 보스 공격 시스템 ===
+  if (!bossState.entering) {
+    bossState.bossAttackTimer = (bossState.bossAttackTimer || 0) + dt;
+    var atkInterval = bossState.furyMode ? 400 : [2500, 2000, 1800, 1500][bossState.bossType];
+    if (bossState.bossAttackTimer >= atkInterval) {
+      bossState.bossAttackTimer = 0;
+      // 단계별 미사일 개수: 1, 2, 3, 4발
+      var shotCount = bossState.bossType + 1;
+      for (var si = 0; si < shotCount; si++) {
+        (function(idx) {
+          setTimeout(function() {
+            if (bossState.active && bossState.mesh) fireBossProjectile();
+          }, idx * 150);
+        })(si);
+      }
+    }
+
+    // 메갈로돈 이상: 돌진 공격
+    if (bossState.bossType >= 1) {
+      bossState.chargeTimer = (bossState.chargeTimer || 0) + dt;
+      var chargeInterval = [0, 6000, 5000, 4000][bossState.bossType];
+      if (!bossState.charging && bossState.chargeTimer >= chargeInterval) {
+        bossState.chargeTimer = 0;
+        bossState.charging = true;
+        bossState.chargePhase = 'rush'; // rush → return
+        bossState.chargeOrigX = bossState.mesh.position.x;
+        bossState.chargeTargetX = airplane ? airplane.mesh.position.x + 30 : 0;
+      }
+      if (bossState.charging) {
+        if (bossState.chargePhase === 'rush') {
+          bossState.mesh.position.x += (bossState.chargeTargetX - bossState.mesh.position.x) * 0.08;
+          if (Math.abs(bossState.mesh.position.x - bossState.chargeTargetX) < 5) {
+            bossState.chargePhase = 'return';
+          }
+        } else {
+          bossState.mesh.position.x += (bossState.chargeOrigX - bossState.mesh.position.x) * 0.04;
+          if (Math.abs(bossState.mesh.position.x - bossState.chargeOrigX) < 3) {
+            bossState.mesh.position.x = bossState.chargeOrigX;
+            bossState.charging = false;
+          }
+        }
+      }
+    }
+  }
+
+  // 필살기: HP 25% 이하 진입
+  if (!bossState.furyMode && bossState.hp > 0 && bossState.hp <= Math.ceil(bossState.maxHp * 0.25)) {
+    bossState.furyMode = true;
+    fireFuryAttack();
+  }
+
+  // 보스 몸체 충돌 → 하트 감소
+  if (airplane && airplane.mesh && (!bossState.hitCooldown || bossState.hitCooldown <= 0)) {
+    var bcx = bossState.mesh.position.x - airplane.mesh.position.x;
+    var bcy = bossState.mesh.position.y - airplane.mesh.position.y;
+    if (Math.sqrt(bcx * bcx + bcy * bcy) < 40) {
+      removeEnergy();
+      ambientLight.intensity = 2;
+      setTimeout(function(){ ambientLight.intensity = .5; }, 150);
+      playDestroySound();
+      bossState.hitCooldown = 1500;
+      // 충돌 반동
+      game.planeCollisionSpeedX = -3;
+      game.planeCollisionSpeedY = (airplane.mesh.position.y > bossState.mesh.position.y) ? 2 : -2;
+    }
+  }
+
+  // 피격 쿨다운
+  if (bossState.hitCooldown > 0) bossState.hitCooldown -= dt;
+
+  // 타이머
   bossState.timer -= dt;
   updateBossUI();
 
-  //
+  // === 보스 투사체 → 플레이어 ===
+  if (!bossState.bossProjectiles) bossState.bossProjectiles = [];
+  for (var pi = bossState.bossProjectiles.length - 1; pi >= 0; pi--) {
+    var proj = bossState.bossProjectiles[pi];
+    proj.mesh.position.x += proj.vx;
+    proj.mesh.position.y += proj.vy;
+    proj.mesh.rotation.z += 0.1;
+    proj.life -= dt;
+
+    // 유도 (암모나이트 먹물)
+    if (proj.homing && airplane && airplane.mesh) {
+      var hdx = airplane.mesh.position.x - proj.mesh.position.x;
+      var hdy = airplane.mesh.position.y - proj.mesh.position.y;
+      var hd = Math.sqrt(hdx * hdx + hdy * hdy);
+      if (hd > 1) { proj.vx += (hdx / hd) * 0.03; proj.vy += (hdy / hd) * 0.03; }
+    }
+
+    // 플레이어 피격 판정
+    if (airplane && airplane.mesh && (!bossState.hitCooldown || bossState.hitCooldown <= 0)) {
+      var cdx = proj.mesh.position.x - airplane.mesh.position.x;
+      var cdy = proj.mesh.position.y - airplane.mesh.position.y;
+      if (Math.sqrt(cdx * cdx + cdy * cdy) < 15) {
+        removeEnergy();
+        ambientLight.intensity = 2;
+        setTimeout(function(){ ambientLight.intensity = .5; }, 150);
+        playDestroySound();
+        scene.remove(proj.mesh);
+        bossState.bossProjectiles.splice(pi, 1);
+        bossState.hitCooldown = 1500;
+        continue;
+      }
+    }
+
+    // 범위 밖/수명 종료
+    if (proj.life <= 0 || proj.mesh.position.x < -300 || Math.abs(proj.mesh.position.y) > 500) {
+      scene.remove(proj.mesh);
+      bossState.bossProjectiles.splice(pi, 1);
+    }
+  }
+
+  // === 플레이어 미사일 → 보스 ===
   for (var i = bossState.missiles.length - 1; i >= 0; i--) {
     var m = bossState.missiles[i];
     m.mesh.position.x += m.speed;
@@ -5138,7 +5510,6 @@ function updateBoss(dt) {
       continue;
     }
 
-    //
     if (bossState.mesh) {
       var dx = m.mesh.position.x - bossState.mesh.position.x;
       var dy = m.mesh.position.y - bossState.mesh.position.y;
@@ -5147,7 +5518,6 @@ function updateBoss(dt) {
         bossState.hp--;
         scene.remove(m.mesh);
         bossState.missiles.splice(i, 1);
-        //
         spawnDestroyParticles(bossState.mesh.position.clone(), 0xFF4444);
         playShatterSound();
         updateBossUI();
@@ -5160,14 +5530,32 @@ function updateBoss(dt) {
     }
   }
 
-  //
+  // === 레이저/미사일(abilityState) → 보스 ===
+  if (bossState.mesh && abilityState.projectiles) {
+    for (var ai = abilityState.projectiles.length - 1; ai >= 0; ai--) {
+      var ap = abilityState.projectiles[ai];
+      if (!ap || !ap.mesh) continue;
+      var adx = ap.mesh.position.x - bossState.mesh.position.x;
+      var ady = ap.mesh.position.y - bossState.mesh.position.y;
+      if (Math.sqrt(adx * adx + ady * ady) < 45) {
+        bossState.hp--;
+        scene.remove(ap.mesh);
+        abilityState.projectiles.splice(ai, 1);
+        spawnDestroyParticles(bossState.mesh.position.clone(), 0x00FF88);
+        playShatterSound();
+        updateBossUI();
+        if (bossState.hp <= 0) { defeatBoss(); return; }
+      }
+    }
+  }
+
   if (bossState.timer <= 0) {
     retreatBoss();
   }
 }
 
 function fireBossMissile() {
-  if (!bossState.active || !airplane || !airplane.mesh) return;
+  if (!bossState.active || !bossState.mesh || !airplane || !airplane.mesh) return;
 
   var pos = airplane.mesh.position.clone();
   var geom = new THREE.BoxGeometry(3, 3, 12);
@@ -5184,6 +5572,7 @@ function fireBossMissile() {
   });
 }
 
+
 function fireBossProjectile() {
   if (!bossState.active || !bossState.mesh || !airplane || !airplane.mesh) return;
   if (!bossState.bossProjectiles) bossState.bossProjectiles = [];
@@ -5192,45 +5581,97 @@ function fireBossProjectile() {
   var by = bossState.mesh.position.y;
   var px = airplane.mesh.position.x;
   var py = airplane.mesh.position.y;
-  var dx = px - bx;
-  var dy = py - by;
-  var dist = Math.sqrt(dx * dx + dy * dy);
+  var ddx = px - bx, ddy = py - by;
+  var dist = Math.sqrt(ddx * ddx + ddy * ddy);
   if (dist < 1) dist = 1;
-  var speed = 3;
-  var vx = (dx / dist) * speed;
-  var vy = (dy / dist) * speed;
 
-  var projMesh;
-  var isLaser = false;
+  var projMesh, speed, vx, vy, homing = false;
+  var tier = bossState.bossType; // 0~3, 상위일수록 강력
+  var sizeScale = 1 + tier * 0.5; // 1.0, 1.5, 2.0, 2.5
+  var speedScale = 1 + tier * 0.4; // 1.0, 1.4, 1.8, 2.2
 
-  if (bossState.bossType === 1 || bossState.bossType === 2) {
-    //
-    var toothG = new THREE.CylinderGeometry(0, 2, 6, 4);
-    var toothM = new THREE.MeshPhongMaterial({ color: 0xFFFFDD, flatShading: true });
-    projMesh = new THREE.Mesh(toothG, toothM);
-    projMesh.rotation.z = Math.atan2(dy, dx) - Math.PI / 2;
+  if (tier === 0) {
+    // 암모나이트: 먹물탄 (느리고 약간 유도)
+    var sz = 5 * sizeScale;
+    var inkG = new THREE.BoxGeometry(sz, sz, sz);
+    var inkM = new THREE.MeshPhongMaterial({ color: 0x332244, emissive: 0x110022, flatShading: true });
+    projMesh = new THREE.Mesh(inkG, inkM);
+    speed = 1.8 * speedScale;
+    homing = true;
+  } else if (tier === 1) {
+    // 메갈로돈: 이빨 투사체 (빠른 직선)
+    var tsz = 4 * sizeScale;
+    var tG = new THREE.BoxGeometry(tsz * 0.7, tsz * 1.5, tsz * 0.7);
+    var tM = new THREE.MeshPhongMaterial({ color: 0xEEEEDD, flatShading: true });
+    projMesh = new THREE.Mesh(tG, tM);
+    projMesh.rotation.z = Math.atan2(ddy, ddx);
+    speed = 3.5 * speedScale;
+  } else if (tier === 2) {
+    // 티라노: 화염구 (중간 속도, 산탄)
+    var fsz = 6 * sizeScale;
+    var fG = new THREE.BoxGeometry(fsz, fsz, fsz);
+    var fM = new THREE.MeshPhongMaterial({ color: 0xFF4400, emissive: 0xCC2200, flatShading: true });
+    projMesh = new THREE.Mesh(fG, fM);
+    speed = 2.5 * speedScale;
+    ddx += (Math.random() - 0.5) * dist * 0.3;
+    ddy += (Math.random() - 0.5) * dist * 0.3;
+    dist = Math.sqrt(ddx * ddx + ddy * ddy);
+    if (dist < 1) dist = 1;
   } else {
-    // UFO ?덉씠?鍮?
-    var laserG = new THREE.CylinderGeometry(1, 1, 15, 6);
-    var laserM = new THREE.MeshPhongMaterial({ color: 0x00FFCC, emissive: 0x00AA88, transparent: true, opacity: 0.8 });
-    projMesh = new THREE.Mesh(laserG, laserM);
-    projMesh.rotation.z = Math.atan2(dy, dx) + Math.PI / 2;
-    isLaser = true;
-    speed = 4;
-    vx = (dx / dist) * speed;
-    vy = (dy / dist) * speed;
+    // UFO: 레이저 (빠르고 정확, 가장 크고 빠름)
+    var lsz = sizeScale;
+    var lG = new THREE.BoxGeometry(14 * lsz, 3 * lsz, 3 * lsz);
+    var lM = new THREE.MeshPhongMaterial({ color: 0x00FFCC, emissive: 0x00AA88, flatShading: true });
+    projMesh = new THREE.Mesh(lG, lM);
+    projMesh.rotation.z = Math.atan2(ddy, ddx);
+    speed = 5 * speedScale;
+    if (typeof playUfoLaserSound === 'function') playUfoLaserSound();
   }
 
+  vx = (ddx / dist) * speed;
+  vy = (ddy / dist) * speed;
   projMesh.position.set(bx - 20, by, 0);
   scene.add(projMesh);
 
   bossState.bossProjectiles.push({
-    mesh: projMesh,
-    vx: vx,
-    vy: vy,
-    life: 4000,
-    isLaser: isLaser
+    mesh: projMesh, vx: vx, vy: vy, life: 5000, homing: homing
   });
+}
+
+// 필살기: HP 25% 이하 시 투사체 와장창
+function fireFuryAttack() {
+  if (!bossState.active || !bossState.mesh || !airplane || !airplane.mesh) return;
+  var bx = bossState.mesh.position.x;
+  var by = bossState.mesh.position.y;
+  var px = airplane.mesh.position.x;
+  var py = airplane.mesh.position.y;
+  var baseAngle = Math.atan2(py - by, px - bx);
+  var count = 12 + bossState.bossType * 3;
+
+  for (var fi = 0; fi < count; fi++) {
+    (function(idx, total) {
+      setTimeout(function() {
+        if (!bossState.active || !bossState.mesh) return;
+        if (!bossState.bossProjectiles) bossState.bossProjectiles = [];
+        var spread = (idx / (total - 1) - 0.5) * 1.6;
+        var angle = baseAngle + spread;
+        var spd = 2 + Math.random() * 2;
+        var colors = [0x332244, 0xEEEEDD, 0xFF4400, 0x00FFCC];
+        var emissives = [0x110022, 0x000000, 0xCC2200, 0x00AA88];
+        var sz = bossState.bossType === 3 ? 3 : 4;
+        var pG = new THREE.BoxGeometry(sz, sz, sz);
+        var pM = new THREE.MeshPhongMaterial({
+          color: colors[bossState.bossType], emissive: emissives[bossState.bossType], flatShading: true
+        });
+        var pm = new THREE.Mesh(pG, pM);
+        pm.position.set(bx - 15, by, 0);
+        scene.add(pm);
+        bossState.bossProjectiles.push({
+          mesh: pm, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, life: 5000, homing: false
+        });
+      }, idx * 120);
+    })(fi, count);
+  }
 }
 
 function defeatBoss() {
@@ -5285,8 +5726,20 @@ function cleanupBoss() {
     bossState.bossProjectiles = [];
   }
   bossState.bossAttackTimer = 0;
+  bossState.furyMode = false;
+  bossState.hitCooldown = 0;
+  bossState.charging = false;
+  bossState.chargeTimer = 0;
   bossState.active = false;
-  bossState.cooldown = 500; // 0.5珥?荑⑤떎??(?뚯뒪?몄슜)
+  bossState.cooldown = 500;
+
+  // 보스전 종료 후 비행 속도 복원
+  if (bossState.savedBaseSpeed !== undefined) {
+    game.baseSpeed = bossState.savedBaseSpeed;
+    game.speed = bossState.savedSpeed;
+    bossState.savedBaseSpeed = undefined;
+    bossState.savedSpeed = undefined;
+  }
   //
   mouseIsDown = false;
   if (mouseHoldInterval) {
