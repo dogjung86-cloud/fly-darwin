@@ -3865,12 +3865,12 @@ function initPauseUI() {
 // ===== SHOP SYSTEM =====
 
 var shopVehicleData = [
-  { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개로 시작", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치까지 진화 후 해금" },
-  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "⚡ 슬로우 모션 3회 | 🛡️ 피격 시 50% 확률로 코인 10개 소실로 대체", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치까지 진화 후 해금" },
-  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "⚡ 무적 2회 | 🛡️ 피격 후 무적시간 7배", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치까지 진화 후 해금" },
+  { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개로 시작", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
+  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "⚡ 슬로우 모션 3회 | 🛡️ 피격 시 50% 확률로 코인 10개 소실로 대체", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
+  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "⚡ 무적 2회 | 🛡️ 피격 후 무적시간 7배", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
   { id: "Jetliner", name: "여객기", price: 4000, ability: "코인 X3 획득", unlockDist: 10000, lockText: "🔒 10,000m 달성 시 해금" },
   { id: "Rocket", name: "로켓", price: 5000, ability: "⚡ 미사일 100발 | 🛡️ 장애물 파괴 시 코인 10개 드롭", unlockDist: 13000, lockText: "🔒 13,000m 달성 시 해금" },
-  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 0, ability: "⚡ 3000m에서 시작 + 500m 무적부스터 2회", unlockBoss: "UFO", lockText: "🔒 UFO 보스 처치 시 무료 해금" },
+  { id: "SpaceShuttle", name: "스페이스 셔틀", price: 0, ability: "⚡ 3000m에서 시작 + 500m 무적부스터 2회", unlockBoss: "UFO", lockText: "🔒 최후보스 제거 후 무료 해금" },
   { id: "UFO", name: "UFO", price: 10000, ability: "⚡ 5000m에서 시작 + 1000m 무적부스터 2회 + 레이저 200발", unlockDist: 20000, lockText: "🔒 20,000m 달성 시 해금" }
 ];
 
