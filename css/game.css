@@ -1,3 +1,95 @@
+/* ===== Finch Splash Screen ===== */
+.finch-splash {
+	position: fixed;
+	top: 0; left: 0;
+	width: 100%; height: 100%;
+	background: #0a0a0a;
+	z-index: 9999;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	transition: opacity 0.6s ease;
+}
+
+.finch-splash.fade-out {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.finch-splash-content {
+	text-align: center;
+	animation: splashFadeIn 0.8s ease;
+}
+
+@keyframes splashFadeIn {
+	from { opacity: 0; transform: translateY(20px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+.finch-splash-logo {
+	font-size: 4em;
+	margin-bottom: 0.3em;
+	animation: splashLogoFloat 2s ease-in-out infinite;
+}
+
+@keyframes splashLogoFloat {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-10px); }
+}
+
+.finch-splash-title {
+	font-family: 'Playfair Display', serif;
+	font-size: 3em;
+	font-weight: 700;
+	color: #fff;
+	letter-spacing: 0.08em;
+	margin: 0 0 1.5em 0;
+	text-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
+}
+
+.finch-splash-loader {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+}
+
+.finch-splash-bar {
+	width: 200px;
+	height: 3px;
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.finch-splash-bar-fill {
+	width: 0%;
+	height: 100%;
+	background: linear-gradient(90deg, #D4762C, #E8943A);
+	border-radius: 3px;
+	transition: width 0.3s ease;
+}
+
+.finch-splash-text {
+	font-family: 'Playfair Display', serif;
+	font-size: 0.8em;
+	color: rgba(255, 255, 255, 0.35);
+	letter-spacing: 0.2em;
+	margin: 0;
+}
+
+@media screen and (max-width: 480px) {
+	.finch-splash-logo {
+		font-size: 3em;
+	}
+	.finch-splash-title {
+		font-size: 2em;
+	}
+	.finch-splash-bar {
+		width: 150px;
+	}
+}
+
 /* ===== Start Screen Overlay ===== */
 .start-overlay {
 	position: fixed;
