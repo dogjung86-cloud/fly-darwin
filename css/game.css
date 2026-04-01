@@ -301,12 +301,12 @@
 		margin: 0.1em 0 0;
 	}
 	.start-btn {
-		font-size: 0.8em;
-		padding: 6px 18px;
+		font-size: 0.95em;
+		padding: 8px 22px;
 	}
 	.start-btn.start-btn-daily {
-		font-size: 0.45em;
-		padding: 2px 8px;
+		font-size: 0.9em;
+		padding: 6px 18px;
 	}
 	.start-buttons-row {
 		gap: 6px;
