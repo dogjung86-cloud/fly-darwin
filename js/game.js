@@ -4003,7 +4003,7 @@ function getMissionProgress(data, mission) {
 
 // 게임 플레이 후 미션 진행도 업데이트
 function updateMissionProgress(type, value, mode) {
-  var data = loadDailyData();
+  var data = checkAndResetDaily(); // 오늘 미션이 없으면 자동 초기화
   var today = getTodayStr();
   if (data.missions.date !== today) return;
   if (!data.missions.progress) data.missions.progress = {};
