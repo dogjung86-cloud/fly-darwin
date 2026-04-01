@@ -428,6 +428,39 @@ function handleMouseMove(event) {
   mousePos = {x:tx, y:ty};
 }
 
+// 모바일 터치 Y오프셋 (손가락 위에 비행체 표시)
+var TOUCH_Y_OFFSET = 70;
+var mobileAutoFireInterval = null;
+
+function getTouchPos(t) {
+    var tx = -1 + (t.pageX / WIDTH) * 2;
+    // 모바일: 터치 위치보다 위로 오프셋 적용
+    var offsetPx = t.pageY - TOUCH_Y_OFFSET;
+    if (offsetPx < 0) offsetPx = 0;
+    var ty = 1 - (offsetPx / HEIGHT) * 2;
+    return {x: tx, y: ty};
+}
+
+function startMobileAutoFire() {
+    if (mobileAutoFireInterval) return;
+    mobileAutoFireInterval = setInterval(function() {
+      if (game.status !== 'playing') { stopMobileAutoFire(); return; }
+      // 보스전 자동 발사
+      if (typeof bossState !== 'undefined' && bossState.active) {
+        var isUfo = (shopState && shopState.selectedVehicle === 'UFO' && abilityState.ufoLaserUses > 0);
+        if (isUfo) { fireLaser(); abilityState.ufoLaserUses--; updateAbilityUI(); }
+        else fireBossMissile();
+      }
+    }, 120);
+}
+
+function stopMobileAutoFire() {
+    if (mobileAutoFireInterval) {
+      clearInterval(mobileAutoFireInterval);
+      mobileAutoFireInterval = null;
+    }
+}
+
 function handleTouchStart(event) {
     var target = event.target;
     // UI 버튼 터치는 그대로 통과
@@ -443,10 +476,16 @@ function handleTouchStart(event) {
       var t = event.touches[i];
       var el = document.elementFromPoint(t.pageX, t.pageY);
       if (el && (el.closest('#bossFireUI') || el.closest('#abilityUI') || el.closest('#ufoDualUI'))) continue;
-      var tx = -1 + (t.pageX / WIDTH) * 2;
-      var ty = 1 - (t.pageY / HEIGHT) * 2;
-      mousePos = {x:tx, y:ty};
+      mousePos = getTouchPos(t);
       break;
+    }
+    // 보스전 모바일 자동 발사 시작
+    if (game.status === 'playing' && typeof bossState !== 'undefined' && bossState.active) {
+      // 즉시 1발 발사
+      var isUfo = (shopState && shopState.selectedVehicle === 'UFO' && abilityState.ufoLaserUses > 0);
+      if (isUfo) { fireLaser(); abilityState.ufoLaserUses--; updateAbilityUI(); }
+      else fireBossMissile();
+      startMobileAutoFire();
     }
 }
 
@@ -456,9 +495,7 @@ function handleTouchMove(event) {
       var t = event.touches[i];
       var el = document.elementFromPoint(t.pageX, t.pageY);
       if (el && (el.closest('#bossFireUI') || el.closest('#abilityUI') || el.closest('#ufoDualUI'))) continue;
-      var tx = -1 + (t.pageX / WIDTH) * 2;
-      var ty = 1 - (t.pageY / HEIGHT) * 2;
-      mousePos = {x:tx, y:ty};
+      mousePos = getTouchPos(t);
       break;
     }
 }
@@ -527,6 +564,7 @@ function handleTouchEnd(event){
     clearInterval(mouseHoldInterval);
     mouseHoldInterval = null;
   }
+  stopMobileAutoFire();
 }
 
 // LIGHTS
