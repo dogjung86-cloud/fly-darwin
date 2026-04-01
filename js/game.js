@@ -468,8 +468,8 @@ function handleTouchStart(event) {
     if (target.id === 'bossFireBtn' || target.closest('#bossFireUI')) return;
     if (target.id === 'abilityBtn' || target.closest('#abilityUI')) return;
     if (target.id === 'ufoLaserBtn' || target.id === 'ufoBoosterBtn' || target.closest('#ufoDualUI')) return;
-    // Continue/GameOver/Daily 오버레이 버튼 터치 통과
-    if (target.closest('#continueOverlay') || target.closest('#gameOverOverlay') || target.closest('#dailyOverlay')) return;
+    // 모든 오버레이 내부 터치 통과
+    if (target.closest('#continueOverlay') || target.closest('#gameOverOverlay') || target.closest('#dailyOverlay') || target.closest('#startOverlay') || target.closest('#shopOverlay')) return;
     event.preventDefault();
     // 멀티터치: UI 버튼이 아닌 첫 번째 터치로 조작
     for (var i = 0; i < event.touches.length; i++) {
@@ -3155,6 +3155,7 @@ function updateLoginUI() {
       btn.style.borderColor = 'rgba(255,255,255,0.2)';
       btn.style.cursor = 'pointer';
       btn.onclick = function() { window.open('https://www.finch.co.kr?login=true', '_top'); };
+      btn.ontouchend = function(e) { e.preventDefault(); window.open('https://www.finch.co.kr?login=true', '_top'); };
     }
   }
 }
@@ -5011,6 +5012,11 @@ function initShopUI() {
   // Shop button
   var shopBtn = document.getElementById('shopBtn');
   shopBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    openShop();
+  });
+  shopBtn.addEventListener('touchend', function(e) {
+    e.preventDefault();
     e.stopPropagation();
     openShop();
   });
