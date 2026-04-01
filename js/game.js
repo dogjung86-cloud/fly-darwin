@@ -3485,6 +3485,8 @@ function showGameOver() {
       updateMissionProgress('noContinue', finalDist, 'max');
     }
     updateDailyNotifyBadge();
+    // 완료된 미션이 있으면 토스트 알림
+    checkAndShowMissionToast();
   }
 
   var overlay = document.getElementById('gameOverOverlay');
@@ -3947,6 +3949,29 @@ function checkAndResetDaily() {
   return data;
 }
 
+// 보상 수령 효과음 (동전 여러 개 떨어지는 느낌)
+function playRewardCoinSound() {
+  try {
+    var ctx = getAudioCtx();
+    var now = ctx.currentTime;
+    var notes = [1200, 1400, 1600, 1800, 2100];
+    for (var i = 0; i < notes.length; i++) {
+      var t = now + i * 0.07;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(notes[i], t);
+      osc.frequency.exponentialRampToValueAtTime(notes[i] * 1.2, t + 0.06);
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.15);
+    }
+  } catch(e) {}
+}
+
 // 출석 보상 수령
 function claimAttendance() {
   var data = loadDailyData();
@@ -3971,6 +3996,8 @@ function claimAttendance() {
   saveCoins(game.coins);
   saveDailyData(data);
 
+  playRewardCoinSound();
+
   // UI 갱신
   renderAttendance();
   updateDailyCoinsDisplay();
@@ -3991,6 +4018,8 @@ function claimMission(missionIdx) {
   game.coins += mission.reward;
   saveCoins(game.coins);
   saveDailyData(data);
+
+  playRewardCoinSound();
 
   renderMissions();
   updateDailyCoinsDisplay();
@@ -4016,6 +4045,52 @@ function updateMissionProgress(type, value, mode) {
     data.missions.progress[type] = (data.missions.progress[type] || 0) + value;
   }
   saveDailyData(data);
+}
+
+// 미션 완료 토스트 알림
+function checkAndShowMissionToast() {
+  var data = loadDailyData();
+  var completed = [];
+  for (var i = 0; i < data.missions.assigned.length; i++) {
+    var m = data.missions.assigned[i];
+    if (!m.claimed && getMissionProgress(data, m) >= m.target) {
+      completed.push(m.name);
+    }
+  }
+  if (completed.length === 0) return;
+
+  var msg = '미션 완료! ' + completed.join(', ') + ' — 보상을 수령하세요';
+  showMissionToast(msg);
+}
+
+function showMissionToast(msg) {
+  // 기존 토스트 제거
+  var old = document.getElementById('missionToast');
+  if (old) old.remove();
+
+  var toast = document.createElement('div');
+  toast.id = 'missionToast';
+  toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);z-index:5000;' +
+    'background:linear-gradient(135deg,rgba(30,40,60,0.95),rgba(15,20,35,0.98));' +
+    'border:1px solid rgba(212,118,44,0.4);border-radius:14px;padding:14px 24px;' +
+    'font-family:"Playfair Display",serif;font-size:0.85em;color:#fff;' +
+    'box-shadow:0 8px 30px rgba(0,0,0,0.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
+    'transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;';
+  toast.textContent = '🎯 ' + msg;
+  document.body.appendChild(toast);
+
+  // 슬라이드 인
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      toast.style.transform = 'translateX(-50%) translateY(0)';
+    });
+  });
+
+  // 4초 후 슬라이드 아웃
+  setTimeout(function() {
+    toast.style.transform = 'translateX(-50%) translateY(-100px)';
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 500);
+  }, 4000);
 }
 
 // 미션 알림 뱃지 확인
