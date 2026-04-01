@@ -48,6 +48,9 @@
 					<button id="playBtn" class="start-btn start-btn-play">▶ PLAY</button>
 					<button id="shopBtn" class="start-btn start-btn-shop">🛒 SHOP</button>
 				</div>
+				<div class="start-buttons-row" style="margin-top:4px;">
+					<button id="dailyBtn" class="start-btn start-btn-daily">📅 출석/미션</button>
+				</div>
 				<p class="start-hint">Mouse or Touch to control</p>
 				<button id="cloudSaveBtn" style="margin-top:8px; font-family:'Playfair Display',serif; font-size:0.8em; letter-spacing:0.05em; color:#fff; background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.35); border-radius:30px; padding:8px 24px; cursor:pointer; transition:all 0.3s ease; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">🔒 로그인하면 상점과 아이템 기록이 안전해요</button>
 			</div>
@@ -75,6 +78,32 @@
 					</div>
 					<div id="shopSpecialVehicles" class="shop-tab-content">
 						<div class="shop-vehicles" id="vehiclesList"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Daily Attendance & Mission Overlay -->
+		<div id="dailyOverlay" class="daily-overlay">
+			<div class="daily-panel">
+				<div class="daily-header">
+					<h2 class="daily-title">📅 출석 & 미션</h2>
+					<span class="daily-coins">🪙 <span id="dailyCoinsDisplay">0</span></span>
+					<button id="dailyCloseBtn" class="daily-close">✕</button>
+				</div>
+				<div class="daily-tabs">
+					<button class="daily-tab active" data-daily-tab="attendance">출석 보상</button>
+					<button class="daily-tab" data-daily-tab="missions">일일 미션</button>
+				</div>
+				<div class="daily-content">
+					<div id="dailyAttendance" class="daily-tab-content active">
+						<div id="attendanceGrid" class="attendance-grid"></div>
+						<button id="attendanceClaimBtn" class="attendance-claim-btn">출석 보상 받기</button>
+						<p id="attendanceStatus" class="attendance-status"></p>
+					</div>
+					<div id="dailyMissions" class="daily-tab-content">
+						<div id="missionsList" class="missions-list"></div>
+						<p class="missions-hint">미션은 매일 자정에 갱신됩니다</p>
 					</div>
 				</div>
 			</div>

@@ -2744,6 +2744,8 @@ function addCoin(){
   saveCoins(game.coins);
   document.getElementById('coinsValue').textContent = game.coins;
   playCoinSound();
+  // 미션: 코인 수집 추적
+  if (typeof updateMissionProgress === 'function') updateMissionProgress('coinsCollected', earned, 'add');
 }
 
 function addHeart(){
@@ -3475,6 +3477,16 @@ function showGameOver() {
     saveShopData(shopState);
   }
 
+  // 미션: 거리 기록 (한 판 최고값)
+  if (typeof updateMissionProgress === 'function') {
+    updateMissionProgress('distance', finalDist, 'max');
+    // 컨티뉴 없이 달성한 거리
+    if (game.continueCount === 0) {
+      updateMissionProgress('noContinue', finalDist, 'max');
+    }
+    updateDailyNotifyBadge();
+  }
+
   var overlay = document.getElementById('gameOverOverlay');
   var scoreSection = document.getElementById('gameOverScore');
   var rankSection = document.getElementById('rankingBoard');
@@ -3603,6 +3615,8 @@ function startReplay() {
   overlay.classList.remove('hidden');
   // BGM ?뺤?
   stopBGM();
+  // 미션 알림 뱃지 갱신
+  if (typeof updateDailyNotifyBadge === 'function') updateDailyNotifyBadge();
 }
 
 function initRankingUI() {
@@ -3812,6 +3826,7 @@ function init(event){
   initShopUI();
   initAbilitySystem();
   initAbilitySounds();
+  initDailyUI();
   initStartScreen();
   initAuth();
 
@@ -3827,6 +3842,382 @@ function init(event){
 }
 
 window.addEventListener('load', init, false);
+
+// ===== Daily Attendance & Mission System =====
+
+var DAILY_STORAGE_KEY = 'flyDarwinDaily';
+var ATTENDANCE_REWARDS = [10, 15, 20, 25, 30, 40, 100];
+
+var MISSION_POOL = {
+  easy: [
+    { id: 'dist500', name: '탐험가', desc: '1회에 500m 비행', icon: '🛫', reward: 15, type: 'distance', target: 500 },
+    { id: 'coin30', name: '수집가', desc: '코인 30개 줍기 (1일 누적)', icon: '🪙', reward: 20, type: 'coinsCollected', target: 30 },
+    { id: 'play3', name: '열정 파일럿', desc: '3회 플레이', icon: '🔥', reward: 25, type: 'playCount', target: 3 }
+  ],
+  hard: [
+    { id: 'dist2000', name: '모험가', desc: '1회에 2,000m 비행', icon: '✈️', reward: 40, type: 'distance', target: 2000 },
+    { id: 'dist5000', name: '선구자', desc: '1회에 5,000m 비행', icon: '🚀', reward: 80, type: 'distance', target: 5000 },
+    { id: 'coin100', name: '부자되기', desc: '코인 100개 줍기 (1일 누적)', icon: '💰', reward: 50, type: 'coinsCollected', target: 100 },
+    { id: 'noCont1000', name: '불사조', desc: '컨티뉴 없이 1,000m 달성', icon: '🦅', reward: 30, type: 'noContinue', target: 1000 },
+    { id: 'boss1', name: '사냥꾼', desc: '보스 1회 격파', icon: '⚔️', reward: 50, type: 'bossKill', target: 1 }
+  ]
+};
+
+function getTodayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function loadDailyData() {
+  var defaults = {
+    attendance: { streak: 0, lastDate: '', claimedDays: [] },
+    missions: { date: '', assigned: [], progress: {} }
+  };
+  try {
+    var saved = localStorage.getItem(DAILY_STORAGE_KEY);
+    if (saved) {
+      var parsed = JSON.parse(saved);
+      return {
+        attendance: parsed.attendance || defaults.attendance,
+        missions: parsed.missions || defaults.missions
+      };
+    }
+  } catch(e) {}
+  return defaults;
+}
+
+function saveDailyData(data) {
+  localStorage.setItem(DAILY_STORAGE_KEY, JSON.stringify(data));
+  if (typeof currentUser !== 'undefined' && currentUser && typeof scheduleCloudSave === 'function') scheduleCloudSave();
+}
+
+function seededRandom(seed) {
+  var x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+function assignDailyMissions(dateStr) {
+  // 날짜 기반 시드로 동일 날짜에 같은 미션 배정
+  var seed = 0;
+  for (var i = 0; i < dateStr.length; i++) seed += dateStr.charCodeAt(i) * (i + 1);
+
+  var easyIdx = Math.floor(seededRandom(seed) * MISSION_POOL.easy.length);
+  var hardIdx = Math.floor(seededRandom(seed + 99) * MISSION_POOL.hard.length);
+
+  return [
+    JSON.parse(JSON.stringify(MISSION_POOL.easy[easyIdx])),
+    JSON.parse(JSON.stringify(MISSION_POOL.hard[hardIdx]))
+  ];
+}
+
+function checkAndResetDaily() {
+  var data = loadDailyData();
+  var today = getTodayStr();
+
+  // 출석 스트릭 체크: 어제가 아니면 리셋 (이미 오늘 출석한 경우 제외)
+  if (data.attendance.lastDate && data.attendance.lastDate !== today) {
+    var last = new Date(data.attendance.lastDate);
+    var now = new Date(today);
+    var diff = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+    if (diff > 1) {
+      // 연속 출석 끊김
+      data.attendance.streak = 0;
+      data.attendance.claimedDays = [];
+    }
+  }
+
+  // 미션 날짜 갱신
+  if (data.missions.date !== today) {
+    data.missions.date = today;
+    data.missions.assigned = assignDailyMissions(today);
+    data.missions.progress = {
+      distance: 0,
+      coinsCollected: 0,
+      playCount: 0,
+      noContinue: 0,
+      bossKill: 0
+    };
+    // 이전 미션 보상 수령 상태 초기화
+    for (var i = 0; i < data.missions.assigned.length; i++) {
+      data.missions.assigned[i].claimed = false;
+    }
+    saveDailyData(data);
+  }
+
+  return data;
+}
+
+// 출석 보상 수령
+function claimAttendance() {
+  var data = loadDailyData();
+  var today = getTodayStr();
+
+  if (data.attendance.lastDate === today) return; // 이미 출석함
+
+  var dayIndex = data.attendance.streak % 7;
+  var reward = ATTENDANCE_REWARDS[dayIndex];
+
+  data.attendance.streak++;
+  data.attendance.lastDate = today;
+  if (!data.attendance.claimedDays) data.attendance.claimedDays = [];
+  data.attendance.claimedDays.push(dayIndex);
+  // 7일 사이클 완료 시 claimedDays 리셋
+  if (data.attendance.streak % 7 === 0) {
+    data.attendance.claimedDays = [];
+  }
+
+  // 코인 지급
+  game.coins += reward;
+  saveCoins(game.coins);
+  saveDailyData(data);
+
+  // UI 갱신
+  renderAttendance();
+  updateDailyCoinsDisplay();
+  var statusEl = document.getElementById('attendanceStatus');
+  if (statusEl) statusEl.textContent = '+' + reward + ' 코인 획득! (연속 ' + data.attendance.streak + '일)';
+}
+
+// 미션 보상 수령
+function claimMission(missionIdx) {
+  var data = loadDailyData();
+  var mission = data.missions.assigned[missionIdx];
+  if (!mission || mission.claimed) return;
+
+  var progress = getMissionProgress(data, mission);
+  if (progress < mission.target) return;
+
+  mission.claimed = true;
+  game.coins += mission.reward;
+  saveCoins(game.coins);
+  saveDailyData(data);
+
+  renderMissions();
+  updateDailyCoinsDisplay();
+}
+
+function getMissionProgress(data, mission) {
+  if (!data.missions.progress) return 0;
+  return data.missions.progress[mission.type] || 0;
+}
+
+// 게임 플레이 후 미션 진행도 업데이트
+function updateMissionProgress(type, value, mode) {
+  var data = loadDailyData();
+  var today = getTodayStr();
+  if (data.missions.date !== today) return;
+  if (!data.missions.progress) data.missions.progress = {};
+
+  if (mode === 'max') {
+    // distance, noContinue: 한 판의 최고값 반영
+    data.missions.progress[type] = Math.max(data.missions.progress[type] || 0, value);
+  } else {
+    // coinsCollected, playCount, bossKill: 누적
+    data.missions.progress[type] = (data.missions.progress[type] || 0) + value;
+  }
+  saveDailyData(data);
+}
+
+// 미션 알림 뱃지 확인
+function hasDailyNotification() {
+  var data = checkAndResetDaily();
+  var today = getTodayStr();
+
+  // 출석 미수령
+  if (data.attendance.lastDate !== today) return true;
+
+  // 완료했지만 미수령 미션
+  for (var i = 0; i < data.missions.assigned.length; i++) {
+    var m = data.missions.assigned[i];
+    if (!m.claimed && getMissionProgress(data, m) >= m.target) return true;
+  }
+  return false;
+}
+
+// UI 렌더링
+function renderAttendance() {
+  var data = loadDailyData();
+  var today = getTodayStr();
+  var grid = document.getElementById('attendanceGrid');
+  var claimBtn = document.getElementById('attendanceClaimBtn');
+  if (!grid || !claimBtn) return;
+
+  var alreadyClaimed = (data.attendance.lastDate === today);
+  var currentDayIndex = data.attendance.streak % 7;
+
+  var html = '';
+  for (var i = 0; i < 7; i++) {
+    var isClaimed = false;
+    if (alreadyClaimed) {
+      // 오늘 포함하여 streak에 해당하는 일수만큼 체크
+      var daysInCycle = data.attendance.streak % 7;
+      if (daysInCycle === 0 && data.attendance.streak > 0) daysInCycle = 7;
+      isClaimed = i < daysInCycle;
+    } else {
+      isClaimed = i < currentDayIndex;
+    }
+    var isToday = (!alreadyClaimed && i === currentDayIndex) || (alreadyClaimed && i === currentDayIndex - 1) || (alreadyClaimed && currentDayIndex === 0 && i === 6);
+
+    var cls = 'attendance-day';
+    if (isClaimed) cls += ' claimed';
+    if (isToday && alreadyClaimed) cls += ' today claimed';
+    else if (!alreadyClaimed && i === currentDayIndex) cls += ' today';
+
+    var dayLabel = (i === 6) ? 'BONUS' : 'DAY ' + (i + 1);
+    html += '<div class="' + cls + '">';
+    html += '<div class="attendance-day-label">' + dayLabel + '</div>';
+    html += '<div class="attendance-day-coins">' + ATTENDANCE_REWARDS[i] + '</div>';
+    html += '<div class="attendance-day-check">' + (isClaimed ? '✓' : '') + '</div>';
+    html += '</div>';
+  }
+  grid.innerHTML = html;
+
+  claimBtn.disabled = alreadyClaimed;
+  claimBtn.textContent = alreadyClaimed ? '오늘 출석 완료!' : '출석 보상 받기 (+' + ATTENDANCE_REWARDS[currentDayIndex] + ' 🪙)';
+}
+
+function renderMissions() {
+  var data = loadDailyData();
+  var list = document.getElementById('missionsList');
+  if (!list) return;
+
+  var html = '';
+  for (var i = 0; i < data.missions.assigned.length; i++) {
+    var m = data.missions.assigned[i];
+    var progress = getMissionProgress(data, m);
+    var done = progress >= m.target;
+    var pct = Math.min(100, Math.floor((progress / m.target) * 100));
+
+    var cls = 'mission-card';
+    if (m.claimed) cls += ' claimed';
+    else if (done) cls += ' completed';
+
+    html += '<div class="' + cls + '">';
+    html += '<div class="mission-icon">' + m.icon + '</div>';
+    html += '<div class="mission-info">';
+    html += '<div class="mission-name">' + m.name + '</div>';
+    html += '<div class="mission-desc">' + m.desc + '</div>';
+    html += '<div class="mission-progress">' + Math.min(progress, m.target) + ' / ' + m.target + '</div>';
+    html += '<div class="mission-progress-bar"><div class="mission-progress-fill" style="width:' + pct + '%"></div></div>';
+    html += '</div>';
+    html += '<div class="mission-reward">';
+    html += '<div class="mission-reward-amount">+' + m.reward + ' 🪙</div>';
+    if (m.claimed) {
+      html += '<div class="mission-reward-label">수령 완료</div>';
+    } else if (done) {
+      html += '<button class="mission-claim-btn" data-mission-idx="' + i + '">받기</button>';
+    } else {
+      html += '<div class="mission-reward-label">진행 중</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+
+  // 미션 보상 받기 버튼 이벤트
+  var claimBtns = list.querySelectorAll('.mission-claim-btn');
+  for (var j = 0; j < claimBtns.length; j++) {
+    claimBtns[j].addEventListener('click', function(e) {
+      e.stopPropagation();
+      var idx = parseInt(this.getAttribute('data-mission-idx'));
+      claimMission(idx);
+    });
+    claimBtns[j].addEventListener('touchend', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var idx = parseInt(this.getAttribute('data-mission-idx'));
+      claimMission(idx);
+    });
+  }
+}
+
+function updateDailyCoinsDisplay() {
+  var el = document.getElementById('dailyCoinsDisplay');
+  if (el) el.textContent = game.coins;
+  // 상점 코인도 갱신
+  var shopEl = document.getElementById('shopCoinsDisplay');
+  if (shopEl) shopEl.textContent = game.coins;
+  var coinsEl = document.getElementById('coinsValue');
+  if (coinsEl) coinsEl.textContent = game.coins;
+}
+
+function updateDailyNotifyBadge() {
+  var btn = document.getElementById('dailyBtn');
+  if (!btn) return;
+  var badge = btn.querySelector('.daily-notify');
+  if (hasDailyNotification()) {
+    if (!badge) {
+      var span = document.createElement('span');
+      span.className = 'daily-notify';
+      btn.appendChild(span);
+    }
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
+function initDailyUI() {
+  var overlay = document.getElementById('dailyOverlay');
+  var dailyBtn = document.getElementById('dailyBtn');
+  var closeBtn = document.getElementById('dailyCloseBtn');
+  var claimBtn = document.getElementById('attendanceClaimBtn');
+  if (!overlay || !dailyBtn) return;
+
+  // 초기화
+  checkAndResetDaily();
+
+  // 열기
+  function openDaily() {
+    checkAndResetDaily();
+    updateDailyCoinsDisplay();
+    renderAttendance();
+    renderMissions();
+    overlay.style.display = 'flex';
+  }
+
+  dailyBtn.addEventListener('click', function(e) { e.stopPropagation(); openDaily(); });
+  dailyBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); openDaily(); });
+
+  // 닫기
+  function closeDaily() {
+    overlay.style.display = 'none';
+    updateDailyNotifyBadge();
+  }
+
+  closeBtn.addEventListener('click', function(e) { e.stopPropagation(); closeDaily(); });
+  closeBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); closeDaily(); });
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeDaily();
+  });
+
+  // 출석 보상 받기
+  claimBtn.addEventListener('click', function(e) { e.stopPropagation(); claimAttendance(); });
+  claimBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); claimAttendance(); });
+
+  // 탭 전환
+  var tabs = overlay.querySelectorAll('.daily-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].addEventListener('click', function() {
+      var tabName = this.getAttribute('data-daily-tab');
+      for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+      this.classList.add('active');
+      var contents = overlay.querySelectorAll('.daily-tab-content');
+      for (var k = 0; k < contents.length; k++) contents[k].classList.remove('active');
+      document.getElementById(tabName === 'attendance' ? 'dailyAttendance' : 'dailyMissions').classList.add('active');
+    });
+  }
+
+  // 터치 통과
+  overlay.addEventListener('touchstart', function(e) {
+    if (e.target.closest('.daily-panel')) return;
+    e.preventDefault();
+    closeDaily();
+  }, { passive: false });
+
+  // 알림 뱃지 업데이트
+  updateDailyNotifyBadge();
+}
 
 function initStartScreen() {
   var overlay = document.getElementById('startOverlay');
@@ -3874,6 +4265,8 @@ function initStartScreen() {
       fieldDistance.innerHTML = Math.floor(game.distance);
     }
     game.status = 'playing';
+    // 미션: 플레이 횟수 추적
+    if (typeof updateMissionProgress === 'function') updateMissionProgress('playCount', 1, 'add');
     overlay.classList.add('hidden');
     oldTime = new Date().getTime();
     // BGM ?쒖옉 (PLAY 踰꾪듉?먯꽌留?
@@ -5951,6 +6344,9 @@ function defeatBoss() {
     spawnDestroyParticles(offset, 0xFF6600);
   }
   playShatterSound();
+
+  // 미션: 보스 격파 추적
+  if (typeof updateMissionProgress === 'function') updateMissionProgress('bossKill', 1, 'add');
 
   //
   var reward = bossState.reward;
