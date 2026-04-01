@@ -3714,6 +3714,9 @@ function startReplay() {
   var overlay = document.getElementById('startOverlay');
   overlay.style.display = '';
   overlay.classList.remove('hidden');
+  // 시작화면에서 헤더 숨기기
+  var header = document.querySelector('.header');
+  if (header) header.style.display = 'none';
   // BGM ?뺤?
   stopBGM();
   // 미션 알림 뱃지 갱신
@@ -4401,6 +4404,10 @@ function initStartScreen() {
   var playBtn = document.getElementById('playBtn');
   if (!playBtn || !overlay) return;
 
+  // 시작화면에서는 헤더(제목+스코어) 숨기기
+  var header = document.querySelector('.header');
+  if (header) header.style.display = 'none';
+
   function startGame() {
     if (game.status !== 'waiting') return;
     //
@@ -4445,6 +4452,9 @@ function initStartScreen() {
     // 미션: 플레이 횟수 추적
     if (typeof updateMissionProgress === 'function') updateMissionProgress('playCount', 1, 'add');
     overlay.classList.add('hidden');
+    // 시작화면에서 숨겼던 헤더 표시
+    var header = document.querySelector('.header');
+    if (header) header.style.display = '';
     oldTime = new Date().getTime();
     // BGM ?쒖옉 (PLAY 踰꾪듉?먯꽌留?
     startBGMPlayback();
