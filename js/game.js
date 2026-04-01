@@ -435,6 +435,8 @@ function handleTouchStart(event) {
     if (target.id === 'bossFireBtn' || target.closest('#bossFireUI')) return;
     if (target.id === 'abilityBtn' || target.closest('#abilityUI')) return;
     if (target.id === 'ufoLaserBtn' || target.id === 'ufoBoosterBtn' || target.closest('#ufoDualUI')) return;
+    // Continue/GameOver 오버레이 버튼 터치 통과
+    if (target.closest('#continueOverlay') || target.closest('#gameOverOverlay')) return;
     event.preventDefault();
     // 멀티터치: UI 버튼이 아닌 첫 번째 터치로 조작
     for (var i = 0; i < event.touches.length; i++) {
@@ -3609,7 +3611,12 @@ function initRankingUI() {
     e.stopPropagation();
     submitScore();
   });
-  
+  document.getElementById('submitScoreBtn').addEventListener('touchend', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    submitScore();
+  });
+
   // Enter key to submit
   document.getElementById('playerNameInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
@@ -3620,15 +3627,25 @@ function initRankingUI() {
     this.style.borderColor = '';
     this.style.boxShadow = '';
   });
-  
+
   // Skip ranking button
   document.getElementById('skipRankBtn').addEventListener('click', function(e) {
     e.stopPropagation();
     startReplay();
   });
-  
+  document.getElementById('skipRankBtn').addEventListener('touchend', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    startReplay();
+  });
+
   // Replay from ranking button
   document.getElementById('replayFromRankBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    startReplay();
+  });
+  document.getElementById('replayFromRankBtn').addEventListener('touchend', function(e) {
+    e.preventDefault();
     e.stopPropagation();
     startReplay();
   });
@@ -3646,9 +3663,19 @@ function initRankingUI() {
     e.stopPropagation();
     continueGame();
   });
+  document.getElementById('continueBtn').addEventListener('touchend', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    continueGame();
+  });
 
   // Stop button (go to game over)
   document.getElementById('continueStopBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    stopAndShowGameOver();
+  });
+  document.getElementById('continueStopBtn').addEventListener('touchend', function(e) {
+    e.preventDefault();
     e.stopPropagation();
     stopAndShowGameOver();
   });
@@ -3704,6 +3731,36 @@ function stopBGM() {
     bgm.currentTime = 0;
   }
 }
+
+// 브라우저 탭/창을 벗어나면 BGM 일시정지
+document.addEventListener('visibilitychange', function() {
+  if (!bgm) return;
+  if (document.hidden) {
+    if (!bgm.paused) {
+      bgm._wasPlayingBeforeHidden = true;
+      bgm.pause();
+    }
+  } else {
+    if (bgm._wasPlayingBeforeHidden && game.status === 'playing' && !paused) {
+      bgm.play().catch(function(){});
+    }
+    bgm._wasPlayingBeforeHidden = false;
+  }
+});
+
+window.addEventListener('blur', function() {
+  if (bgm && !bgm.paused) {
+    bgm._wasPlayingBeforeBlur = true;
+    bgm.pause();
+  }
+});
+
+window.addEventListener('focus', function() {
+  if (bgm && bgm._wasPlayingBeforeBlur && game.status === 'playing' && !paused) {
+    bgm.play().catch(function(){});
+  }
+  if (bgm) bgm._wasPlayingBeforeBlur = false;
+});
 
 function init(event){
   var splash = document.getElementById('finchSplash');

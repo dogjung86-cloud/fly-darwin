@@ -1526,6 +1526,13 @@
 	}
 }
 
+/* 모바일 가로화면: 높이가 낮으면 모바일로 판단 */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+	.mobile-pause-btn {
+		display: block;
+	}
+}
+
 /* Responsive */
 @media screen and (max-width: 520px) {
 	.gameover-panel {
