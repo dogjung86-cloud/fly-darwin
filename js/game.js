@@ -3125,10 +3125,12 @@ async function saveCloudData() {
   try {
     var shopData = loadShopData();
     var coins = parseInt(localStorage.getItem('totalCoins') || '0');
+    var dailyData = typeof loadDailyData === 'function' ? loadDailyData() : null;
     await sb.from('fly_darwin_saves').upsert({
       user_id: currentUser.id,
       shop_data: shopData,
       total_coins: coins,
+      daily_data: dailyData,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' });
   } catch(e) { console.warn('Cloud save failed:', e); }
@@ -3142,7 +3144,7 @@ async function loadCloudSave() {
   try {
     var { data, error } = await sb
       .from('fly_darwin_saves')
-      .select('shop_data, total_coins')
+      .select('shop_data, total_coins, daily_data')
       .eq('user_id', currentUser.id)
       .single();
     if (error || !data) return;
@@ -3171,6 +3173,13 @@ async function loadCloudSave() {
       saveShopData(merged);
       shopState = merged;
     }
+    // 출석/미션 데이터 병합
+    if (data.daily_data && typeof loadDailyData === 'function') {
+      var localDaily = loadDailyData();
+      var cloudDaily = data.daily_data;
+      var mergedDaily = mergeDailyData(localDaily, cloudDaily);
+      saveDailyData(mergedDaily);
+    }
   } catch(e) { console.warn('Cloud load failed:', e); }
 }
 
@@ -3180,6 +3189,54 @@ function mergeArrays(a, b) {
     if (result.indexOf(b[i]) === -1) result.push(b[i]);
   }
   return result;
+}
+
+function mergeDailyData(local, cloud) {
+  if (!cloud) return local;
+  if (!local) return cloud;
+
+  var merged = { attendance: {}, missions: {} };
+
+  // 출석: 스트릭이 더 높은 쪽 우선, 같으면 lastDate가 더 최근인 쪽
+  var la = local.attendance || {};
+  var ca = cloud.attendance || {};
+  if ((ca.streak || 0) > (la.streak || 0)) {
+    merged.attendance = ca;
+  } else if ((ca.streak || 0) === (la.streak || 0) && (ca.lastDate || '') > (la.lastDate || '')) {
+    merged.attendance = ca;
+  } else {
+    merged.attendance = la;
+  }
+
+  // 미션: 같은 날짜면 진행도 큰 쪽, 다른 날짜면 최신 쪽
+  var lm = local.missions || {};
+  var cm = cloud.missions || {};
+  if (lm.date === cm.date && lm.date) {
+    // 같은 날: 진행도는 각 항목별 max
+    merged.missions = JSON.parse(JSON.stringify(lm));
+    if (cm.progress) {
+      if (!merged.missions.progress) merged.missions.progress = {};
+      var keys = Object.keys(cm.progress);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        merged.missions.progress[k] = Math.max(merged.missions.progress[k] || 0, cm.progress[k] || 0);
+      }
+    }
+    // claimed 상태도 병합 (어느 쪽이든 수령했으면 수령 처리)
+    if (cm.assigned && merged.missions.assigned) {
+      for (var j = 0; j < merged.missions.assigned.length; j++) {
+        if (cm.assigned[j] && cm.assigned[j].claimed) {
+          merged.missions.assigned[j].claimed = true;
+        }
+      }
+    }
+  } else if ((cm.date || '') > (lm.date || '')) {
+    merged.missions = cm;
+  } else {
+    merged.missions = lm;
+  }
+
+  return merged;
 }
 
 // localStorage ?대갚 ?⑥닔??
