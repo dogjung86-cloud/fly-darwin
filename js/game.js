@@ -2547,8 +2547,12 @@ function loop(){
     sea.mesh.rotation.z += 0.0001 * deltaTime;
     //
     airplane.mesh.position.y = game.planeDefaultHeight + Math.sin(Date.now() * 0.0015) * 3;
+    airplane.mesh.position.x = 0;
     airplane.propeller.rotation.x += 0.05;
     if (airplane.updateWings) airplane.updateWings();
+    // 카메라를 초기 위치로 부드럽게 복귀
+    camera.position.y += (game.planeDefaultHeight - camera.position.y) * 0.05;
+    camera.position.x += (0 - camera.position.x) * 0.05;
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
     return;

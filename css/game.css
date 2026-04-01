@@ -280,6 +280,42 @@
 	}
 }
 
+/* 모바일 가로화면 시작 화면 */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+	.start-spacer {
+		flex: 0.1;
+	}
+	.start-title {
+		font-size: 1.8em;
+	}
+	.start-subtitle {
+		font-size: 0.55em;
+		letter-spacing: 0.2em;
+		margin: 0.2em 0 0.5em 0;
+	}
+	.start-btn {
+		font-size: 0.75em;
+		padding: 7px 20px;
+	}
+	.start-btn-daily {
+		font-size: 0.7em;
+		padding: 5px 16px;
+	}
+	.start-buttons-row {
+		gap: 8px;
+		margin-bottom: 6px;
+	}
+	.start-hint {
+		font-size: 0.6em;
+		margin-top: 0.5em;
+	}
+	#cloudSaveBtn {
+		font-size: 0.6em !important;
+		padding: 4px 14px !important;
+		margin-top: 4px !important;
+	}
+}
+
 /* ===== Shop Overlay ===== */
 .shop-overlay {
 	display: none;
