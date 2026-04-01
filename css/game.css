@@ -139,6 +139,13 @@
 	box-shadow: 0 6px 25px rgba(44, 141, 212, 0.5), 0 0 60px rgba(44, 141, 212, 0.2);
 }
 
+.start-btn-daily {
+	background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+	box-shadow: 0 6px 25px rgba(139, 92, 246, 0.4), 0 0 60px rgba(139, 92, 246, 0.15);
+	font-size: 0.95em;
+	padding: 10px 32px;
+}
+
 .start-btn:hover {
 	transform: translateY(-3px) scale(1.05);
 	animation: none;
@@ -1979,14 +1986,6 @@
 	font-size: 0.75em;
 	color: rgba(255, 255, 255, 0.3);
 	text-align: center;
-}
-
-/* Daily button on start screen */
-.start-btn-daily {
-	background: linear-gradient(135deg, #8B5CF6, #A78BFA);
-	box-shadow: 0 6px 25px rgba(139, 92, 246, 0.4), 0 0 60px rgba(139, 92, 246, 0.15);
-	font-size: 0.95em;
-	padding: 10px 32px;
 }
 
 /* Notification dot */
