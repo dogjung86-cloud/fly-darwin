@@ -468,8 +468,8 @@ function handleTouchStart(event) {
     if (target.id === 'bossFireBtn' || target.closest('#bossFireUI')) return;
     if (target.id === 'abilityBtn' || target.closest('#abilityUI')) return;
     if (target.id === 'ufoLaserBtn' || target.id === 'ufoBoosterBtn' || target.closest('#ufoDualUI')) return;
-    // Continue/GameOver 오버레이 버튼 터치 통과
-    if (target.closest('#continueOverlay') || target.closest('#gameOverOverlay')) return;
+    // Continue/GameOver/Daily 오버레이 버튼 터치 통과
+    if (target.closest('#continueOverlay') || target.closest('#gameOverOverlay') || target.closest('#dailyOverlay')) return;
     event.preventDefault();
     // 멀티터치: UI 버튼이 아닌 첫 번째 터치로 조작
     for (var i = 0; i < event.touches.length; i++) {
@@ -4367,15 +4367,18 @@ function initDailyUI() {
 
   // 탭 전환
   var tabs = overlay.querySelectorAll('.daily-tab');
+  function switchDailyTab(tab) {
+    var tabName = tab.getAttribute('data-daily-tab');
+    for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+    tab.classList.add('active');
+    var contents = overlay.querySelectorAll('.daily-tab-content');
+    for (var k = 0; k < contents.length; k++) contents[k].classList.remove('active');
+    document.getElementById(tabName === 'attendance' ? 'dailyAttendance' : 'dailyMissions').classList.add('active');
+    if (tabName === 'missions') renderMissions();
+  }
   for (var i = 0; i < tabs.length; i++) {
-    tabs[i].addEventListener('click', function() {
-      var tabName = this.getAttribute('data-daily-tab');
-      for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
-      this.classList.add('active');
-      var contents = overlay.querySelectorAll('.daily-tab-content');
-      for (var k = 0; k < contents.length; k++) contents[k].classList.remove('active');
-      document.getElementById(tabName === 'attendance' ? 'dailyAttendance' : 'dailyMissions').classList.add('active');
-    });
+    tabs[i].addEventListener('click', function(e) { e.stopPropagation(); switchDailyTab(this); });
+    tabs[i].addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); switchDailyTab(this); });
   }
 
   // 터치 통과
