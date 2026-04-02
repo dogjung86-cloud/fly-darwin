@@ -4686,11 +4686,23 @@ function animateShopPreviews() {
       p.model.mesh.rotation.y += 0.015;
       if (p.model.propeller) p.model.propeller.rotation.x += 0.1;
       if (p.model.updateWings) p.model.updateWings();
+      // 컨테이너 실제 크기로 캔버스/카메라 갱신
+      var cw = p.container.clientWidth || p.width;
+      var ch = p.container.clientHeight || p.height;
+      var dpr = Math.min(window.devicePixelRatio, 2);
+      var pw = cw * dpr;
+      var ph = ch * dpr;
+      if (p.displayCanvas.width !== pw || p.displayCanvas.height !== ph) {
+        p.displayCanvas.width = pw;
+        p.displayCanvas.height = ph;
+      }
+      p.camera.aspect = cw / ch;
+      p.camera.updateProjectionMatrix();
       // 공유 렌더러로 렌더링 후 표시용 캔버스에 복사
-      pr.setSize(p.displayCanvas.width, p.displayCanvas.height, false);
+      pr.setSize(pw, ph, false);
       pr.render(p.scene, p.camera);
       var ctx = p.displayCanvas.getContext('2d');
-      ctx.clearRect(0, 0, p.displayCanvas.width, p.displayCanvas.height);
+      ctx.clearRect(0, 0, pw, ph);
       ctx.drawImage(pr.domElement, 0, 0);
     }
   }
