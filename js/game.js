@@ -4659,11 +4659,14 @@ function createShopPreview(containerId, formName) {
   var hemiLight = new THREE.HemisphereLight(0xaaaaaa, 0x000000, 0.5);
   previewScene.add(hemiLight);
 
-  // Create model
+  // Create model — 바운딩 박스 기준으로 중앙 정렬
   var model = createNewCharacter(formName);
   model.mesh.scale.set(0.55, 0.55, 0.55);
-  model.mesh.position.set(0, 0, 0);
   model.mesh.rotation.set(0, 0, 0);
+  model.mesh.updateMatrixWorld(true);
+  var box = new THREE.Box3().setFromObject(model.mesh);
+  var center = box.getCenter(new THREE.Vector3());
+  model.mesh.position.set(-center.x, -center.y, -center.z);
   previewScene.add(model.mesh);
 
   return {
