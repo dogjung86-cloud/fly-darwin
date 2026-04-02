@@ -4619,6 +4619,17 @@ function makePreviewSilhouette(preview) {
   });
 }
 
+// 공유 프리뷰 렌더러 (WebGL 컨텍스트 1개만 사용)
+var sharedPreviewRenderer = null;
+
+function getSharedPreviewRenderer() {
+  if (!sharedPreviewRenderer) {
+    sharedPreviewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    sharedPreviewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  }
+  return sharedPreviewRenderer;
+}
+
 function createShopPreview(containerId, formName) {
   var container = document.getElementById(containerId);
   if (!container) return null;
@@ -4626,10 +4637,13 @@ function createShopPreview(containerId, formName) {
   var w = container.clientWidth || 300;
   var h = container.clientHeight || 120;
 
-  var previewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  previewRenderer.setSize(w, h);
-  previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  container.appendChild(previewRenderer.domElement);
+  // 표시용 캔버스 (렌더러 대신)
+  var displayCanvas = document.createElement('canvas');
+  displayCanvas.width = w * Math.min(window.devicePixelRatio, 2);
+  displayCanvas.height = h * Math.min(window.devicePixelRatio, 2);
+  displayCanvas.style.width = '100%';
+  displayCanvas.style.height = '100%';
+  container.appendChild(displayCanvas);
 
   var previewScene = new THREE.Scene();
   var previewCamera = new THREE.PerspectiveCamera(50, w / h, 1, 1000);
@@ -4653,23 +4667,31 @@ function createShopPreview(containerId, formName) {
   previewScene.add(model.mesh);
 
   return {
-    renderer: previewRenderer,
     scene: previewScene,
     camera: previewCamera,
     model: model,
-    container: container
+    container: container,
+    displayCanvas: displayCanvas,
+    width: w,
+    height: h
   };
 }
 
 function animateShopPreviews() {
   shopAnimationId = requestAnimationFrame(animateShopPreviews);
+  var pr = getSharedPreviewRenderer();
   for (var i = 0; i < shopPreviews.length; i++) {
     var p = shopPreviews[i];
     if (p && p.model && p.model.mesh) {
       p.model.mesh.rotation.y += 0.015;
       if (p.model.propeller) p.model.propeller.rotation.x += 0.1;
       if (p.model.updateWings) p.model.updateWings();
-      p.renderer.render(p.scene, p.camera);
+      // 공유 렌더러로 렌더링 후 표시용 캔버스에 복사
+      pr.setSize(p.displayCanvas.width, p.displayCanvas.height, false);
+      pr.render(p.scene, p.camera);
+      var ctx = p.displayCanvas.getContext('2d');
+      ctx.clearRect(0, 0, p.displayCanvas.width, p.displayCanvas.height);
+      ctx.drawImage(pr.domElement, 0, 0);
     }
   }
 }
@@ -4681,7 +4703,6 @@ function cleanupShopPreviews() {
   }
   for (var i = 0; i < shopPreviews.length; i++) {
     if (shopPreviews[i]) {
-      shopPreviews[i].renderer.dispose();
       if (shopPreviews[i].container) {
         shopPreviews[i].container.innerHTML = '';
       }
