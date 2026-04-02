@@ -4990,19 +4990,17 @@ function closeShop() {
   document.getElementById('shopOverlay').style.display = 'none';
   cleanupShopPreviews();
 
-  //
+  // 비행체 항상 재생성 (프리뷰 cleanup 후 안전하게 복원)
   shopState = loadShopData();
   var desiredForm = shopState.selectedVehicle || "Amoeba";
-  if (game.currentForm !== desiredForm) {
-    if (airplane && airplane.mesh) {
-      scene.remove(airplane.mesh);
-    }
-    airplane = createNewCharacter(desiredForm);
-    airplane.mesh.scale.set(.25, .25, .25);
-    airplane.mesh.position.y = game.planeDefaultHeight;
-    game.currentForm = desiredForm;
-    scene.add(airplane.mesh);
+  if (airplane && airplane.mesh) {
+    scene.remove(airplane.mesh);
   }
+  airplane = createNewCharacter(desiredForm);
+  airplane.mesh.scale.set(.25, .25, .25);
+  airplane.mesh.position.y = game.planeDefaultHeight;
+  game.currentForm = desiredForm;
+  scene.add(airplane.mesh);
 }
 
 function initShopUI() {
