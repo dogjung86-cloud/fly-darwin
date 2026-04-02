@@ -491,6 +491,9 @@ function handleTouchStart(event) {
 }
 
 function handleTouchMove(event) {
+    // 오버레이 내부 터치는 스크롤 허용
+    var target = event.target;
+    if (target.closest('#shopOverlay') || target.closest('#dailyOverlay') || target.closest('#gameOverOverlay') || target.closest('#continueOverlay') || target.closest('#startOverlay')) return;
     event.preventDefault();
     for (var i = 0; i < event.touches.length; i++) {
       var t = event.touches[i];
@@ -2853,6 +2856,8 @@ function removeEnergy(){
   game.hearts--;
   game.hearts = Math.max(0, game.hearts);
   updateHearts();
+  // 피격 진동 (모바일 앱)
+  if (navigator.vibrate) navigator.vibrate(120);
   // 피격 후 무적 (기본 0.5초, 라이트 형제 3.5초)
   if (game.hearts > 0) {
     game.invincible = true;
@@ -3571,6 +3576,8 @@ function stopAndShowGameOver() {
 }
 
 function showGameOver() {
+  // 게임 오버 진동 (모바일 앱)
+  if (navigator.vibrate) navigator.vibrate([100, 50, 200]);
   // 최대 거리 기록 갱신
   var finalDist = Math.floor(game.distance);
   if (finalDist > (shopState.maxDistance || 0)) {
