@@ -392,7 +392,6 @@ function createScene() {
   //camera.lookAt(new THREE.Vector3(0, 400, 0));
 
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(WIDTH, HEIGHT);
   renderer.setClearColor(0x87CEEB, 1);
 
@@ -2554,8 +2553,6 @@ function loop(){
     // 카메라를 초기 위치로 부드럽게 복귀
     camera.position.y += (game.planeDefaultHeight - camera.position.y) * 0.05;
     camera.position.x += (0 - camera.position.x) * 0.05;
-    // 3D 메뉴 버튼 애니메이션 업데이트
-    update3DMenuButtons();
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
     return;
@@ -3718,8 +3715,6 @@ function startReplay() {
   var overlay = document.getElementById('startOverlay');
   overlay.style.display = '';
   overlay.classList.remove('hidden');
-  // 3D 메뉴 버튼 다시 생성
-  create3DMenuButtons();
   // 시작화면에서 헤더 숨기기
   var header = document.querySelector('.header');
   if (header) header.style.display = 'none';
@@ -4405,297 +4400,10 @@ function initDailyUI() {
   updateDailyNotifyBadge();
 }
 
-// ===== 3D Start Menu Buttons =====
-
-var menuButtons3D = null;
-var menuBtnShadows = null;
-var menuRaycaster = new THREE.Raycaster();
-var menuMouse = new THREE.Vector2();
-var menuHoveredBtn = null;
-
-function create3DMenuButtons() {
-  menuButtons3D = new THREE.Object3D();
-  menuButtons3D.name = 'menuButtons3D';
-
-  var isLandMobile = isMobile && (window.innerWidth > window.innerHeight);
-  var isPortraitMobile = isMobile && !isLandMobile;
-  var btnSpacing = isLandMobile ? 22 : 14;
-  var vSpacing = 4;
-  var btnConfigs;
-  if (isPortraitMobile) {
-    // 세로 모바일: 세로 배치
-    btnConfigs = [
-      { key: 'play',    label: '▶  PLAY',      color: 0xD4762C, glowColor: 0xE8943A, x: 0, y: vSpacing },
-      { key: 'shop',    label: '🛒  SHOP',     color: 0x2C8DD4, glowColor: 0x3AA0E8, x: 0, y: 0 },
-      { key: 'mission', label: '📅  MISSION',  color: 0x8B5CF6, glowColor: 0xA78BFA, x: 0, y: -vSpacing }
-    ];
-  } else {
-    // 데스크톱 & 가로 모바일: 가로 배치
-    btnConfigs = [
-      { key: 'play',    label: '▶  PLAY',      color: 0xD4762C, glowColor: 0xE8943A, x: -btnSpacing, y: 0 },
-      { key: 'shop',    label: '🛒  SHOP',     color: 0x2C8DD4, glowColor: 0x3AA0E8, x: 0,           y: 0 },
-      { key: 'mission', label: '📅  MISSION',  color: 0x8B5CF6, glowColor: 0xA78BFA, x: btnSpacing,   y: 0 }
-    ];
-  }
-
-  btnConfigs.forEach(function(cfg) {
-    var btnGroup = new THREE.Object3D();
-    btnGroup.name = 'btn_' + cfg.key;
-    var btnScale = isLandMobile ? 0.55 : (isPortraitMobile ? 0.3 : 0.28);
-    btnGroup.userData = { key: cfg.key, baseY: cfg.y, baseScale: btnScale, hoverAnim: 0 };
-
-    // 버튼 본체
-    var w = 30;
-    var h = 10;
-    var d = 4;
-    var bodyGeom = new THREE.BoxGeometry(w, h, d);
-    var bodyMat = new THREE.MeshPhongMaterial({
-      color: cfg.color,
-      emissive: cfg.color,
-      emissiveIntensity: 0.15,
-      shading: THREE.FlatShading,
-      transparent: true,
-      opacity: 0.92
-    });
-    var body = new THREE.Mesh(bodyGeom, bodyMat);
-    body.castShadow = true;
-    body.receiveShadow = true;
-    btnGroup.add(body);
-
-    // 측면 장식 (양쪽 원기둥 엣지)
-    var edgeGeom = new THREE.CylinderGeometry(h / 2, h / 2, d, 8);
-    var edgeMat = new THREE.MeshPhongMaterial({
-      color: cfg.color,
-      emissive: cfg.color,
-      emissiveIntensity: 0.1,
-      shading: THREE.FlatShading
-    });
-    var edgeL = new THREE.Mesh(edgeGeom, edgeMat);
-    edgeL.rotation.x = Math.PI / 2;
-    edgeL.position.x = -w / 2;
-    btnGroup.add(edgeL);
-
-    var edgeR = new THREE.Mesh(edgeGeom, edgeMat);
-    edgeR.rotation.x = Math.PI / 2;
-    edgeR.position.x = w / 2;
-    btnGroup.add(edgeR);
-
-    // 텍스트 라벨 (Canvas 텍스처)
-    var canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 128;
-    var ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 512, 128);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 88px "Playfair Display", serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 6;
-    ctx.fillText(cfg.label, 256, 64);
-
-    var texture = new THREE.Texture(canvas);
-    texture.needsUpdate = true;
-    var labelGeom = new THREE.PlaneGeometry(w, w * 0.25);
-    var labelMat = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      depthWrite: false
-    });
-    var label = new THREE.Mesh(labelGeom, labelMat);
-    label.position.z = d / 2 + 0.3;
-    btnGroup.add(label);
-
-    // 위치 & 스케일
-    btnGroup.position.set(cfg.x, cfg.y, 0);
-    var s = btnGroup.userData.baseScale;
-    btnGroup.scale.set(s, s, s);
-
-    menuButtons3D.add(btnGroup);
-  });
-
-  // 전체 메뉴를 비행기 앞에 배치 (카메라 z=180~200, 비행기보다 앞쪽)
-  var menuZ = isMobile ? 130 : 140;
-  menuButtons3D.position.set(0, game.planeDefaultHeight - 6, menuZ);
-  scene.add(menuButtons3D);
-
-  // 바다 곡면 위 그림자 (씬에 직접 추가)
-  menuBtnShadows = new THREE.Object3D();
-  menuBtnShadows.name = 'menuBtnShadows';
-  // 바다 원통: 중심 y=-600, 반지름 600 → 꼭대기 y=0
-  // 버튼 x 월드좌표에서 바다 곡면 y 구하기: y = -R + sqrt(R² - x²)
-  var R = game.seaRadius;
-  for (var si = 0; si < btnConfigs.length; si++) {
-    var sc = btnConfigs[si];
-    var worldX = sc.x * 0.28; // 스케일 적용된 월드 x
-    var seaSurfY = -R + Math.sqrt(R * R - worldX * worldX) + 2; // 바다 표면 + 약간 위
-    var sGeom = new THREE.CircleGeometry(6, 16);
-    var sMat = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: 0.15,
-      depthWrite: false
-    });
-    var sMesh = new THREE.Mesh(sGeom, sMat);
-    sMesh.rotation.x = -Math.PI / 2;
-    sMesh.scale.set(1, 0.4, 1); // 타원형
-    sMesh.position.set(worldX, seaSurfY, menuZ);
-    menuBtnShadows.add(sMesh);
-  }
-  scene.add(menuBtnShadows);
-}
-
-function update3DMenuButtons() {
-  if (!menuButtons3D) return;
-  var t = Date.now() * 0.001;
-
-  menuButtons3D.children.forEach(function(child) {
-    if (!child.userData || !child.userData.key) return;
-    var ud = child.userData;
-
-    // 부드러운 부유 애니메이션
-    var floatOffset = ud.key === 'play' ? 0 : (ud.key === 'shop' ? 1.5 : 3.0);
-    child.position.y = ud.baseY + Math.sin(t * 1.5 + floatOffset) * 0.6;
-
-    // 살짝 기울어지는 효과
-    child.rotation.y = Math.sin(t * 0.8 + floatOffset) * 0.04;
-    child.rotation.x = Math.sin(t * 1.2 + floatOffset) * 0.02;
-
-    // 호버 애니메이션
-    if (menuHoveredBtn === ud.key) {
-      ud.hoverAnim = Math.min(1, ud.hoverAnim + 0.08);
-    } else {
-      ud.hoverAnim = Math.max(0, ud.hoverAnim - 0.06);
-    }
-    var hoverScale = ud.baseScale + ud.hoverAnim * 0.06;
-    child.scale.set(hoverScale, hoverScale, hoverScale);
-
-    // 호버시 emissive 강도 증가
-    child.children.forEach(function(mesh) {
-      if (mesh.material && mesh.material.emissiveIntensity !== undefined) {
-        mesh.material.emissiveIntensity = 0.15 + ud.hoverAnim * 0.35;
-      }
-    });
-  });
-}
-
-function remove3DMenuButtons() {
-  if (menuButtons3D) {
-    scene.remove(menuButtons3D);
-    menuButtons3D.traverse(function(obj) {
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) {
-        if (obj.material.map) obj.material.map.dispose();
-        obj.material.dispose();
-      }
-    });
-    menuButtons3D = null;
-  }
-  if (menuBtnShadows) {
-    scene.remove(menuBtnShadows);
-    menuBtnShadows.traverse(function(obj) {
-      if (obj.geometry) obj.geometry.dispose();
-      if (obj.material) obj.material.dispose();
-    });
-    menuBtnShadows = null;
-  }
-  menuHoveredBtn = null;
-}
-
-function get3DButtonMeshes() {
-  if (!menuButtons3D) return [];
-  var meshes = [];
-  menuButtons3D.children.forEach(function(btnGroup) {
-    if (btnGroup.userData && btnGroup.userData.key) {
-      btnGroup.traverse(function(child) {
-        if (child instanceof THREE.Mesh) meshes.push(child);
-      });
-    }
-  });
-  return meshes;
-}
-
-function checkMenuButtonHit(clientX, clientY) {
-  if (!menuButtons3D || game.status !== 'waiting') return null;
-  menuMouse.x = (clientX / WIDTH) * 2 - 1;
-  menuMouse.y = -(clientY / HEIGHT) * 2 + 1;
-  menuRaycaster.setFromCamera(menuMouse, camera);
-  var meshes = get3DButtonMeshes();
-  var intersects = menuRaycaster.intersectObjects(meshes, false);
-  if (intersects.length > 0) {
-    // 부모 btnGroup 찾기
-    var obj = intersects[0].object;
-    while (obj && obj.parent !== menuButtons3D) obj = obj.parent;
-    if (obj && obj.userData && obj.userData.key) return obj.userData.key;
-  }
-  return null;
-}
-
-function onMenuClick(clientX, clientY) {
-  var key = checkMenuButtonHit(clientX, clientY);
-  if (!key) return false;
-  if (key === 'play') {
-    document.getElementById('playBtn').click();
-    return true;
-  } else if (key === 'shop') {
-    document.getElementById('shopBtn').click();
-    return true;
-  } else if (key === 'mission') {
-    document.getElementById('dailyBtn').click();
-    return true;
-  }
-  return false;
-}
-
-function onMenuMouseMove(clientX, clientY) {
-  if (!menuButtons3D || game.status !== 'waiting') { menuHoveredBtn = null; return; }
-  var key = checkMenuButtonHit(clientX, clientY);
-  menuHoveredBtn = key;
-  renderer.domElement.style.cursor = key ? 'pointer' : 'default';
-}
-
 function initStartScreen() {
   var overlay = document.getElementById('startOverlay');
   var playBtn = document.getElementById('playBtn');
   if (!playBtn || !overlay) return;
-
-  // HTML 버튼 row만 숨기고, 타이틀/힌트/로그인 버튼은 유지
-  var btnRows = overlay.querySelectorAll('.start-buttons-row');
-  for (var i = 0; i < btnRows.length; i++) {
-    btnRows[i].style.display = 'none';
-  }
-  // 오버레이는 클릭 통과시키되 내부 요소(로그인 버튼 등)는 클릭 가능하게
-  overlay.style.pointerEvents = 'none';
-  var clickableEls = overlay.querySelectorAll('#cloudSaveBtn, .start-hint');
-  for (var j = 0; j < clickableEls.length; j++) {
-    clickableEls[j].style.pointerEvents = 'auto';
-  }
-
-  // 3D 버튼 생성
-  create3DMenuButtons();
-
-  // 3D 버튼 클릭 이벤트 (마우스)
-  renderer.domElement.addEventListener('click', function(e) {
-    if (game.status !== 'waiting') return;
-    onMenuClick(e.clientX, e.clientY);
-  });
-
-  // 3D 버튼 호버 이벤트
-  renderer.domElement.addEventListener('mousemove', function(e) {
-    onMenuMouseMove(e.clientX, e.clientY);
-  });
-
-  // 3D 버튼 터치 이벤트 (모바일)
-  renderer.domElement.addEventListener('touchend', function(e) {
-    if (game.status !== 'waiting') return;
-    if (e.changedTouches.length > 0) {
-      var touch = e.changedTouches[0];
-      if (onMenuClick(touch.clientX, touch.clientY)) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }
-  }, { passive: false });
 
   // 시작화면에서는 헤더(제목+스코어) 숨기기
   var header = document.querySelector('.header');
@@ -4742,9 +4450,6 @@ function initStartScreen() {
       fieldDistance.innerHTML = Math.floor(game.distance);
     }
     game.status = 'playing';
-    // 3D 메뉴 버튼 제거
-    remove3DMenuButtons();
-    renderer.domElement.style.cursor = 'default';
     // 미션: 플레이 횟수 추적
     if (typeof updateMissionProgress === 'function') updateMissionProgress('playCount', 1, 'add');
     overlay.classList.add('hidden');
