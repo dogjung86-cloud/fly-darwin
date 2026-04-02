@@ -688,53 +688,94 @@
 	.shop-title { font-size: 1.2em; }
 }
 
-/* 모바일: 가로 캐러셀 */
-@media screen and (max-height: 500px), screen and (max-width: 480px) {
+/* 모바일 가로화면: 가로 캐러셀 */
+@media screen and (max-height: 500px) {
+	.shop-panel {
+		padding: 12px 14px;
+		max-height: 95vh;
+		border-radius: 14px;
+	}
+	.shop-header { margin-bottom: 8px; }
+	.shop-tabs { margin-bottom: 10px; }
+	.shop-tab { padding: 6px 10px; font-size: 0.78em; }
+	.shop-title { font-size: 1em; }
+
+	.shop-content {
+		touch-action: auto;
+	}
+
+	/* 비행체: 가로 캐러셀 */
 	.shop-vehicles {
 		display: flex;
 		overflow-x: auto;
 		overflow-y: hidden;
 		scroll-snap-type: x mandatory;
 		-webkit-overflow-scrolling: touch;
-		gap: 12px;
-		padding-bottom: 8px;
+		gap: 10px;
+		padding-bottom: 6px;
 	}
-	.shop-vehicles::-webkit-scrollbar { height: 4px; }
-	.shop-vehicles::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+	.shop-vehicles::-webkit-scrollbar { height: 3px; }
 	.shop-vehicles::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
 	.vehicle-card {
-		flex: 0 0 200px;
+		flex: 0 0 150px;
+		min-width: 150px;
 		scroll-snap-align: center;
-		min-width: 200px;
+		padding: 10px;
 	}
-	.vehicle-preview { height: 110px; }
+	.vehicle-preview { height: 80px; margin-bottom: 6px; }
+	.vehicle-name { font-size: 0.8em; margin-bottom: 2px; }
+	.vehicle-ability { font-size: 0.62em; margin-bottom: 6px; min-height: 2em; }
+	.vehicle-btn { font-size: 0.72em; padding: 6px 0; }
 
-	.shop-content {
-		overflow-y: hidden;
-		overflow-x: hidden;
-		touch-action: auto;
-	}
-
-	/* 업그레이드도 가로 캐러셀 */
+	/* 업그레이드: 가로 캐러셀 */
 	.shop-upgrades {
 		display: flex;
 		overflow-x: auto;
 		overflow-y: hidden;
 		scroll-snap-type: x mandatory;
 		-webkit-overflow-scrolling: touch;
-		gap: 12px;
-		padding-bottom: 8px;
+		gap: 10px;
+		padding-bottom: 6px;
 	}
-	.shop-upgrades::-webkit-scrollbar { height: 4px; }
-	.shop-upgrades::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+	.shop-upgrades::-webkit-scrollbar { height: 3px; }
 	.shop-upgrades::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
 	.upgrade-card {
-		flex: 0 0 240px;
+		flex: 0 0 200px;
+		min-width: 200px;
 		scroll-snap-align: center;
-		min-width: 240px;
+		padding: 10px 14px;
 	}
+	.upgrade-icon { font-size: 1.4em; width: 36px; }
+	.upgrade-name { font-size: 0.82em; }
+	.upgrade-desc { font-size: 0.68em; }
+	.upgrade-btn { font-size: 0.75em; padding: 7px 14px; }
+}
+
+/* 모바일 세로화면: 콤팩트 그리드 */
+@media screen and (max-width: 480px) {
+	.shop-panel {
+		padding: 16px 12px;
+		max-height: 90vh;
+		width: 96vw;
+	}
+	.shop-header { margin-bottom: 10px; }
+	.shop-tabs { margin-bottom: 12px; }
+	.shop-tab { padding: 7px 8px; font-size: 0.75em; }
+
+	.shop-vehicles { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+	.vehicle-card { padding: 10px; }
+	.vehicle-preview { height: 90px; margin-bottom: 6px; }
+	.vehicle-name { font-size: 0.78em; }
+	.vehicle-ability { font-size: 0.6em; min-height: 2em; margin-bottom: 6px; }
+	.vehicle-btn { font-size: 0.72em; padding: 6px 0; }
+
+	.upgrade-card { padding: 10px 12px; gap: 10px; }
+	.upgrade-icon { font-size: 1.4em; width: 36px; }
+	.upgrade-name { font-size: 0.82em; }
+	.upgrade-desc { font-size: 0.65em; }
+	.upgrade-btn { font-size: 0.75em; padding: 7px 14px; }
 }
 /* ===== Boss UI ===== */
 .boss-ui {
