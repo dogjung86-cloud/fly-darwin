@@ -4321,18 +4321,7 @@ function updateDailyCoinsDisplay() {
 }
 
 function updateDailyNotifyBadge() {
-  var btn = document.getElementById('dailyBtn');
-  if (!btn) return;
-  var badge = btn.querySelector('.daily-notify');
-  if (hasDailyNotification()) {
-    if (!badge) {
-      var span = document.createElement('span');
-      span.className = 'daily-notify';
-      btn.appendChild(span);
-    }
-  } else {
-    if (badge) badge.remove();
-  }
+  // 알림 뱃지 비활성화
 }
 
 function initDailyUI() {
