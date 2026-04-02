@@ -687,6 +687,55 @@
 	.vehicle-preview { height: 120px; }
 	.shop-title { font-size: 1.2em; }
 }
+
+/* 모바일: 가로 캐러셀 */
+@media screen and (max-height: 500px), screen and (max-width: 480px) {
+	.shop-vehicles {
+		display: flex;
+		overflow-x: auto;
+		overflow-y: hidden;
+		scroll-snap-type: x mandatory;
+		-webkit-overflow-scrolling: touch;
+		gap: 12px;
+		padding-bottom: 8px;
+	}
+	.shop-vehicles::-webkit-scrollbar { height: 4px; }
+	.shop-vehicles::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+	.shop-vehicles::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+	.vehicle-card {
+		flex: 0 0 200px;
+		scroll-snap-align: center;
+		min-width: 200px;
+	}
+	.vehicle-preview { height: 110px; }
+
+	.shop-content {
+		overflow-y: hidden;
+		overflow-x: hidden;
+		touch-action: auto;
+	}
+
+	/* 업그레이드도 가로 캐러셀 */
+	.shop-upgrades {
+		display: flex;
+		overflow-x: auto;
+		overflow-y: hidden;
+		scroll-snap-type: x mandatory;
+		-webkit-overflow-scrolling: touch;
+		gap: 12px;
+		padding-bottom: 8px;
+	}
+	.shop-upgrades::-webkit-scrollbar { height: 4px; }
+	.shop-upgrades::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+	.shop-upgrades::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+	.upgrade-card {
+		flex: 0 0 240px;
+		scroll-snap-align: center;
+		min-width: 240px;
+	}
+}
 /* ===== Boss UI ===== */
 .boss-ui {
 	position: fixed;
