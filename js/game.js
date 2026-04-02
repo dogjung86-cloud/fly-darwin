@@ -392,6 +392,7 @@ function createScene() {
   //camera.lookAt(new THREE.Vector3(0, 400, 0));
 
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(WIDTH, HEIGHT);
   renderer.setClearColor(0x87CEEB, 1);
 
