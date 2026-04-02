@@ -392,6 +392,7 @@ function createScene() {
   //camera.lookAt(new THREE.Vector3(0, 400, 0));
 
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(WIDTH, HEIGHT);
   renderer.setClearColor(0x87CEEB, 1);
 
@@ -4417,18 +4418,30 @@ function create3DMenuButtons() {
   menuButtons3D.name = 'menuButtons3D';
 
   var isLandMobile = isMobile && (window.innerWidth > window.innerHeight);
+  var isPortraitMobile = isMobile && !isLandMobile;
   var btnSpacing = isLandMobile ? 22 : 14;
-  var btnConfigs = [
-    { key: 'play',    label: '▶  PLAY',      color: 0xD4762C, glowColor: 0xE8943A, x: -btnSpacing, y: 0 },
-    { key: 'shop',    label: '🛒  SHOP',     color: 0x2C8DD4, glowColor: 0x3AA0E8, x: 0,           y: 0 },
-    { key: 'mission', label: '📅  MISSION',  color: 0x8B5CF6, glowColor: 0xA78BFA, x: btnSpacing,   y: 0 }
-  ];
+  var vSpacing = 4;
+  var btnConfigs;
+  if (isPortraitMobile) {
+    // 세로 모바일: 세로 배치
+    btnConfigs = [
+      { key: 'play',    label: '▶  PLAY',      color: 0xD4762C, glowColor: 0xE8943A, x: 0, y: vSpacing },
+      { key: 'shop',    label: '🛒  SHOP',     color: 0x2C8DD4, glowColor: 0x3AA0E8, x: 0, y: 0 },
+      { key: 'mission', label: '📅  MISSION',  color: 0x8B5CF6, glowColor: 0xA78BFA, x: 0, y: -vSpacing }
+    ];
+  } else {
+    // 데스크톱 & 가로 모바일: 가로 배치
+    btnConfigs = [
+      { key: 'play',    label: '▶  PLAY',      color: 0xD4762C, glowColor: 0xE8943A, x: -btnSpacing, y: 0 },
+      { key: 'shop',    label: '🛒  SHOP',     color: 0x2C8DD4, glowColor: 0x3AA0E8, x: 0,           y: 0 },
+      { key: 'mission', label: '📅  MISSION',  color: 0x8B5CF6, glowColor: 0xA78BFA, x: btnSpacing,   y: 0 }
+    ];
+  }
 
   btnConfigs.forEach(function(cfg) {
     var btnGroup = new THREE.Object3D();
     btnGroup.name = 'btn_' + cfg.key;
-    var isLandscapeMobile = isMobile && (window.innerWidth > window.innerHeight);
-    var btnScale = isLandscapeMobile ? 0.45 : 0.28;
+    var btnScale = isLandMobile ? 0.55 : (isPortraitMobile ? 0.3 : 0.28);
     btnGroup.userData = { key: cfg.key, baseY: cfg.y, baseScale: btnScale, hoverAnim: 0 };
 
     // 버튼 본체
