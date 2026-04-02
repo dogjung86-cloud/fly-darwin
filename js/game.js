@@ -3146,17 +3146,30 @@ async function initAuth() {
   } catch(e) { console.warn('Auth init failed:', e); }
 }
 
+async function doLogout() {
+  var sb = getSupabase();
+  if (!sb) return;
+  try {
+    await sb.auth.signOut();
+    currentUser = null;
+    updateLoginUI();
+  } catch(e) {
+    console.warn('Logout failed:', e);
+  }
+}
+
 function updateLoginUI() {
   var btns = [document.getElementById('cloudSaveBtn'), document.getElementById('gameOverCloudSaveBtn')];
   for (var i = 0; i < btns.length; i++) {
     var btn = btns[i];
     if (!btn) continue;
     if (currentUser) {
-      btn.innerHTML = '☁️ 저장됨 ✓';
+      btn.innerHTML = '☁️ 저장됨 ✓ (로그아웃)';
       btn.style.color = '#4CAF50';
       btn.style.borderColor = 'rgba(76,175,80,0.3)';
-      btn.onclick = null;
-      btn.style.cursor = 'default';
+      btn.style.cursor = 'pointer';
+      btn.onclick = function() { doLogout(); };
+      btn.ontouchend = function(e) { e.preventDefault(); doLogout(); };
     } else {
       btn.innerHTML = '🔒 로그인하면 상점과 아이템 기록이 안전해요';
       btn.style.color = 'rgba(255,255,255,0.7)';
