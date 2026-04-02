@@ -1658,6 +1658,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     if (ennemy.type === 'waterPillar') collisionDist = 20;
     if (ennemy.type === 'blackHole') collisionDist = 15;
 
+    if (d < 0.1) d = 0.1;
     if (d < collisionDist){
       //
       if (ennemy.type === 'blackHole') {
@@ -1759,6 +1760,7 @@ function updateFlyingAsteroids() {
     //
     var diffPos = airplane.mesh.position.clone().sub(a.mesh.position.clone());
     var d = diffPos.length();
+    if (d < 0.1) d = 0.1;
 
     if (d < 15) {
       if (game.invincible) {
