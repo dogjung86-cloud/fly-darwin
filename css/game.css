@@ -759,6 +759,7 @@
 	.vehicle-ability { font-size: 0.6em; min-height: 2em; margin-bottom: 6px; }
 	.vehicle-btn { font-size: 0.72em; padding: 6px 0; }
 
+	.shop-upgrades { flex-direction: column; gap: 8px; }
 	.upgrade-card { padding: 10px 12px; gap: 10px; }
 	.upgrade-icon { font-size: 1.4em; width: 36px; }
 	.upgrade-name { font-size: 0.82em; }
