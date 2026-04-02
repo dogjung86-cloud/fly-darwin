@@ -3153,6 +3153,10 @@ async function doLogout() {
     await sb.auth.signOut();
     currentUser = null;
     updateLoginUI();
+    // 부모 창(finch.co.kr)에도 로그아웃 알림
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'flydarwin-logout' }, '*');
+    }
   } catch(e) {
     console.warn('Logout failed:', e);
   }
