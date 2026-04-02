@@ -3556,6 +3556,7 @@ function continueGame() {
 
   //
   game.planeFallSpeed = 0.001;
+  game.splashPlayed = false;
 
   //
   hideContinuePrompt();
