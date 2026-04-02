@@ -594,8 +594,12 @@
 /* Upgrade Cards */
 .shop-upgrades {
 	display: flex;
-	flex-direction: column;
-	gap: 12px;
+	flex-direction: row;
+	gap: 14px;
+}
+
+.upgrade-card {
+	flex: 1;
 }
 
 .upgrade-card {
@@ -728,23 +732,7 @@
 	.vehicle-ability { font-size: 0.62em; margin-bottom: 6px; min-height: 2em; }
 	.vehicle-btn { font-size: 0.72em; padding: 6px 0; }
 
-	/* 업그레이드: 가로 캐러셀 */
-	.shop-upgrades {
-		display: flex;
-		overflow-x: auto;
-		overflow-y: hidden;
-		scroll-snap-type: x mandatory;
-		-webkit-overflow-scrolling: touch;
-		gap: 10px;
-		padding-bottom: 6px;
-	}
-	.shop-upgrades::-webkit-scrollbar { height: 3px; }
-	.shop-upgrades::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
-
 	.upgrade-card {
-		flex: 0 0 200px;
-		min-width: 200px;
-		scroll-snap-align: center;
 		padding: 10px 14px;
 	}
 	.upgrade-icon { font-size: 1.4em; width: 36px; }
