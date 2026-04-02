@@ -4662,12 +4662,15 @@ function createShopPreview(containerId, formName) {
   // Create model — 바운딩 박스 기준으로 중앙 정렬
   var model = createNewCharacter(formName);
   model.mesh.scale.set(0.55, 0.55, 0.55);
+  model.mesh.position.set(0, 0, 0);
   model.mesh.rotation.set(0, 0, 0);
+  previewScene.add(model.mesh);
+  // 바운딩 박스 중심을 구해서 카메라가 그쪽을 바라보도록
   model.mesh.updateMatrixWorld(true);
   var box = new THREE.Box3().setFromObject(model.mesh);
   var center = box.getCenter(new THREE.Vector3());
-  model.mesh.position.set(-center.x, -center.y, -center.z);
-  previewScene.add(model.mesh);
+  previewCamera.position.set(center.x, center.y + 5, center.z + 80);
+  previewCamera.lookAt(center);
 
   return {
     scene: previewScene,
