@@ -3571,8 +3571,11 @@ function hideContinuePrompt() {
 }
 
 function continueGame() {
+  if (game.status !== 'continuePrompt') return;
+  if (game.continueCount >= game.maxContinues) return;
   var cost = game.continueCosts[game.continueCount];
-  if (game.coins < cost) return;
+  if (!cost || game.coins < cost) return;
+  game.status = 'continuing';
 
   // 肄붿씤 李④컧
   game.coins -= cost;
