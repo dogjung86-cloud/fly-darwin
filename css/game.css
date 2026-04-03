@@ -1064,13 +1064,11 @@
 	border-right: 1px solid #4A7A9B;
 	border-left: 1px solid #4A7A9B;
 }
-#coins {
-	min-width: 60px;
-	text-align: center;
-}
-#dist {
-	min-width: 70px;
-	text-align: center;
+#coins .score__value,
+#dist .score__value {
+	display: inline-block;
+	min-width: 2.5em;
+	text-align: right;
 }
 
 .score__label {
@@ -1087,6 +1085,7 @@
 	font-family: 'Playfair Display';
 	font-weight: bold;
 	color: #1B4060;
+	font-variant-numeric: tabular-nums;
 }
 
 .score__value--level {
