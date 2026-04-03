@@ -3240,7 +3240,7 @@ async function doDeleteAccount() {
   }
 }
 
-// 앱 내 로그인 팝업
+// 앱 내 로그인
 function isCapacitorApp() {
   return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
 }
@@ -3250,39 +3250,40 @@ function openLoginPopup() {
     window.open('https://www.finch.co.kr?login=true', '_top');
     return;
   }
-  // 앱 내 iframe 팝업
-  var overlay = document.createElement('div');
-  overlay.id = 'loginPopupOverlay';
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;justify-content:center;align-items:center;';
-  var closeBtn = document.createElement('button');
-  closeBtn.textContent = '✕';
-  closeBtn.style.cssText = 'position:absolute;top:10px;right:16px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:10001;';
-  closeBtn.onclick = function() { overlay.remove(); };
-  var iframe = document.createElement('iframe');
-  iframe.src = 'https://www.finch.co.kr?login=true&app=flydarwin';
-  iframe.style.cssText = 'width:90%;max-width:500px;height:80%;border:none;border-radius:12px;background:#fff;';
-  overlay.appendChild(closeBtn);
-  overlay.appendChild(iframe);
-  document.body.appendChild(overlay);
+  // Capacitor 앱: 인앱 브라우저로 finch.co.kr 로그인 페이지 열기
+  var loginUrl = 'https://www.finch.co.kr?login=true&app=flydarwin';
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+    window.Capacitor.Plugins.Browser.open({ url: loginUrl });
+  } else {
+    window.open(loginUrl, '_blank');
+  }
 }
 
-// finch.co.kr에서 토큰을 postMessage로 전달받기
-window.addEventListener('message', async function(e) {
-  if (e.origin !== 'https://www.finch.co.kr') return;
-  if (e.data && e.data.type === 'flydarwin-auth' && e.data.access_token && e.data.refresh_token) {
-    var sb = getSupabase();
-    if (!sb) return;
+// 딥링크로 토큰을 수신 (finch.co.kr에서 로그인 후 com.flydarwin.app://auth?... 로 리다이렉트)
+function initDeepLinkAuth() {
+  if (!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.App) return;
+  window.Capacitor.Plugins.App.addListener('appUrlOpen', async function(data) {
+    if (!data.url) return;
     try {
-      await sb.auth.setSession({ access_token: e.data.access_token, refresh_token: e.data.refresh_token });
-      var { data } = await sb.auth.getUser();
-      currentUser = data.user || null;
-      updateLoginUI();
-      if (currentUser) loadCloudSave();
-      var popup = document.getElementById('loginPopupOverlay');
-      if (popup) popup.remove();
-    } catch(err) { console.warn('Auth from message failed:', err); }
-  }
-});
+      var url = new URL(data.url);
+      var accessToken = url.searchParams.get('access_token');
+      var refreshToken = url.searchParams.get('refresh_token');
+      if (accessToken && refreshToken) {
+        var sb = getSupabase();
+        if (!sb) return;
+        await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        var { data: userData } = await sb.auth.getUser();
+        currentUser = userData.user || null;
+        updateLoginUI();
+        if (currentUser) loadCloudSave();
+        // 인앱 브라우저 닫기
+        if (window.Capacitor.Plugins.Browser) {
+          window.Capacitor.Plugins.Browser.close();
+        }
+      }
+    } catch(e) { console.warn('Deep link auth failed:', e); }
+  });
+}
 
 // 클라우드 저장 (로그인 시)
 async function saveCloudData() {
@@ -4064,6 +4065,7 @@ function init(event){
   initDailyUI();
   initStartScreen();
   initAuth();
+  initDeepLinkAuth();
 
   updateSplash(100, 'Ready!');
   setTimeout(function() {
