@@ -2786,7 +2786,7 @@ function addCoin(){
   if (game.currentForm === 'Quetzalcoatlus') {
     coinMultiplier *= 1.5;
   }
-  var earned = game.coinValue * coinMultiplier;
+  var earned = Math.floor(game.coinValue * coinMultiplier);
   game.coins += earned;
   game.coinsEarnedThisRound += earned;
   saveCoins(game.coins);
