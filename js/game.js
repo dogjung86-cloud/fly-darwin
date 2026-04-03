@@ -3014,6 +3014,9 @@ function updatePlane(){
   if (typeof bossState !== 'undefined' && bossState.active) {
     var bossTargetX = mousePos.x < 0 ? mousePos.x * 350 : mousePos.x * 80;
     var bossTargetY = game.planeDefaultHeight + mousePos.y * 150;
+    // 화면 밖으로 나가지 않도록 경계 제한
+    bossTargetX = Math.max(-200, Math.min(bossTargetX, 80));
+    bossTargetY = Math.max(20, Math.min(bossTargetY, 230));
 
     airplane.mesh.position.x += (bossTargetX - airplane.mesh.position.x) * 0.12;
     airplane.mesh.position.y += (bossTargetY - airplane.mesh.position.y) * 0.12;
