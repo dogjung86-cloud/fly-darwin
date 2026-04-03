@@ -348,7 +348,7 @@ function resetGame(){
   refillThunderHeightBag();
   fieldLevel.innerHTML = Math.floor(game.level);
   var coinsEl = document.getElementById('coinsValue');
-  if (coinsEl) coinsEl.textContent = game.coins;
+  if (coinsEl) coinsEl.textContent = Math.floor(game.coins);
 }
 
 //THREEJS RELATED VARIABLES
@@ -2787,10 +2787,11 @@ function addCoin(){
     coinMultiplier *= 1.5;
   }
   var earned = game.coinValue * coinMultiplier;
+  // 내부적으로 소수점 유지, 표시는 displayCoins()로 정수 표시
   game.coins += earned;
   game.coinsEarnedThisRound += earned;
-  saveCoins(game.coins);
-  document.getElementById('coinsValue').textContent = game.coins;
+  saveCoins(Math.floor(game.coins));
+  document.getElementById('coinsValue').textContent = Math.floor(game.coins);
   playCoinSound();
   // 미션: 코인 수집 추적
   if (typeof updateMissionProgress === 'function') updateMissionProgress('coinsCollected', earned, 'add');
@@ -2851,7 +2852,7 @@ function removeEnergy(){
     var totalC = parseInt(localStorage.getItem('totalCoins') || '0');
     saveCoins(Math.max(0, totalC - 10));
     var coinsEl = document.getElementById('coinsValue');
-    if (coinsEl) coinsEl.textContent = game.coins;
+    if (coinsEl) coinsEl.textContent = Math.floor(game.coins);
     showEvoPassiveText('코인 방어! -10🪙');
     return;
   }
@@ -3609,7 +3610,7 @@ function showContinuePrompt() {
 
   var cost = game.continueCosts[game.continueCount];
   costEl.textContent = cost;
-  balanceEl.textContent = game.coins;
+  balanceEl.textContent = Math.floor(game.coins);
   remainingEl.textContent = '남은 기회: ' + remaining + '회';
 
   if (game.coins < cost) {
@@ -3636,8 +3637,8 @@ function continueGame() {
 
   // 肄붿씤 李④컧
   game.coins -= cost;
-  saveCoins(game.coins);
-  document.getElementById('coinsValue').textContent = game.coins;
+  saveCoins(Math.floor(game.coins));
+  document.getElementById('coinsValue').textContent = Math.floor(game.coins);
 
   //
   game.continueCount++;
@@ -4237,7 +4238,7 @@ function claimAttendance() {
 
   // 코인 지급
   game.coins += reward;
-  saveCoins(game.coins);
+  saveCoins(Math.floor(game.coins));
   saveDailyData(data);
 
   playRewardCoinSound();
@@ -4260,7 +4261,7 @@ function claimMission(missionIdx) {
 
   mission.claimed = true;
   game.coins += mission.reward;
-  saveCoins(game.coins);
+  saveCoins(Math.floor(game.coins));
   saveDailyData(data);
 
   playRewardCoinSound();
@@ -4452,12 +4453,12 @@ function renderMissions() {
 
 function updateDailyCoinsDisplay() {
   var el = document.getElementById('dailyCoinsDisplay');
-  if (el) el.textContent = game.coins;
+  if (el) el.textContent = Math.floor(game.coins);
   // 상점 코인도 갱신
   var shopEl = document.getElementById('shopCoinsDisplay');
-  if (shopEl) shopEl.textContent = game.coins;
+  if (shopEl) shopEl.textContent = Math.floor(game.coins);
   var coinsEl = document.getElementById('coinsValue');
-  if (coinsEl) coinsEl.textContent = game.coins;
+  if (coinsEl) coinsEl.textContent = Math.floor(game.coins);
 }
 
 function updateDailyNotifyBadge() {
@@ -6678,7 +6679,7 @@ function defeatBoss() {
   var totalCoins = parseInt(localStorage.getItem('totalCoins') || '0');
   saveCoins(totalCoins + reward);
   var coinsEl = document.getElementById('coinsValue');
-  if (coinsEl) coinsEl.textContent = game.coins;
+  if (coinsEl) coinsEl.textContent = Math.floor(game.coins);
 
   // 하트 보상
   var hearts = bossState.heartReward || 0;
