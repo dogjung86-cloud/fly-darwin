@@ -3250,13 +3250,22 @@ function openLoginPopup() {
     window.open('https://www.finch.co.kr?login=true', '_top');
     return;
   }
-  // Capacitor 앱: 인앱 브라우저로 finch.co.kr 로그인 페이지 열기
-  var loginUrl = 'https://www.finch.co.kr?login=true&app=flydarwin';
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
-    window.Capacitor.Plugins.Browser.open({ url: loginUrl });
-  } else {
-    window.open(loginUrl, '_blank');
-  }
+  // Capacitor 앱: Supabase OAuth를 직접 호출하여 인앱 브라우저로 Google 로그인
+  var sb = getSupabase();
+  if (!sb) return;
+  sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: 'https://www.finch.co.kr/app-auth?app=flydarwin',
+      skipBrowserRedirect: true,
+    }
+  }).then(function(result) {
+    if (result.data && result.data.url) {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+        window.Capacitor.Plugins.Browser.open({ url: result.data.url });
+      }
+    }
+  });
 }
 
 // 딥링크로 토큰을 수신 (finch.co.kr에서 로그인 후 com.flydarwin.app://auth?... 로 리다이렉트)
