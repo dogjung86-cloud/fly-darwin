@@ -318,12 +318,12 @@ function resetGame(){
           transformDistance1 : 1500,
           transformDistance2 : 3000,
           transformDistance3 : 4500,
-          transformDistance4 : 6000,
+          transformDistance4 : 5500,
           transformDistance5 : 7500,
-          transformDistance6 : 9000,
+          transformDistance6 : 8500,
           transformDistance7 : 10500,
           transformDistance8 : 12000,
-          transformDistance9 : 13500,
+          transformDistance9 : 12500,
           transformDistance10 : 15000,
           transformDistance11 : 16500,
           transformDistance12 : 18000,
@@ -2902,7 +2902,7 @@ function updateDarwinPassive(dt) {
 
 // ===== TURBULENCE (?쒓린瑜? SYSTEM =====
 
-var turbulenceTriggerDistances = [3000, 5500, 9000, 13000, 17000, 21000];
+var turbulenceTriggerDistances = [3000, 5000, 9000, 13000, 17000, 21000];
 
 function getTurbulenceTriggerDistances() {
   //
