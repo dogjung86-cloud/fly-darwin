@@ -52,7 +52,10 @@
 					<button id="dailyBtn" class="start-btn start-btn-daily">📅 MISSION</button>
 				</div>
 				<p class="start-hint">Mouse or Touch to control</p>
-				<button id="cloudSaveBtn" style="margin-top:8px; font-family:'Playfair Display',serif; font-size:0.8em; letter-spacing:0.05em; color:#fff; background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.35); border-radius:30px; padding:8px 24px; cursor:pointer; transition:all 0.3s ease; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">🔒 로그인하면 상점과 아이템 기록이 안전해요</button>
+				<div class="account-menu-wrap" style="position:relative; display:inline-block; margin-top:8px;">
+					<button id="cloudSaveBtn" style="font-family:'Playfair Display',serif; font-size:0.8em; letter-spacing:0.05em; color:#fff; background:rgba(0,0,0,0.45); border:1px solid rgba(255,255,255,0.35); border-radius:30px; padding:8px 24px; cursor:pointer; transition:all 0.3s ease; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);">🔒 로그인하면 상점과 아이템 기록이 안전해요</button>
+					<div id="accountDropdown" class="account-dropdown" style="display:none;"></div>
+				</div>
 			</div>
 		</div>
 
@@ -220,7 +223,10 @@
 						<button id="submitScoreBtn" class="gameover-btn gameover-btn--submit">Submit</button>
 					</div>
 					<button id="skipRankBtn" class="gameover-btn gameover-btn--skip">SKIP and Replay</button> <button class="gameover-btn gameover-btn--ranking" onclick="showRankingFromGameOver()">Ranking</button>
-				<button id="gameOverCloudSaveBtn" style="margin-top:16px; font-family:'Playfair Display',serif; font-size:0.8em; letter-spacing:0.05em; color:rgba(255,255,255,0.7); background:none; border:1px solid rgba(255,255,255,0.2); border-radius:30px; padding:8px 24px; cursor:pointer; transition:all 0.3s ease; display:block; margin-left:auto; margin-right:auto;">🔒 로그인하면 상점과 아이템 기록이 안전해요</button>
+				<div class="account-menu-wrap" style="position:relative; display:block; margin:16px auto 0; width:fit-content;">
+					<button id="gameOverCloudSaveBtn" style="font-family:'Playfair Display',serif; font-size:0.8em; letter-spacing:0.05em; color:rgba(255,255,255,0.7); background:none; border:1px solid rgba(255,255,255,0.2); border-radius:30px; padding:8px 24px; cursor:pointer; transition:all 0.3s ease;">🔒 로그인하면 상점과 아이템 기록이 안전해요</button>
+					<div id="gameOverAccountDropdown" class="account-dropdown" style="display:none;"></div>
+				</div>
 				</div>
 
 				<!-- Phase 2: Ranking Board -->

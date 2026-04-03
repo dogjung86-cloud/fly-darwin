@@ -3163,17 +3163,26 @@ async function doLogout() {
 }
 
 function updateLoginUI() {
-  var btns = [document.getElementById('cloudSaveBtn'), document.getElementById('gameOverCloudSaveBtn')];
-  for (var i = 0; i < btns.length; i++) {
-    var btn = btns[i];
+  var btnPairs = [
+    { btn: document.getElementById('cloudSaveBtn'), dropdown: document.getElementById('accountDropdown') },
+    { btn: document.getElementById('gameOverCloudSaveBtn'), dropdown: document.getElementById('gameOverAccountDropdown') }
+  ];
+  for (var i = 0; i < btnPairs.length; i++) {
+    var btn = btnPairs[i].btn;
+    var dropdown = btnPairs[i].dropdown;
     if (!btn) continue;
     if (currentUser) {
-      btn.innerHTML = '☁️ 저장됨 ✓ (로그아웃)';
+      btn.innerHTML = '☁️ 저장됨 ✓ ▾';
       btn.style.color = '#4CAF50';
       btn.style.borderColor = 'rgba(76,175,80,0.3)';
       btn.style.cursor = 'pointer';
-      btn.onclick = function() { doLogout(); };
-      btn.ontouchend = function(e) { e.preventDefault(); doLogout(); };
+      btn.onclick = function() { toggleAccountDropdown(this); };
+      btn.ontouchend = function(e) { e.preventDefault(); toggleAccountDropdown(this); };
+      if (dropdown) {
+        dropdown.innerHTML =
+          '<button class="account-dropdown-item" onclick="closeAccountDropdowns(); doLogout();" ontouchend="event.preventDefault(); closeAccountDropdowns(); doLogout();">로그아웃</button>' +
+          '<button class="account-dropdown-item account-dropdown-item--danger" onclick="closeAccountDropdowns(); doDeleteAccount();" ontouchend="event.preventDefault(); closeAccountDropdowns(); doDeleteAccount();">회원 탈퇴</button>';
+      }
     } else {
       btn.innerHTML = '🔒 로그인하면 상점과 아이템 기록이 안전해요';
       btn.style.color = 'rgba(255,255,255,0.7)';
@@ -3181,7 +3190,50 @@ function updateLoginUI() {
       btn.style.cursor = 'pointer';
       btn.onclick = function() { window.open('https://www.finch.co.kr?login=true', '_top'); };
       btn.ontouchend = function(e) { e.preventDefault(); window.open('https://www.finch.co.kr?login=true', '_top'); };
+      if (dropdown) dropdown.style.display = 'none';
     }
+  }
+}
+
+function toggleAccountDropdown(btnEl) {
+  var wrap = btnEl.closest('.account-menu-wrap');
+  if (!wrap) return;
+  var dropdown = wrap.querySelector('.account-dropdown');
+  if (!dropdown) return;
+  var isOpen = dropdown.style.display === 'block';
+  closeAccountDropdowns();
+  if (!isOpen) dropdown.style.display = 'block';
+}
+
+function closeAccountDropdowns() {
+  var dropdowns = document.querySelectorAll('.account-dropdown');
+  for (var i = 0; i < dropdowns.length; i++) {
+    dropdowns[i].style.display = 'none';
+  }
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.account-menu-wrap')) closeAccountDropdowns();
+});
+
+async function doDeleteAccount() {
+  var confirmed = confirm('정말 탈퇴하시겠습니까?\n모든 게임 데이터가 삭제되며 복구할 수 없습니다.');
+  if (!confirmed) return;
+  var sb = getSupabase();
+  if (!sb || !currentUser) return;
+  try {
+    await sb.from('fly_darwin_saves').delete().eq('user_id', currentUser.id);
+    localStorage.clear();
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'flydarwin-delete-account' }, '*');
+    }
+    await sb.auth.signOut();
+    currentUser = null;
+    updateLoginUI();
+    alert('회원 탈퇴가 완료되었습니다.');
+  } catch(e) {
+    console.warn('Account deletion failed:', e);
+    alert('탈퇴 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
   }
 }
 
