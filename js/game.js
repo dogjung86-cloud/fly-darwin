@@ -246,7 +246,7 @@ function resetGame(){
 
           // Continue system
           continueCount: 0,
-          continueCosts: (typeof getContinueCosts === 'function') ? getContinueCosts() : [50, 200, 300],
+          continueCosts: (typeof getContinueCosts === 'function') ? getContinueCosts() : [100, 400, 600],
           maxContinues: 3,
 
           level:1,
@@ -282,7 +282,7 @@ function resetGame(){
           cameraSensivity:0.002,
 
           coinDistanceTolerance:15,
-          coinValue:1,
+          coinValue:2,
           coinsSpeed:.5,
           coinLastSpawn:0,
           distanceForCoinsSpawn:100,
@@ -2787,7 +2787,6 @@ function addCoin(){
     coinMultiplier *= 1.5;
   }
   var earned = game.coinValue * coinMultiplier;
-  // 내부적으로 소수점 유지, 표시는 displayCoins()로 정수 표시
   game.coins += earned;
   game.coinsEarnedThisRound += earned;
   saveCoins(game.coins);
@@ -2846,9 +2845,9 @@ function removeEnergy(){
     return;
   }
   // 아인슈타인 패시브: 50% 확률로 코인 10개 소실로 대체
-  if (shopState && shopState.selectedVehicle === 'Einstein' && Math.random() < 0.5 && game.coins >= 10) {
-    game.coins -= 10;
-    game.coinsEarnedThisRound -= 10;
+  if (shopState && shopState.selectedVehicle === 'Einstein' && Math.random() < 0.5 && game.coins >= 20) {
+    game.coins -= 20;
+    game.coinsEarnedThisRound -= 20;
     var totalC = parseInt(localStorage.getItem('totalCoins') || '0');
     saveCoins(Math.max(0, totalC - 10));
     var coinsEl = document.getElementById('coinsValue');
@@ -4093,20 +4092,20 @@ window.addEventListener('load', init, false);
 // ===== Daily Attendance & Mission System =====
 
 var DAILY_STORAGE_KEY = 'flyDarwinDaily';
-var ATTENDANCE_REWARDS = [10, 15, 20, 25, 30, 40, 100];
+var ATTENDANCE_REWARDS = [20, 30, 40, 50, 60, 80, 200];
 
 var MISSION_POOL = {
   easy: [
-    { id: 'dist500', name: '탐험가', desc: '1회에 500m 비행', icon: '🛫', reward: 15, type: 'distance', target: 500 },
-    { id: 'coin30', name: '수집가', desc: '코인 30개 줍기 (1일 누적)', icon: '🪙', reward: 20, type: 'coinsCollected', target: 30 },
-    { id: 'play3', name: '열정 파일럿', desc: '3회 플레이', icon: '🔥', reward: 25, type: 'playCount', target: 3 }
+    { id: 'dist500', name: '탐험가', desc: '1회에 500m 비행', icon: '🛫', reward: 30, type: 'distance', target: 500 },
+    { id: 'coin30', name: '수집가', desc: '코인 30개 줍기 (1일 누적)', icon: '🪙', reward: 40, type: 'coinsCollected', target: 30 },
+    { id: 'play3', name: '열정 파일럿', desc: '3회 플레이', icon: '🔥', reward: 50, type: 'playCount', target: 3 }
   ],
   hard: [
-    { id: 'dist2000', name: '모험가', desc: '1회에 2,000m 비행', icon: '✈️', reward: 40, type: 'distance', target: 2000 },
-    { id: 'dist5000', name: '선구자', desc: '1회에 5,000m 비행', icon: '🚀', reward: 80, type: 'distance', target: 5000 },
-    { id: 'coin100', name: '부자되기', desc: '코인 100개 줍기 (1일 누적)', icon: '💰', reward: 50, type: 'coinsCollected', target: 100 },
-    { id: 'noCont1000', name: '불사조', desc: '컨티뉴 없이 1,000m 달성', icon: '🦅', reward: 30, type: 'noContinue', target: 1000 },
-    { id: 'boss1', name: '사냥꾼', desc: '보스 1회 격파', icon: '⚔️', reward: 50, type: 'bossKill', target: 1 }
+    { id: 'dist2000', name: '모험가', desc: '1회에 2,000m 비행', icon: '✈️', reward: 80, type: 'distance', target: 2000 },
+    { id: 'dist5000', name: '선구자', desc: '1회에 5,000m 비행', icon: '🚀', reward: 160, type: 'distance', target: 5000 },
+    { id: 'coin100', name: '부자되기', desc: '코인 100개 줍기 (1일 누적)', icon: '💰', reward: 100, type: 'coinsCollected', target: 100 },
+    { id: 'noCont1000', name: '불사조', desc: '컨티뉴 없이 1,000m 달성', icon: '🦅', reward: 60, type: 'noContinue', target: 1000 },
+    { id: 'boss1', name: '사냥꾼', desc: '보스 1회 격파', icon: '⚔️', reward: 100, type: 'bossKill', target: 1 }
   ]
 };
 
@@ -4657,18 +4656,18 @@ function initPauseUI() {
 // ===== SHOP SYSTEM =====
 
 var shopVehicleData = [
-  { id: "Newton's Apple", name: "뉴턴의 사과", price: 1500, ability: "최대 하트 7개로 시작", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
-  { id: "Einstein", name: "아인슈타인", price: 2500, ability: "⚡ 슬로우 모션 3회 | 🛡️ 피격 시 50% 확률로 코인 10개 소실로 대체", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
-  { id: "Wright Flyer", name: "라이트 형제", price: 3000, ability: "⚡ 무적 2회 | 🛡️ 피격 후 무적시간 7배", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
-  { id: "Jetliner", name: "여객기", price: 4000, ability: "코인 X3 획득", unlockDist: 10000, lockText: "🔒 10,000m 달성 시 해금" },
-  { id: "Rocket", name: "로켓", price: 5000, ability: "⚡ 미사일 100발 | 🛡️ 장애물 파괴 시 코인 10개 드롭", unlockDist: 13000, lockText: "🔒 13,000m 달성 시 해금" },
+  { id: "Newton's Apple", name: "뉴턴의 사과", price: 3000, ability: "최대 하트 7개로 시작", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
+  { id: "Einstein", name: "아인슈타인", price: 5000, ability: "⚡ 슬로우 모션 3회 | 🛡️ 피격 시 50% 확률로 코인 20개 소실로 대체", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
+  { id: "Wright Flyer", name: "라이트 형제", price: 6000, ability: "⚡ 무적 2회 | 🛡️ 피격 후 무적시간 7배", unlockForm: "Darwin's Finch", lockText: "🔒 다윈의 핀치 진화 후 해금" },
+  { id: "Jetliner", name: "여객기", price: 8000, ability: "코인 X3 획득", unlockDist: 10000, lockText: "🔒 10,000m 달성 시 해금" },
+  { id: "Rocket", name: "로켓", price: 10000, ability: "⚡ 미사일 100발 | 🛡️ 장애물 파괴 시 코인 20개 드롭", unlockDist: 13000, lockText: "🔒 13,000m 달성 시 해금" },
   { id: "SpaceShuttle", name: "스페이스 셔틀", price: 0, ability: "⚡ 3000m에서 시작 + 500m 무적부스터 2회", unlockBoss: "UFO", lockText: "🔒 최후보스 제거 후 무료 해금" },
-  { id: "UFO", name: "UFO", price: 10000, ability: "⚡ 5000m에서 시작 + 1000m 무적부스터 2회 + 레이저 200발", unlockDist: 20000, lockText: "🔒 20,000m 달성 시 해금" }
+  { id: "UFO", name: "UFO", price: 20000, ability: "⚡ 5000m에서 시작 + 1000m 무적부스터 2회 + 레이저 200발", unlockDist: 20000, lockText: "🔒 20,000m 달성 시 해금" }
 ];
 
 var shopUpgradeData = [
-  { id: "extraHeart1", name: "하트 +1", icon: "❤️", desc: "시작 하트 3에서 4로", price: 600 },
-  { id: "extraHeart2", name: "하트 +2", icon: "💞", desc: "시작 하트 4에서 5로", price: 1200, requires: "extraHeart1" }
+  { id: "extraHeart1", name: "하트 +1", icon: "❤️", desc: "시작 하트 3에서 4로", price: 1200 },
+  { id: "extraHeart2", name: "하트 +2", icon: "💞", desc: "시작 하트 4에서 5로", price: 2400, requires: "extraHeart1" }
 ];
 
 var evoVehicleData = [
@@ -5244,9 +5243,9 @@ function getStartingMaxHearts() {
 
 // Get continue costs (with discount if purchased)
 function getContinueCosts() {
-  var costs = [50, 200, 300];
+  var costs = [100, 400, 600];
   if (shopState.purchasedUpgrades.indexOf('continueDiscount') !== -1) {
-    costs = [35, 140, 210];
+    costs = [70, 280, 420];
   }
   return costs;
 }
@@ -5875,10 +5874,10 @@ var bossState = {
 };
 
 var bossConfigs = [
-  { name: '거대 암모나이트', hp: 50, reward: 150, heartReward: 1, color: 0xDDAA22, distance: 2000 },
-  { name: '메갈로돈', hp: 70, reward: 300, heartReward: 1, color: 0x4466AA, distance: 6000 },
-  { name: '티라노사우루스', hp: 100, reward: 1000, heartReward: 2, color: 0x664422, distance: 9500 },
-  { name: 'UFO', hp: 130, reward: 1500, heartReward: 2, color: 0x44AA66, distance: 13000 }
+  { name: '거대 암모나이트', hp: 50, reward: 300, heartReward: 1, color: 0xDDAA22, distance: 2000 },
+  { name: '메갈로돈', hp: 70, reward: 600, heartReward: 1, color: 0x4466AA, distance: 6000 },
+  { name: '티라노사우루스', hp: 100, reward: 2000, heartReward: 2, color: 0x664422, distance: 9500 },
+  { name: 'UFO', hp: 130, reward: 3000, heartReward: 2, color: 0x44AA66, distance: 13000 }
 ];
 
 function getBossForDistance(dist) {
