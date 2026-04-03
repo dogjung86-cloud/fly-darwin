@@ -70,6 +70,25 @@ function applyEnvironmentTheme() {
   if (renderer) {
     renderer.setClearColor(state.clearColor, 1);
   }
+
+  // 배경 밝기에 따라 UI 텍스트 색상 변경
+  var r = state.clearColor.r, g = state.clearColor.g, b = state.clearColor.b;
+  var brightness = r * 0.299 + g * 0.587 + b * 0.114;
+  var isDark = brightness < 0.35;
+
+  var h1 = document.querySelector('.header h1');
+  var h2 = document.querySelector('.header h2');
+  var labels = document.querySelectorAll('.score__label');
+  var values = document.querySelectorAll('.score__value');
+  var unit = document.querySelector('.score__unit');
+  var borders = document.querySelectorAll('.score__content--bordered');
+
+  if (h1) h1.style.color = isDark ? 'rgba(255,255,255,0.85)' : '#3D6A8E';
+  if (h2) h2.style.color = isDark ? 'rgba(255,200,130,0.8)' : '#D4762C';
+  for (var i = 0; i < labels.length; i++) labels[i].style.color = isDark ? 'rgba(180,210,230,0.7)' : '#2E5F7F';
+  for (var j = 0; j < values.length; j++) values[j].style.color = isDark ? 'rgba(255,255,255,0.9)' : '#1B4060';
+  if (unit) unit.style.color = isDark ? 'rgba(180,210,230,0.6)' : '#4A7A9B';
+  for (var k = 0; k < borders.length; k++) borders[k].style.borderColor = isDark ? 'rgba(255,255,255,0.2)' : '#4A7A9B';
 }
 
 ///////////////
