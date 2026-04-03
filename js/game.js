@@ -233,7 +233,7 @@ function resetGame(){
           targetBaseSpeed:.00035,
           incrementSpeedByTime:.0000025,
           incrementSpeedByLevel:.000005,
-          maxSpeed:.00085,
+          maxSpeed:.00075,
           distanceForSpeedUpdate:100,
           speedLastUpdate:0,
 
