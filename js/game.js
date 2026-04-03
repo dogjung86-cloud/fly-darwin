@@ -1542,7 +1542,7 @@ EnnemiesHolder.prototype.spawnEnnemies = function(){
     if (ennemy.type === 'thunder') {
       ennemy.distance = getThunderSpawnDistance();
     } else {
-      ennemy.distance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight-20);
+      ennemy.distance = game.seaRadius + game.planeDefaultHeight + (-1 + Math.random() * 2) * (game.planeAmpHeight);
     }
     ennemy.mesh.position.y = -game.seaRadius + Math.sin(ennemy.angle)*ennemy.distance;
     ennemy.mesh.position.x = Math.cos(ennemy.angle)*ennemy.distance;
