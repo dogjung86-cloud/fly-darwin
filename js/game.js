@@ -2844,15 +2844,15 @@ function removeEnergy(){
     showEvoPassiveText('갑각 방어!');
     return;
   }
-  // 아인슈타인 패시브: 50% 확률로 코인 10개 소실로 대체
+  // 아인슈타인 패시브: 50% 확률로 코인 20개 소실로 대체
   if (shopState && shopState.selectedVehicle === 'Einstein' && Math.random() < 0.5 && game.coins >= 20) {
     game.coins -= 20;
     game.coinsEarnedThisRound -= 20;
     var totalC = parseInt(localStorage.getItem('totalCoins') || '0');
-    saveCoins(Math.max(0, totalC - 10));
+    saveCoins(Math.max(0, totalC - 20));
     var coinsEl = document.getElementById('coinsValue');
     if (coinsEl) coinsEl.textContent = game.coins;
-    showEvoPassiveText('코인 방어! -10🪙');
+    showEvoPassiveText('코인 방어! -20🪙');
     return;
   }
   game.hearts--;
@@ -4097,13 +4097,13 @@ var ATTENDANCE_REWARDS = [20, 30, 40, 50, 60, 80, 200];
 var MISSION_POOL = {
   easy: [
     { id: 'dist500', name: '탐험가', desc: '1회에 500m 비행', icon: '🛫', reward: 30, type: 'distance', target: 500 },
-    { id: 'coin30', name: '수집가', desc: '코인 30개 줍기 (1일 누적)', icon: '🪙', reward: 40, type: 'coinsCollected', target: 30 },
+    { id: 'coin30', name: '수집가', desc: '코인 60개 줍기 (1일 누적)', icon: '🪙', reward: 40, type: 'coinsCollected', target: 60 },
     { id: 'play3', name: '열정 파일럿', desc: '3회 플레이', icon: '🔥', reward: 50, type: 'playCount', target: 3 }
   ],
   hard: [
     { id: 'dist2000', name: '모험가', desc: '1회에 2,000m 비행', icon: '✈️', reward: 80, type: 'distance', target: 2000 },
     { id: 'dist5000', name: '선구자', desc: '1회에 5,000m 비행', icon: '🚀', reward: 160, type: 'distance', target: 5000 },
-    { id: 'coin100', name: '부자되기', desc: '코인 100개 줍기 (1일 누적)', icon: '💰', reward: 100, type: 'coinsCollected', target: 100 },
+    { id: 'coin100', name: '부자되기', desc: '코인 200개 줍기 (1일 누적)', icon: '💰', reward: 100, type: 'coinsCollected', target: 200 },
     { id: 'noCont1000', name: '불사조', desc: '컨티뉴 없이 1,000m 달성', icon: '🦅', reward: 60, type: 'noContinue', target: 1000 },
     { id: 'boss1', name: '사냥꾼', desc: '보스 1회 격파', icon: '⚔️', reward: 100, type: 'bossKill', target: 1 }
   ]
