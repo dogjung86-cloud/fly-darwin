@@ -3188,8 +3188,8 @@ function updateLoginUI() {
       btn.style.color = 'rgba(255,255,255,0.7)';
       btn.style.borderColor = 'rgba(255,255,255,0.2)';
       btn.style.cursor = 'pointer';
-      btn.onclick = function() { window.open('https://www.finch.co.kr?login=true', '_top'); };
-      btn.ontouchend = function(e) { e.preventDefault(); window.open('https://www.finch.co.kr?login=true', '_top'); };
+      btn.onclick = function() { openLoginPopup(); };
+      btn.ontouchend = function(e) { e.preventDefault(); openLoginPopup(); };
       if (dropdown) dropdown.style.display = 'none';
     }
   }
@@ -3236,6 +3236,50 @@ async function doDeleteAccount() {
     alert('탈퇴 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
   }
 }
+
+// 앱 내 로그인 팝업
+function isCapacitorApp() {
+  return window.location.protocol === 'https:' && window.location.hostname === 'localhost';
+}
+
+function openLoginPopup() {
+  if (!isCapacitorApp()) {
+    window.open('https://www.finch.co.kr?login=true', '_top');
+    return;
+  }
+  // 앱 내 iframe 팝업
+  var overlay = document.createElement('div');
+  overlay.id = 'loginPopupOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;justify-content:center;align-items:center;';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:10px;right:16px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:10001;';
+  closeBtn.onclick = function() { overlay.remove(); };
+  var iframe = document.createElement('iframe');
+  iframe.src = 'https://www.finch.co.kr?login=true&app=flydarwin';
+  iframe.style.cssText = 'width:90%;max-width:500px;height:80%;border:none;border-radius:12px;background:#fff;';
+  overlay.appendChild(closeBtn);
+  overlay.appendChild(iframe);
+  document.body.appendChild(overlay);
+}
+
+// finch.co.kr에서 토큰을 postMessage로 전달받기
+window.addEventListener('message', async function(e) {
+  if (e.origin !== 'https://www.finch.co.kr') return;
+  if (e.data && e.data.type === 'flydarwin-auth' && e.data.access_token && e.data.refresh_token) {
+    var sb = getSupabase();
+    if (!sb) return;
+    try {
+      await sb.auth.setSession({ access_token: e.data.access_token, refresh_token: e.data.refresh_token });
+      var { data } = await sb.auth.getUser();
+      currentUser = data.user || null;
+      updateLoginUI();
+      if (currentUser) loadCloudSave();
+      var popup = document.getElementById('loginPopupOverlay');
+      if (popup) popup.remove();
+    } catch(err) { console.warn('Auth from message failed:', err); }
+  }
+});
 
 // 클라우드 저장 (로그인 시)
 async function saveCloudData() {
