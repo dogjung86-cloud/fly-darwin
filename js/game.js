@@ -3139,18 +3139,53 @@ function getSupabase() {
   return supabaseClient;
 }
 
-// Finch 로그인 상태 확인 (URL 토큰 또는 기존 세션)
+// Finch iframe 으로부터 토큰을 받기 위한 허용 origin.
+var FINCH_ALLOWED_ORIGINS = [
+  'https://www.finch.co.kr',
+  'https://finch.co.kr',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+function isAllowedFinchOrigin(origin) {
+  return FINCH_ALLOWED_ORIGINS.indexOf(origin) !== -1;
+}
+
+// Finch 로그인 상태 확인.
+// 우선순위: postMessage(권장) → URL 쿼리(레거시 폴백) → 기존 세션
 async function initAuth() {
   var sb = getSupabase();
   if (!sb) return;
   try {
-    // URL 파라미터에서 토큰 확인 (finch.co.kr iframe에서 전달)
+    // 1) postMessage 수신: 부모(Finch)가 토큰을 안전하게 전달
+    window.addEventListener('message', async function(e) {
+      if (!isAllowedFinchOrigin(e.origin)) return;
+      if (!e.data || e.data.type !== 'finch-auth') return;
+      try {
+        if (e.data.access_token && e.data.refresh_token) {
+          await sb.auth.setSession({
+            access_token: e.data.access_token,
+            refresh_token: e.data.refresh_token
+          });
+        } else {
+          // 부모가 로그아웃 됨 → 게임도 로그아웃
+          await sb.auth.signOut();
+        }
+      } catch(err) { console.warn('finch-auth handle failed:', err); }
+    });
+
+    // 2) 부모(Finch)에게 ready 신호. 부모는 이걸 받으면 즉시 토큰을 postMessage 로 보냄.
+    if (window.parent && window.parent !== window) {
+      try { window.parent.postMessage({ type: 'flydarwin-ready' }, '*'); } catch(_) {}
+    }
+
+    // 3) (레거시 폴백) URL 쿼리스트링 토큰 — 구 버전 Finch 호환용.
+    //     postMessage 로 전환 검증 끝나면 제거 예정.
     var params = new URLSearchParams(window.location.search);
     var accessToken = params.get('access_token');
     var refreshToken = params.get('refresh_token');
     if (accessToken && refreshToken) {
       await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-      // URL에서 토큰 제거 (보안)
       if (window.history.replaceState) {
         window.history.replaceState({}, '', window.location.pathname);
       }
