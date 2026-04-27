@@ -109,7 +109,7 @@ function saveAudioSettings() {
   try { localStorage.setItem('audioSettings', JSON.stringify(audioSettings)); } catch(e) {}
 }
 function sfxVol(base) { return base * audioSettings.sfx; }
-function getBgmBaseVolume() { return (typeof isMobile !== 'undefined' && isMobile) ? 0.018 : 0.04; }
+function getBgmBaseVolume() { return (typeof isMobile !== 'undefined' && isMobile) ? 0.04 : 0.08; }
 function applyBgmVolume() {
   if (typeof bgm !== 'undefined' && bgm) bgm.volume = getBgmBaseVolume() * audioSettings.bgm;
 }
