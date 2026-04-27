@@ -13,12 +13,12 @@
 		<link rel="shortcut icon" href="favicon.ico">
 		<link href='https://fonts.googleapis.com/css?family=Playfair+Display:400,700,700italic' rel='stylesheet' type='text/css'>
 		<link rel="stylesheet" type="text/css" href="css/demo.css" />
-		<link rel="stylesheet" type="text/css" href="css/game.css?v=6" />
+		<link rel="stylesheet" type="text/css" href="css/game.css?v=7" />
 		<script type="text/javascript" src="js/TweenMax.min.js"></script>
 		<script type="text/javascript" src="js/three.min.js"></script>
 		<script type="text/javascript" src="js/characters.js?v=4"></script>
 		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-		<script src="js/game.js?v=20260327_0300"></script>
+		<script src="js/game.js?v=20260427_0001"></script>
 		<!--[if IE]>
 		  <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
 		<![endif]-->
@@ -50,6 +50,7 @@
 				</div>
 				<div class="start-buttons-row" style="margin-top:4px;">
 					<button id="dailyBtn" class="start-btn start-btn-daily">📅 MISSION</button>
+					<button id="settingsBtn" class="start-btn start-btn-settings">⚙ SETTINGS</button>
 				</div>
 				<p class="start-hint">Mouse or Touch to control</p>
 				<div class="account-menu-wrap" style="position:relative; display:inline-block; margin-top:8px;">
@@ -81,6 +82,34 @@
 					</div>
 					<div id="shopSpecialVehicles" class="shop-tab-content">
 						<div class="shop-vehicles" id="vehiclesList"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Settings Overlay -->
+		<div id="settingsOverlay" class="settings-overlay">
+			<div class="settings-panel">
+				<div class="settings-header">
+					<h2 class="settings-title">⚙ 설정</h2>
+					<button id="settingsCloseBtn" class="settings-close">✕</button>
+				</div>
+				<div class="settings-content">
+					<div class="settings-row">
+						<div class="settings-row-label">
+							<span class="settings-row-icon">🎵</span>
+							<span class="settings-row-name">배경음악 (BGM)</span>
+							<span id="bgmVolumeValue" class="settings-row-value">100%</span>
+						</div>
+						<input type="range" id="bgmVolumeSlider" class="settings-slider" min="0" max="100" value="100">
+					</div>
+					<div class="settings-row">
+						<div class="settings-row-label">
+							<span class="settings-row-icon">🔊</span>
+							<span class="settings-row-name">효과음 (SFX)</span>
+							<span id="sfxVolumeValue" class="settings-row-value">100%</span>
+						</div>
+						<input type="range" id="sfxVolumeSlider" class="settings-slider" min="0" max="100" value="100">
 					</div>
 				</div>
 			</div>

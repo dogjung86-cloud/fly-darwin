@@ -93,6 +93,27 @@ function applyEnvironmentTheme() {
 
 ///////////////
 
+// ===== AUDIO SETTINGS (BGM / SFX volume sliders) =====
+var audioSettings = { bgm: 1.0, sfx: 1.0 };
+(function loadAudioSettings(){
+  try {
+    var s = localStorage.getItem('audioSettings');
+    if (s) {
+      var p = JSON.parse(s);
+      if (typeof p.bgm === 'number') audioSettings.bgm = Math.max(0, Math.min(1, p.bgm));
+      if (typeof p.sfx === 'number') audioSettings.sfx = Math.max(0, Math.min(1, p.sfx));
+    }
+  } catch(e) {}
+})();
+function saveAudioSettings() {
+  try { localStorage.setItem('audioSettings', JSON.stringify(audioSettings)); } catch(e) {}
+}
+function sfxVol(base) { return base * audioSettings.sfx; }
+function getBgmBaseVolume() { return (typeof isMobile !== 'undefined' && isMobile) ? 0.018 : 0.04; }
+function applyBgmVolume() {
+  if (typeof bgm !== 'undefined' && bgm) bgm.volume = getBgmBaseVolume() * audioSettings.bgm;
+}
+
 // SOUND EFFECTS (Web Audio API - no external files needed)
 var audioCtx = null;
 function getAudioCtx() {
@@ -118,7 +139,7 @@ function playPowerupSound() {
       var gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.value = frequencies[i];
-      gain.gain.setValueAtTime(0.15, now + i * 0.08);
+      gain.gain.setValueAtTime(sfxVol(0.15), now + i * 0.08);
       gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -139,7 +160,7 @@ function playDestroySound() {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(200, now);
     osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
-    oscGain.gain.setValueAtTime(0.16, now);
+    oscGain.gain.setValueAtTime(sfxVol(0.16), now);
     oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
     osc.connect(oscGain);
     oscGain.connect(ctx.destination);
@@ -156,7 +177,7 @@ function playDestroySound() {
     var noise = ctx.createBufferSource();
     noise.buffer = buffer;
     var gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.13, now);
+    gain.gain.setValueAtTime(sfxVol(0.13), now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
     var filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -187,7 +208,7 @@ function playCoinSound() {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(1200, now);
     osc.frequency.exponentialRampToValueAtTime(1800, now + 0.05);
-    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.setValueAtTime(sfxVol(0.1), now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -3014,7 +3035,7 @@ function playTurbulenceSound() {
     var noise = ctx.createBufferSource();
     noise.buffer = buffer;
     var gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.setValueAtTime(sfxVol(0.12), now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
     var filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -4019,7 +4040,7 @@ var bgmStarted = false;
 function initBGM() {
   bgm = new Audio('music/Suvaco do Cristo.mp3');
   bgm.loop = true;
-  bgm.volume = isMobile ? 0.01 : 0.025;
+  bgm.volume = getBgmBaseVolume() * audioSettings.bgm;
   bgm.load();
   // BGM? startGame()?먯꽌留??ъ깮?????곸젏?먯꽌???ъ깮?섏? ?딆쓬
 }
@@ -4123,6 +4144,7 @@ function init(event){
   initBGM();
   initPauseUI();
   initShopUI();
+  initSettingsUI();
   initAbilitySystem();
   initAbilitySounds();
   initDailyUI();
@@ -4260,7 +4282,7 @@ function playRewardCoinSound() {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(notes[i], t);
       osc.frequency.exponentialRampToValueAtTime(notes[i] * 1.2, t + 0.06);
-      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.setValueAtTime(sfxVol(0.12), t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -5254,6 +5276,75 @@ function initShopUI() {
   });
 }
 
+// ===== Settings Overlay =====
+function openSettings() {
+  var overlay = document.getElementById('settingsOverlay');
+  if (!overlay) return;
+  // Sync sliders to current values
+  var bgmPct = Math.round(audioSettings.bgm * 100);
+  var sfxPct = Math.round(audioSettings.sfx * 100);
+  var bgmSlider = document.getElementById('bgmVolumeSlider');
+  var sfxSlider = document.getElementById('sfxVolumeSlider');
+  var bgmLabel = document.getElementById('bgmVolumeValue');
+  var sfxLabel = document.getElementById('sfxVolumeValue');
+  if (bgmSlider) bgmSlider.value = bgmPct;
+  if (sfxSlider) sfxSlider.value = sfxPct;
+  if (bgmLabel) bgmLabel.textContent = bgmPct + '%';
+  if (sfxLabel) sfxLabel.textContent = sfxPct + '%';
+  overlay.style.display = 'flex';
+}
+function closeSettings() {
+  var overlay = document.getElementById('settingsOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+function initSettingsUI() {
+  var openBtn = document.getElementById('settingsBtn');
+  if (openBtn) {
+    openBtn.addEventListener('click', function(e) { e.stopPropagation(); openSettings(); });
+    openBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); openSettings(); });
+  }
+  var closeBtn = document.getElementById('settingsCloseBtn');
+  if (closeBtn) closeBtn.addEventListener('click', function(e) { e.stopPropagation(); closeSettings(); });
+
+  var overlay = document.getElementById('settingsOverlay');
+  if (overlay) {
+    overlay.addEventListener('mouseup', function(e) { if (e.target === this) closeSettings(); });
+  }
+
+  var bgmSlider = document.getElementById('bgmVolumeSlider');
+  var sfxSlider = document.getElementById('sfxVolumeSlider');
+  var bgmLabel = document.getElementById('bgmVolumeValue');
+  var sfxLabel = document.getElementById('sfxVolumeValue');
+
+  if (bgmSlider) {
+    bgmSlider.addEventListener('input', function() {
+      var v = parseInt(this.value, 10) / 100;
+      audioSettings.bgm = v;
+      if (bgmLabel) bgmLabel.textContent = Math.round(v * 100) + '%';
+      applyBgmVolume();
+      saveAudioSettings();
+    });
+  }
+  if (sfxSlider) {
+    sfxSlider.addEventListener('input', function() {
+      var v = parseInt(this.value, 10) / 100;
+      audioSettings.sfx = v;
+      if (sfxLabel) sfxLabel.textContent = Math.round(v * 100) + '%';
+      // Update HTMLAudio template volumes for next clones
+      try {
+        if (typeof shotSound !== 'undefined' && shotSound) shotSound.volume = sfxVol(0.06);
+        if (typeof shatterSounds !== 'undefined') {
+          for (var i = 0; i < shatterSounds.length; i++) shatterSounds[i].volume = sfxVol(0.2);
+        }
+        if (typeof waterSplashSound !== 'undefined' && waterSplashSound) waterSplashSound.volume = sfxVol(0.35);
+      } catch(e) {}
+      saveAudioSettings();
+      // Brief preview tone so user can hear the new SFX level
+      try { if (typeof playCoinSound === 'function') playCoinSound(); } catch(e) {}
+    });
+  }
+}
+
 // Mark Darwin's Finch as reached when player transforms to it
 function markDarwinFinchReached() {
   shopState.darwinFinchReached = true;
@@ -5717,15 +5808,15 @@ var waterSplashSound = null;
 function initAbilitySounds() {
   try {
     shotSound = new Audio('audio/shot-hard.mp3');
-    shotSound.volume = 0.06;
+    shotSound.volume = sfxVol(0.06);
     shatterSounds.push(new Audio('audio/rock-shatter-1.mp3'));
     shatterSounds.push(new Audio('audio/rock-shatter-2.mp3'));
     shatterSounds.push(new Audio('audio/bullet-impact-rock.mp3'));
     for (var i = 0; i < shatterSounds.length; i++) {
-      shatterSounds[i].volume = 0.2;
+      shatterSounds[i].volume = sfxVol(0.2);
     }
     waterSplashSound = new Audio('audio/water-splash.mp3');
-    waterSplashSound.volume = 0.35;
+    waterSplashSound.volume = sfxVol(0.35);
   } catch(e) {}
 }
 
@@ -5733,7 +5824,7 @@ function playShotSound() {
   try {
     if (shotSound) {
       var s = shotSound.cloneNode();
-      s.volume = 0.06;
+      s.volume = sfxVol(0.06);
       s.play().catch(function(){});
     }
   } catch(e) {}
@@ -5751,7 +5842,7 @@ function playLaserSound() {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(1200, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.setValueAtTime(sfxVol(0.08), ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.15);
@@ -5763,7 +5854,7 @@ function playShatterSound() {
     if (shatterSounds.length > 0) {
       var idx = Math.floor(Math.random() * shatterSounds.length);
       var s = shatterSounds[idx].cloneNode();
-      s.volume = 0.2;
+      s.volume = sfxVol(0.2);
       s.play().catch(function(){});
     }
   } catch(e) {}
@@ -5773,7 +5864,7 @@ function playWaterSplashSound() {
   try {
     if (waterSplashSound) {
       var s = waterSplashSound.cloneNode();
-      s.volume = 0.35;
+      s.volume = sfxVol(0.35);
       s.play().catch(function(){});
     }
   } catch(e) {}
@@ -6290,7 +6381,7 @@ function playBossWarningSound() {
       osc.type = 'square';
       osc.frequency.setValueAtTime(400, now + i * 0.4);
       osc.frequency.linearRampToValueAtTime(800, now + i * 0.4 + 0.2);
-      gain.gain.setValueAtTime(0.12, now + i * 0.4);
+      gain.gain.setValueAtTime(sfxVol(0.12), now + i * 0.4);
       gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.4 + 0.35);
       osc.connect(gain); gain.connect(ctx.destination);
       osc.start(now + i * 0.4); osc.stop(now + i * 0.4 + 0.4);
