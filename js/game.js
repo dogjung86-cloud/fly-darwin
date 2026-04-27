@@ -1693,10 +1693,15 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
     }
 
     var collisionDist = game.ennemyDistanceTolerance;
+    if (ennemy.type === 'mace') collisionDist = 13;
     if (ennemy.type === 'fireWall') collisionDist = 15;
     if (ennemy.type === 'thunder') collisionDist = 18;
     if (ennemy.type === 'waterPillar') collisionDist = 20;
     if (ennemy.type === 'blackHole') collisionDist = 15;
+
+    // Frame-skip 터널링 방지: 적이 한 프레임에 이동하는 호 길이의 절반만큼 충돌 반경 확장
+    var arcDelta = Math.abs((ennemy.distance || 0) * game.speed * deltaTime * game.ennemiesSpeed);
+    collisionDist += arcDelta * 0.5;
 
     if (d < 0.1) d = 0.1;
     if (d < collisionDist){
