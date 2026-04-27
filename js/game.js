@@ -94,7 +94,7 @@ function applyEnvironmentTheme() {
 ///////////////
 
 // ===== AUDIO SETTINGS (BGM / SFX volume sliders) =====
-var audioSettings = { bgm: 1.0, sfx: 1.0 };
+var audioSettings = { bgm: 0.7, sfx: 0.7 };
 (function loadAudioSettings(){
   try {
     var s = localStorage.getItem('audioSettings');
