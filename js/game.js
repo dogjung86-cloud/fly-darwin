@@ -510,7 +510,7 @@ function handleTouchStart(event) {
     if (target.id === 'abilityBtn' || target.closest('#abilityUI')) return;
     if (target.id === 'ufoLaserBtn' || target.id === 'ufoBoosterBtn' || target.closest('#ufoDualUI')) return;
     // 모든 오버레이 내부 터치 통과
-    if (target.closest('#continueOverlay') || target.closest('#gameOverOverlay') || target.closest('#dailyOverlay') || target.closest('#startOverlay') || target.closest('#shopOverlay')) return;
+    if (target.closest('#continueOverlay') || target.closest('#gameOverOverlay') || target.closest('#dailyOverlay') || target.closest('#startOverlay') || target.closest('#shopOverlay') || target.closest('#settingsOverlay')) return;
     event.preventDefault();
     // 멀티터치: UI 버튼이 아닌 첫 번째 터치로 조작
     for (var i = 0; i < event.touches.length; i++) {
@@ -533,7 +533,7 @@ function handleTouchStart(event) {
 function handleTouchMove(event) {
     // 오버레이 내부 터치는 스크롤 허용
     var target = event.target;
-    if (target.closest('#shopOverlay') || target.closest('#dailyOverlay') || target.closest('#gameOverOverlay') || target.closest('#continueOverlay') || target.closest('#startOverlay')) return;
+    if (target.closest('#shopOverlay') || target.closest('#dailyOverlay') || target.closest('#gameOverOverlay') || target.closest('#continueOverlay') || target.closest('#startOverlay') || target.closest('#settingsOverlay')) return;
     event.preventDefault();
     for (var i = 0; i < event.touches.length; i++) {
       var t = event.touches[i];
