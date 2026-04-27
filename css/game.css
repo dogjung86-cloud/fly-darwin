@@ -891,7 +891,7 @@
 /* ===== Ability Button ===== */
 .ability-ui {
 	position: fixed;
-	bottom: 30px;
+	bottom: max(30px, calc(env(safe-area-inset-bottom) + 12px));
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 2000;
@@ -903,7 +903,7 @@
 
 .ufo-dual-ui {
 	position: fixed;
-	bottom: 30px;
+	bottom: max(30px, calc(env(safe-area-inset-bottom) + 12px));
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 2000;
@@ -1016,7 +1016,7 @@
 	text-align: center;
 	pointer-events: none;
 	z-index: 1;
-	padding: 1.5rem;
+	padding: max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) 1.5rem max(1.5rem, env(safe-area-inset-left));
 	display: flex;
 	align-items: flex-start;
 }
@@ -1654,8 +1654,8 @@
 .mobile-pause-btn {
 	display: none;
 	position: fixed;
-	top: 12px;
-	right: 12px;
+	top: max(12px, env(safe-area-inset-top));
+	right: max(12px, env(safe-area-inset-right));
 	z-index: 900;
 	width: 44px;
 	height: 44px;
