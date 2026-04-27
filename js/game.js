@@ -3586,7 +3586,7 @@ async function saveRankingToDB(name, distance, level, form) {
     
     return rankings;
   } catch(e) {
-    console.warn('Supabase ????ㅽ뙣, localStorage ?대갚:', e.message);
+    console.warn('Supabase 저장 실패, localStorage 대체:', e.message);
     var localRankings = saveLocalRanking(name, entry.distance, entry.level, form);
     currentPlayerRankIndex = -1;
     for (var i = 0; i < localRankings.length; i++) {
@@ -3661,8 +3661,14 @@ async function showRankingFromGameOver() {
       var rankings = await getRankingsFromDB();
       renderRankingBoard(rankings);
     } catch(e) {
-      // Supabase ?ㅽ뙣 ??濡쒖뺄 ??궧
-      var local = JSON.parse(localStorage.getItem('flyDarwinRankings') || '[]');
+      // Supabase 실패 시 로컬 랭킹
+      var local = [];
+      try {
+        local = JSON.parse(localStorage.getItem('flyDarwinRankings') || '[]');
+        if (!Array.isArray(local)) local = [];
+      } catch(parseErr) {
+        local = [];
+      }
       renderRankingBoard(local);
     }
   }
@@ -4080,6 +4086,10 @@ document.addEventListener('visibilitychange', function() {
       bgm.pause();
     }
   } else {
+    // 안드로이드 백그라운드 복귀 시 효과음용 AudioContext 깨우기
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(function(){});
+    }
     if (bgm._wasPlayingBeforeHidden && game.status === 'playing' && !paused) {
       bgm.play().catch(function(){});
     }
@@ -4095,6 +4105,10 @@ window.addEventListener('blur', function() {
 });
 
 window.addEventListener('focus', function() {
+  // 포커스 복귀 시 AudioContext 깨우기
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(function(){});
+  }
   if (bgm && bgm._wasPlayingBeforeBlur && game.status === 'playing' && !paused) {
     bgm.play().catch(function(){});
   }
@@ -5309,11 +5323,15 @@ function initSettingsUI() {
     openBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); openSettings(); });
   }
   var closeBtn = document.getElementById('settingsCloseBtn');
-  if (closeBtn) closeBtn.addEventListener('click', function(e) { e.stopPropagation(); closeSettings(); });
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function(e) { e.stopPropagation(); closeSettings(); });
+    closeBtn.addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); closeSettings(); });
+  }
 
   var overlay = document.getElementById('settingsOverlay');
   if (overlay) {
     overlay.addEventListener('mouseup', function(e) { if (e.target === this) closeSettings(); });
+    overlay.addEventListener('touchend', function(e) { if (e.target === this) closeSettings(); });
   }
 
   var bgmSlider = document.getElementById('bgmVolumeSlider');
