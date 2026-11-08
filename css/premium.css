@@ -1,0 +1,280 @@
+/* ===== Fly Darwin 프리미엄 UI =====
+   game.css의 레이아웃은 그대로 두고 색, 재질, 글자만 덮어쓴다. */
+
+:root {
+	--ink: #f7f1e6;
+	--ink-dim: rgba(247, 241, 230, 0.62);
+	--gold: #ecc87e;
+	--gold-deep: #c98f3c;
+	--glass: rgba(9, 15, 30, 0.46);
+	--line: rgba(255, 255, 255, 0.14);
+	--panel-a: rgba(22, 30, 50, 0.92);
+	--panel-b: rgba(9, 13, 25, 0.96);
+	--panel-line: rgba(236, 200, 126, 0.22);
+	--kr: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+	--display: 'Playfair Display', 'Noto Sans KR', serif;
+}
+
+body {
+	font-family: var(--kr);
+	background: #06101e;
+}
+
+/* ----- 시작 화면 ----- */
+.start-overlay {
+	background:
+		radial-gradient(ellipse at 50% 42%, rgba(6, 16, 30, 0) 40%, rgba(6, 16, 30, 0.42) 100%),
+		linear-gradient(180deg, rgba(6, 16, 30, 0.24) 0%, rgba(6, 16, 30, 0) 36%, rgba(6, 16, 30, 0.4) 100%);
+}
+
+.start-title {
+	font-family: var(--display);
+	font-weight: 700;
+	font-size: clamp(3.2em, 8vw, 6em);
+	letter-spacing: -0.015em;
+	background: linear-gradient(180deg, #fffaf0 18%, #f3dcab 62%, #d9a95c 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	text-shadow: none;
+	filter: drop-shadow(0 6px 26px rgba(6, 16, 30, 0.45));
+}
+
+.start-subtitle {
+	font-family: var(--display);
+	font-size: clamp(0.72em, 1.25vw, 1em);
+	letter-spacing: 0.52em;
+	text-indent: 0.52em;
+	color: var(--ink);
+	opacity: 0.86;
+	text-shadow: 0 1px 12px rgba(6, 16, 30, 0.55);
+}
+
+.start-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.6em;
+	font-family: var(--display);
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	color: var(--ink);
+	background: rgba(9, 15, 30, 0.42);
+	border: 1px solid rgba(255, 255, 255, 0.22);
+	box-shadow: 0 10px 30px rgba(3, 8, 20, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+	transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+	animation: none;
+}
+
+.btn-ico {
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+	flex: none;
+}
+
+.start-btn:hover {
+	transform: translateY(-2px);
+	background: rgba(9, 15, 30, 0.62);
+	border-color: rgba(236, 200, 126, 0.65);
+	box-shadow: 0 14px 36px rgba(3, 8, 20, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.start-btn:active { transform: translateY(0) scale(0.985); }
+
+.start-btn-play {
+	color: #2a1a06;
+	background: linear-gradient(180deg, #fbe7bb 0%, #ecc87e 52%, #d39f4e 100%);
+	border-color: rgba(255, 244, 214, 0.9);
+	box-shadow: 0 12px 36px rgba(211, 159, 78, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+	animation: none;
+}
+
+.start-btn-play:hover {
+	background: linear-gradient(180deg, #fff0ce 0%, #f2d292 52%, #dcaa5c 100%);
+	border-color: #fff4d6;
+	box-shadow: 0 16px 44px rgba(211, 159, 78, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.start-btn-shop, .start-btn-daily, .start-btn-settings { background: rgba(9, 15, 30, 0.42); }
+
+.start-hint {
+	font-family: var(--kr);
+	font-size: 0.78em;
+	letter-spacing: 0.12em;
+	color: rgba(247, 241, 230, 0.66);
+	text-shadow: 0 1px 8px rgba(6, 16, 30, 0.6);
+}
+
+/* ----- 비행 중 HUD ----- */
+.header {
+	padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 12px max(20px, env(safe-area-inset-left));
+}
+
+.header h1 {
+	font-family: var(--display);
+	font-size: clamp(1.25em, 2.3vw, 2.2em);
+	color: var(--ink);
+	text-shadow: 0 2px 16px rgba(3, 8, 20, 0.5);
+}
+
+.header h2 {
+	color: var(--gold);
+	opacity: 0.92;
+	text-shadow: 0 1px 8px rgba(3, 8, 20, 0.6);
+}
+
+.score {
+	align-items: center;
+	padding: 10px 8px;
+	background: var(--glass);
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	box-shadow: 0 10px 34px rgba(3, 8, 20, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+@media (hover: hover) {
+	.score {
+		-webkit-backdrop-filter: blur(14px) saturate(1.3);
+		backdrop-filter: blur(14px) saturate(1.3);
+	}
+}
+
+.score__content--bordered { border-color: var(--line); }
+
+.score__label {
+	font-family: var(--kr);
+	font-size: 9px;
+	font-weight: 500;
+	letter-spacing: 0.24em;
+	color: var(--ink-dim);
+}
+
+.score__value { font-family: var(--display); color: var(--ink); }
+.score__unit { color: var(--ink-dim); }
+
+#levelCircleBgr { stroke: rgba(255, 255, 255, 0.18); stroke-width: 14px; }
+#levelCircleStroke { stroke: var(--gold); stroke-width: 14px; stroke-linecap: round; }
+
+.score__value--hearts { align-items: center; gap: 3px; min-height: 20px; }
+
+.heart {
+	font-size: 0;
+	width: clamp(14px, 1.5vw, 19px);
+	height: clamp(13px, 1.4vw, 18px);
+	background: center / contain no-repeat;
+}
+
+.heart.active {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ff6a82'/%3E%3Cstop offset='1' stop-color='%23d80f3f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23a)' d='M12 21.5C5 16.2 0.6 12 0.6 7A6.3 6.3 0 0 1 12 3.6 6.3 6.3 0 0 1 23.4 7c0 5-4.4 9.2-11.4 14.5z'/%3E%3Cellipse cx='7' cy='6.2' rx='3' ry='1.9' fill='%23fff' opacity='.55' transform='rotate(-24 7 6.2)'/%3E%3C/svg%3E");
+	filter: drop-shadow(0 1px 4px rgba(255, 60, 90, 0.55));
+}
+
+.heart.lost {
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath fill='none' stroke='%23fff' stroke-opacity='.42' stroke-width='1.6' d='M12 20.3C5.6 15.5 1.5 11.6 1.5 7A5.4 5.4 0 0 1 12 4.9 5.4 5.4 0 0 1 22.5 7c0 4.6-4.1 8.5-10.5 13.3z'/%3E%3C/svg%3E");
+	transform: none;
+	opacity: 1;
+}
+
+/* ----- 패널 공통 ----- */
+.shop-panel, .settings-panel, .daily-panel, .gameover-panel, .continue-panel {
+	background: linear-gradient(160deg, var(--panel-a), var(--panel-b));
+	border: 1px solid var(--panel-line);
+	border-radius: 22px;
+	box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.shop-title, .settings-title, .daily-title, .gameover-title, .continue-title {
+	font-family: var(--display);
+	color: var(--ink);
+	text-shadow: none;
+	letter-spacing: 0.01em;
+}
+
+.shop-tab, .daily-tab { font-family: var(--kr); }
+
+.shop-tab.active, .daily-tab.active {
+	color: #2a1a06;
+	background: linear-gradient(180deg, #f6dfae, #dfae62);
+	border-color: transparent;
+}
+
+.vehicle-card, .upgrade-card {
+	background: rgba(255, 255, 255, 0.045);
+	border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.vehicle-card:hover, .upgrade-card:hover { border-color: rgba(236, 200, 126, 0.42); }
+.vehicle-card.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 10px 30px rgba(236, 200, 126, 0.14); }
+
+.settings-row { background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.06); }
+.settings-row-label { font-family: var(--kr); font-weight: 500; }
+.settings-row-value { color: var(--gold); font-family: var(--display); }
+
+.settings-slider::-webkit-slider-thumb { background: linear-gradient(180deg, #f6dfae, #d9a65a); }
+.settings-slider::-moz-range-thumb { background: linear-gradient(180deg, #f6dfae, #d9a65a); }
+
+.settings-segment {
+	display: flex;
+	gap: 6px;
+}
+
+.settings-segment button {
+	flex: 1;
+	padding: 9px 0;
+	font-family: var(--kr);
+	font-size: 0.86em;
+	font-weight: 500;
+	color: var(--ink-dim);
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	cursor: pointer;
+	transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.settings-segment button:hover { color: var(--ink); border-color: rgba(236, 200, 126, 0.42); }
+
+.settings-segment button.active {
+	color: #2a1a06;
+	font-weight: 700;
+	background: linear-gradient(180deg, #f6dfae, #dfae62);
+	border-color: transparent;
+}
+
+.settings-note {
+	margin: 0;
+	font-size: 0.76em;
+	color: var(--ink-dim);
+}
+
+/* ----- 전투 UI ----- */
+.boss-hp-bar-bg {
+	background: rgba(9, 15, 30, 0.6);
+	border: 1px solid var(--line);
+}
+
+.boss-hp-bar { background: linear-gradient(90deg, #ff5a4e, #f0a34c); box-shadow: 0 0 14px rgba(255, 110, 70, 0.6); }
+
+.boss-name, .boss-timer { color: var(--ink); text-shadow: 0 1px 8px rgba(3, 8, 20, 0.7); }
+
+.ability-btn {
+	background: rgba(9, 15, 30, 0.5);
+	border: 1px solid rgba(236, 200, 126, 0.42);
+	box-shadow: 0 8px 26px rgba(3, 8, 20, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.gameover-btn, .continue-btn, .continue-stop-btn { font-family: var(--kr); }
+
+.continue-btn, .gameover-btn--submit, .gameover-btn--replay {
+	color: #2a1a06;
+	background: linear-gradient(180deg, #f6dfae, #dfae62);
+	border-color: transparent;
+}
+
+.coin-balance, #shopCoinsDisplay, #dailyCoinsDisplay { color: var(--gold); }
+
+/* 모바일: 일시정지 버튼과 점수판이 겹치지 않게 */
+@media screen and (max-width: 768px), screen and (max-height: 500px) and (orientation: landscape) {
+	.score { margin-right: 58px; }
+}

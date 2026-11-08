@@ -12,13 +12,21 @@
 		<meta name="author" content="Fly Darwin" />
 		<link rel="shortcut icon" href="favicon.ico">
 		<link href='https://fonts.googleapis.com/css?family=Playfair+Display:400,700,700italic' rel='stylesheet' type='text/css'>
+		<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 		<link rel="stylesheet" type="text/css" href="css/demo.css" />
-		<link rel="stylesheet" type="text/css" href="css/game.css?v=20260427_0003" />
+		<link rel="stylesheet" type="text/css" href="css/game.css?v=20261109_01" />
+		<link rel="stylesheet" type="text/css" href="css/premium.css?v=20261109_01" />
 		<script type="text/javascript" src="js/TweenMax.min.js"></script>
 		<script type="text/javascript" src="js/three.min.js"></script>
-		<script type="text/javascript" src="js/characters.js?v=20260427_0002"></script>
+		<script type="text/javascript" src="js/gfx/core.js?v=20261109_01"></script>
+		<script type="text/javascript" src="js/gfx/world.js?v=20261109_01"></script>
+		<script type="text/javascript" src="js/gfx/voxel.js?v=20261109_01"></script>
+		<script type="text/javascript" src="js/gfx/fx.js?v=20261109_01"></script>
+		<script type="text/javascript" src="js/gfx/models.js?v=20261109_01"></script>
+		<script type="text/javascript" src="js/gfx/bosses.js?v=20261109_01"></script>
+		<script type="text/javascript" src="js/characters.js?v=20261109_01"></script>
 		<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-		<script src="js/game.js?v=20260427_0002"></script>
+		<script src="js/game.js?v=20261109_01"></script>
 		<!--[if IE]>
 		  <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
 		<![endif]-->
@@ -45,12 +53,12 @@
 			<div class="start-spacer"></div>
 			<div class="start-content">
 				<div class="start-buttons-row">
-					<button id="playBtn" class="start-btn start-btn-play">▶ PLAY</button>
-					<button id="shopBtn" class="start-btn start-btn-shop">🛒 SHOP</button>
+					<button id="playBtn" class="start-btn start-btn-play"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>PLAY</button>
+					<button id="shopBtn" class="start-btn start-btn-shop"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V6a5 5 0 0 1 10 0v1h3l-1.2 14H5.2L4 7h3zm2 0h6V6a3 3 0 0 0-6 0v1z"/></svg>SHOP</button>
 				</div>
 				<div class="start-buttons-row" style="margin-top:4px;">
-					<button id="dailyBtn" class="start-btn start-btn-daily">📅 MISSION</button>
-					<button id="settingsBtn" class="start-btn start-btn-settings">⚙ SETTINGS</button>
+					<button id="dailyBtn" class="start-btn start-btn-daily"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v3h6V2h2v3h4v17H3V5h4V2zm12 8H5v10h14V10zm-9 2h4v4h-4v-4z"/></svg>MISSION</button>
+					<button id="settingsBtn" class="start-btn start-btn-settings"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h9.2a3 3 0 0 1 5.6 0H21v2h-3.2a3 3 0 0 1-5.6 0H3V6zm0 10h3.2a3 3 0 0 1 5.6 0H21v2h-9.2a3 3 0 0 1-5.6 0H3v-2z"/></svg>SETTINGS</button>
 				</div>
 				<p class="start-hint">Mouse or Touch to control</p>
 				<div class="account-menu-wrap" style="position:relative; display:inline-block; margin-top:8px;">
@@ -64,14 +72,14 @@
 		<div id="shopOverlay" class="shop-overlay">
 			<div class="shop-panel">
 				<div class="shop-header">
-					<h2 class="shop-title">🛒 상점</h2>
+					<h2 class="shop-title">상점</h2>
 					<span class="shop-coins">🪙 <span id="shopCoinsDisplay">0</span></span>
 					<button id="shopCloseBtn" class="shop-close">✕</button>
 				</div>
 				<div class="shop-tabs">
-					<button class="shop-tab active" data-tab="upgrades">⚡ 업그레이드</button>
-					<button class="shop-tab" data-tab="evoVehicles">🧬 진화 비행체</button>
-					<button class="shop-tab" data-tab="specialVehicles">🚀 특수 비행체</button>
+					<button class="shop-tab active" data-tab="upgrades">업그레이드</button>
+					<button class="shop-tab" data-tab="evoVehicles">진화 비행체</button>
+					<button class="shop-tab" data-tab="specialVehicles">특수 비행체</button>
 				</div>
 				<div class="shop-content">
 					<div id="shopUpgrades" class="shop-tab-content active">
@@ -91,7 +99,7 @@
 		<div id="settingsOverlay" class="settings-overlay">
 			<div class="settings-panel">
 				<div class="settings-header">
-					<h2 class="settings-title">⚙ 설정</h2>
+					<h2 class="settings-title">설정</h2>
 					<button id="settingsCloseBtn" class="settings-close">✕</button>
 				</div>
 				<div class="settings-content">
@@ -111,6 +119,18 @@
 						</div>
 						<input type="range" id="sfxVolumeSlider" class="settings-slider" min="0" max="100" value="100">
 					</div>
+						<div class="settings-row">
+							<div class="settings-row-label">
+								<span class="settings-row-name">그래픽 품질</span>
+							</div>
+							<div class="settings-segment" id="gfxQualitySegment">
+								<button type="button" data-q="auto">자동</button>
+								<button type="button" data-q="high">높음</button>
+								<button type="button" data-q="medium">보통</button>
+								<button type="button" data-q="low">낮음</button>
+							</div>
+							<p class="settings-note">품질을 바꾸면 게임을 다시 불러옵니다.</p>
+						</div>
 				</div>
 			</div>
 		</div>
@@ -119,7 +139,7 @@
 		<div id="dailyOverlay" class="daily-overlay">
 			<div class="daily-panel">
 				<div class="daily-header">
-					<h2 class="daily-title">📅 출석 & 미션</h2>
+					<h2 class="daily-title">출석 & 미션</h2>
 					<span class="daily-coins">🪙 <span id="dailyCoinsDisplay">0</span></span>
 					<button id="dailyCloseBtn" class="daily-close">✕</button>
 				</div>
