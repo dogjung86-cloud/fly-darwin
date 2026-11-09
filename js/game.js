@@ -75,11 +75,11 @@ function getEnemyDestroyColor(type) {
 
 function resetGame(){
   game = {speed:0,
-          initSpeed:.00030,
-          baseSpeed:.00030,
-          targetBaseSpeed:.00030,
-          speedCurveDistance:6500,
-          maxSpeed:.00066,
+          initSpeed:.000335,
+          baseSpeed:.000335,
+          targetBaseSpeed:.000335,
+          speedCurveDistance:4800,
+          maxSpeed:.00074,
 
           distance:0,
           ratioSpeedDistance:50,
@@ -137,7 +137,7 @@ function resetGame(){
 
           //
           fireWallLastSpawn:0,
-          distanceForFireWallSpawn:260,
+          distanceForFireWallSpawn:230,
           blackHoleActive:false,
           blackHoleSlowFactor:1.0,
           blackHoleTargetSlow:1.0,
@@ -145,7 +145,7 @@ function resetGame(){
           blackHoleMinSlow:0.2,
           blackHoleHintShown:false,
           flyingAsteroidLastSpawn:0,
-          distanceForFlyingAsteroidSpawn:170,
+          distanceForFlyingAsteroidSpawn:145,
 
           // Turbulence (?쒓린瑜?
           turbulenceActive: false,
@@ -182,10 +182,10 @@ function resetGame(){
           invincibleFruitDistanceTolerance : 18,
           invincibleFruitSpeed : 0.4,
           invincibleFruitLastSpawn : 0,
-          distanceForInvincibleSpawn : 800,
+          distanceForInvincibleSpawn : 870,
 
           heartItemLastSpawn : 0,
-          distanceForHeartItemSpawn : 620,
+          distanceForHeartItemSpawn : 760,
 
           splashPlayed : false,
          };
@@ -704,10 +704,10 @@ EnnemiesHolder = function (){
 function getSpawnProfile(level) {
   var t = (Math.max(1, Math.min(10, level)) - 1) / 9;
   return {
-    spacing: Math.round(lerpNumber(84, 50, t)),         // 묶음 사이 거리(m)
+    spacing: Math.round(lerpNumber(54, 40, t)),         // 묶음 사이 거리(m)
     minCount: level < 2 ? 1 : 2,
-    maxCount: level < 4 ? 2 : 3,
-    corridorHalf: lerpNumber(36, 26, t)                 // 통로 반높이
+    maxCount: level < 3 ? 2 : (level < 6 ? 3 : 4),
+    corridorHalf: lerpNumber(24, 17, t)                 // 통로 반높이
   };
 }
 
@@ -750,7 +750,7 @@ function pickCorridorCenter(half, forcedY) {
   if (forcedY !== null) {
     y = forcedY;
   } else {
-    var maxStep = 95;
+    var maxStep = 130;
     var from = Math.max(minY, game.lastCorridorY - maxStep);
     var to = Math.min(maxY, game.lastCorridorY + maxStep);
     y = from + Math.random() * (to - from);
@@ -820,7 +820,7 @@ EnnemiesHolder.prototype.spawnEnnemies = function(){
       ennemy.distance = heightToRadius(y);
     }
 
-    this.addEnemy(ennemy, -(i * 0.14));
+    this.addEnemy(ennemy, -(i * 0.105));
   }
 
   // 블랙홀은 장애물 칸을 차지하지 않는 보너스 구역
@@ -890,7 +890,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
       continue;
     }
 
-    if (isObstacleHit(ennemy)){
+    if (game.status === 'playing' && isObstacleHit(ennemy)){
       var kx = airplane.mesh.position.x - ennemy.mesh.position.x;
       var ky = airplane.mesh.position.y - ennemy.mesh.position.y;
       var kd = Math.max(0.1, Math.sqrt(kx * kx + ky * ky));
@@ -1595,7 +1595,15 @@ function createHeartItems(){
   scene.add(heartItemHolder.mesh);
 }
 
+var inFlightShown = null;
+function setInFlightClass(on) {
+  if (on === inFlightShown) return;
+  inFlightShown = on;
+  document.body.classList.toggle('in-flight', on);
+}
+
 function loop(){
+  setInFlightClass(game.status === 'playing');
 
   if (paused) {
     requestAnimationFrame(loop);
@@ -1669,7 +1677,7 @@ function loop(){
       // 하트 (틱타알릭 패시브: 출현빈도 1.5배, 하트 1개 이하 위기 시 더 자주 등장)
       var heartSpawnDist = game.distanceForHeartItemSpawn;
       if (game.currentForm === 'Tiktaalik') heartSpawnDist = Math.round(heartSpawnDist / 1.5);
-      if (game.hearts <= 1) heartSpawnDist = Math.min(heartSpawnDist, 360);
+      if (game.hearts <= 1) heartSpawnDist = Math.min(heartSpawnDist, 480);
       if (spawnDue('heartItemLastSpawn', heartSpawnDist)) heartItemHolder.spawnItem();
 
       game.targetBaseSpeed = getTargetBaseSpeed(game.distance);
@@ -1755,8 +1763,8 @@ function loop(){
 
     if (airplane.mesh.position.y <-200){
       //
-      showContinuePrompt();
       game.status = "continuePrompt";
+      showContinuePrompt();
       if (typeof hideAbilityUI === 'function') hideAbilityUI();
       if (typeof cleanupProjectiles === 'function') cleanupProjectiles();
     }
@@ -1830,7 +1838,8 @@ function updateHearts(){
     }
   }
 
-  if (game.hearts <= 0){
+  // 이미 끝난 판의 상태를 되돌리지 않도록 비행 중일 때만 게임 오버로 넘어간다
+  if (game.hearts <= 0 && game.status === 'playing'){
     game.status = "gameover";
   }
 }
@@ -1920,11 +1929,11 @@ function removeEnergy(){
   updateHearts();
   // 피격 진동 (모바일 앱)
   if (navigator.vibrate) navigator.vibrate(120);
-  // 피격 후 무적 (기본 1.4초, 라이트 형제 3.5초). 깜빡임으로 무적 시간을 보여준다
+  // 피격 후 무적 (기본 0.85초, 라이트 형제 3.5초). 깜빡임으로 무적 시간을 보여준다
   if (game.hearts > 0) {
     game.invincible = true;
     game.hitInvincible = true;
-    game.invincibleTime = (shopState && shopState.selectedVehicle === 'Wright Flyer') ? 3500 : 1400;
+    game.invincibleTime = (shopState && shopState.selectedVehicle === 'Wright Flyer') ? 3500 : 850;
   }
 }
 
@@ -2020,7 +2029,7 @@ function showTurbulenceWarning(level) {
   div.id = 'turbulenceWarning';
   div.innerHTML = '⚠ TURBULENCE Lv.' + level + '<br><span style="font-size:0.5em;letter-spacing:0.2em;">' + labels[level] + '</span>';
   div.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.5);' +
-    'font-family:Playfair Display,serif;font-size:48px;font-weight:700;color:' + colors[level] + ';' +
+    'font-family:Playfair Display,serif;font-size:clamp(26px,7.5vw,48px);white-space:nowrap;font-weight:700;color:' + colors[level] + ';' +
     'text-align:center;pointer-events:none;z-index:1500;opacity:0;' +
     'text-shadow:0 0 30px rgba(0,0,0,0.8),0 4px 15px rgba(0,0,0,0.5);transition:none;';
   document.body.appendChild(div);
@@ -2074,7 +2083,7 @@ function updatePlane(){
   var effMouseX = mousePos.x;
   var effMouseY = mousePos.y;
   if (game.turbulenceActive && game.turbulenceLevel > 0) {
-    var noiseAmp = game.turbulenceLevel * 0.05;
+    var noiseAmp = game.turbulenceLevel * 0.065;
     var t = game.turbulenceTimer * 0.006;
     effMouseX += Math.sin(t * 3.7) * noiseAmp + Math.sin(t * 7.1) * noiseAmp * 0.5;
     effMouseY += Math.cos(t * 4.3) * noiseAmp + Math.cos(t * 8.9) * noiseAmp * 0.3;
@@ -2107,7 +2116,7 @@ function updatePlane(){
 
   //
   if (game.turbulenceActive && game.turbulenceLevel > 0) {
-    var shakeAmp = game.turbulenceLevel * 0.8;
+    var shakeAmp = game.turbulenceLevel * 1.1;
     game.turbulenceCamShake.x = (Math.random() - 0.5) * shakeAmp;
     game.turbulenceCamShake.y = (Math.random() - 0.5) * shakeAmp;
     camera.position.x += game.turbulenceCamShake.x;
@@ -3382,7 +3391,7 @@ function showMissionToast(msg) {
     'border:1px solid rgba(212,118,44,0.4);border-radius:14px;padding:14px 24px;' +
     'font-family:"Playfair Display",serif;font-size:0.85em;color:#fff;' +
     'box-shadow:0 8px 30px rgba(0,0,0,0.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
-    'transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1);white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;';
+    'transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1);width:max-content;max-width:90vw;text-align:center;line-height:1.4;';
   toast.textContent = '🎯 ' + msg;
   document.body.appendChild(toast);
 
@@ -4927,11 +4936,19 @@ var bossState = {
   tentaclePhase: 0
 };
 
+// 보스별 전투 수치. 앞의 둘은 입문 단계, 티라노부터는 본격적인 전투다.
+var BOSS_TUNING = [
+  { atk: 2600, fury: 850, shots: 1, speed: 1.0,  spread: 0,    bulletHit: 11,   bodyHit: 34, hitCooldown: 2200, furyCount: 8,  charge: 0,    windup: 0,   heal: true,  timer: 25000, furyAt: 0.25 },
+  { atk: 2250, fury: 780, shots: 2, speed: 1.25, spread: 0,    bulletHit: 11.5, bodyHit: 34, hitCooldown: 2100, furyCount: 10, charge: 6400, windup: 650, heal: true,  timer: 25000, furyAt: 0.25 },
+  { atk: 1900, fury: 700, shots: 3, speed: 1.6,  spread: 0.2,  bulletHit: 12,   bodyHit: 38, hitCooldown: 1800, furyCount: 12, charge: 5200, windup: 600, heal: false, timer: 40000, furyAt: 0.33, patternEvery: 4 },
+  { atk: 1650, fury: 640, shots: 3, speed: 1.5,  spread: 0,    bulletHit: 12,   bodyHit: 38, hitCooldown: 1900, furyCount: 15, charge: 4500, windup: 550, heal: false, timer: 48000, furyAt: 0.33, patternEvery: 4 }
+];
+
 var bossConfigs = [
-  { name: '거대 암모나이트', hp: 50, reward: 300, heartReward: 1, color: 0xDDAA22, distance: 2000 },
-  { name: '메갈로돈', hp: 70, reward: 600, heartReward: 1, color: 0x4466AA, distance: 6000 },
-  { name: '티라노사우루스', hp: 100, reward: 2000, heartReward: 2, color: 0x664422, distance: 9500 },
-  { name: 'UFO', hp: 130, reward: 3000, heartReward: 2, color: 0x44AA66, distance: 13000 }
+  { name: '거대 암모나이트', hp: 52, reward: 300, heartReward: 1, color: 0xDDAA22, distance: 2000 },
+  { name: '메갈로돈', hp: 74, reward: 600, heartReward: 1, color: 0x4466AA, distance: 6000 },
+  { name: '티라노사우루스', hp: 150, reward: 2000, heartReward: 2, color: 0x664422, distance: 9500 },
+  { name: 'UFO', hp: 175, reward: 3000, heartReward: 2, color: 0x44AA66, distance: 13000 }
 ];
 
 function getBossForDistance(dist) {
@@ -5042,8 +5059,8 @@ function showBossWarning(name, callback) {
   warn.id = 'bossWarning';
   warn.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:2500;display:flex;flex-direction:column;justify-content:center;align-items:center;pointer-events:none;background:rgba(255,0,0,0.08);';
   warn.innerHTML =
-    '<div style="font-size:64px;color:#FF3333;font-family:Playfair Display,serif;font-weight:700;text-shadow:0 0 40px rgba(255,0,0,0.8);opacity:0;animation:bossWarnIn 0.5s ease forwards;">⚠ WARNING ⚠</div>' +
-    '<div style="font-size:36px;color:#FFD700;font-family:Playfair Display,serif;font-weight:700;margin-top:12px;text-shadow:0 0 20px rgba(255,215,0,0.6);opacity:0;animation:bossWarnIn 0.5s ease 0.4s forwards;">BOSS: ' + name + '</div>';
+    '<div style="font-size:clamp(34px,9vw,64px);white-space:nowrap;color:#FF3333;font-family:Playfair Display,serif;font-weight:700;text-shadow:0 0 40px rgba(255,0,0,0.8);opacity:0;animation:bossWarnIn 0.5s ease forwards;">⚠ WARNING ⚠</div>' +
+    '<div style="font-size:clamp(22px,6vw,36px);white-space:nowrap;color:#FFD700;font-family:Playfair Display,serif;font-weight:700;margin-top:12px;text-shadow:0 0 20px rgba(255,215,0,0.6);opacity:0;animation:bossWarnIn 0.5s ease 0.4s forwards;">BOSS: ' + name + '</div>';
   document.body.appendChild(warn);
 
   if (!document.getElementById('bossWarnStyle')) {
@@ -5067,8 +5084,8 @@ function spawnBoss(config, typeIndex) {
   bossState.savedBaseSpeed = game.baseSpeed;
   game.baseSpeed = 0;
   game.speed = 0;
-  // 보스 등장 시 하트 1개 회복
-  addHeart();
+  // 앞의 두 보스만 등장할 때 하트 1개 회복
+  if (BOSS_TUNING[(typeIndex || 0) % 4].heal) addHeart();
   // 경고 표시 중이므로 active 설정 (스폰/비행 차단용)
   bossState.active = true;
   bossState.entering = true;
@@ -5080,12 +5097,15 @@ function spawnBoss(config, typeIndex) {
   // 경고 연출 후 실제 보스 등장
   showBossWarning(config.name, function() {
     if (!bossState.active) return;
-    bossState.timer = bossState.maxTimer;
+    bossState.timer = BOSS_TUNING[cycleIndex % 4].timer;
     bossState.reward = config.reward;
     bossState.heartReward = config.heartReward || 0;
     bossState.name = config.name;
     bossState.oscillateTime = 0;
     bossState.missiles = [];
+    bossState.attackCount = 0;
+    bossState.furyVolleyTimer = 0;
+    bossState.rushOffsetY = 0;
 
     bossState.bossType = cycleIndex % 4;
     bossState.mesh = createBossMesh(config, cycleIndex);
@@ -5100,7 +5120,15 @@ function spawnBoss(config, typeIndex) {
     var nameEl = document.getElementById('bossName');
     if (nameEl) nameEl.textContent = 'BOSS ' + config.name;
     var fireUI = document.getElementById('bossFireUI');
-    if (fireUI) fireUI.style.display = 'flex';
+    if (fireUI) {
+      // 발사 버튼은 터치 기기 전용. 능력 버튼이 있으면 그 위로 올린다
+      var abilityShown = ['abilityUI', 'ufoDualUI'].some(function(id) {
+        var el = document.getElementById(id);
+        return el && el.style.display !== 'none';
+      });
+      fireUI.classList.toggle('stacked', abilityShown);
+      fireUI.style.display = isMobile ? 'flex' : 'none';
+    }
     updateBossUI();
     showBossGuide();
   });
@@ -5126,7 +5154,15 @@ function updateBoss(dt) {
 
   // 상하 움직임
   bossState.oscillateTime += dt * 0.002;
-  bossState.mesh.position.y = game.planeDefaultHeight + 30 + Math.sin(bossState.oscillateTime) * 40;
+  var bossBaseY = game.planeDefaultHeight + 30 + Math.sin(bossState.oscillateTime) * 40;
+  // 티라노부터는 돌진할 때 플레이어의 높이를 따라온다
+  if (bossState.bossType >= 2 && bossState.charging && bossState.chargePhase === 'rush' && airplane) {
+    var rushWant = Math.max(-55, Math.min(55, airplane.mesh.position.y - bossBaseY));
+    bossState.rushOffsetY += (rushWant - bossState.rushOffsetY) * frameLerp(0.03);
+  } else {
+    bossState.rushOffsetY = (bossState.rushOffsetY || 0) * (1 - frameLerp(0.05));
+  }
+  bossState.mesh.position.y = bossBaseY + (bossState.rushOffsetY || 0);
 
   // === 보스별 애니메이션 ===
   var time = bossState.oscillateTime;
@@ -5155,11 +5191,14 @@ function updateBoss(dt) {
   // === 보스 공격 시스템 ===
   if (!bossState.entering) {
     bossState.bossAttackTimer = (bossState.bossAttackTimer || 0) + dt;
-    var atkInterval = bossState.furyMode ? 850 : [2600, 2300, 2100, 1900][bossState.bossType];
+    var tuning = BOSS_TUNING[bossState.bossType];
+    var atkInterval = bossState.furyMode ? tuning.fury : tuning.atk;
     if (bossState.bossAttackTimer >= atkInterval) {
       bossState.bossAttackTimer = 0;
-      // 보스별 한 번에 쏘는 발 수
-      var shotCount = [1, 2, 2, 3][bossState.bossType];
+      bossState.attackCount = (bossState.attackCount || 0) + 1;
+      // 티라노부터는 주기적으로 큰 패턴을 쓴다
+      var shotCount = (tuning.patternEvery && bossState.attackCount % tuning.patternEvery === 0) ? 0 : tuning.shots;
+      if (shotCount === 0) telegraphBossPattern();
       for (var si = 0; si < shotCount; si++) {
         (function(idx) {
           setTimeout(function() {
@@ -5172,12 +5211,12 @@ function updateBoss(dt) {
     // 메갈로돈 이상: 돌진 공격
     if (bossState.bossType >= 1) {
       bossState.chargeTimer = (bossState.chargeTimer || 0) + dt;
-      var chargeInterval = [0, 6500, 5500, 4500][bossState.bossType];
+      var chargeInterval = tuning.charge;
       if (!bossState.charging && bossState.chargeTimer >= chargeInterval) {
         bossState.chargeTimer = 0;
         bossState.charging = true;
         bossState.chargePhase = 'windup'; // windup → rush → return
-        bossState.chargeWindup = 650;
+        bossState.chargeWindup = tuning.windup;
         bossState.chargeOrigX = bossState.mesh.position.x;
         bossState.chargeTargetX = airplane ? airplane.mesh.position.x + 30 : 0;
       }
@@ -5207,20 +5246,29 @@ function updateBoss(dt) {
   }
 
   // 필살기: HP 25% 이하 진입
-  if (!bossState.furyMode && bossState.hp > 0 && bossState.hp <= Math.ceil(bossState.maxHp * 0.25)) {
+  if (!bossState.furyMode && bossState.hp > 0 && bossState.hp <= Math.ceil(bossState.maxHp * BOSS_TUNING[bossState.bossType].furyAt)) {
     bossState.furyMode = true;
+    bossState.furyVolleyTimer = 0;
     fireFuryAttack();
+  }
+  // 티라노부터는 분노 상태에서 탄막을 반복한다
+  if (bossState.furyMode && bossState.bossType >= 2 && !bossState.entering) {
+    bossState.furyVolleyTimer += dt;
+    if (bossState.furyVolleyTimer >= 6500) {
+      bossState.furyVolleyTimer = 0;
+      fireFuryAttack();
+    }
   }
 
   // 보스 몸체 충돌 → 하트 감소
   if (airplane && airplane.mesh && (!bossState.hitCooldown || bossState.hitCooldown <= 0)) {
     var bcx = bossState.mesh.position.x - airplane.mesh.position.x;
     var bcy = bossState.mesh.position.y - airplane.mesh.position.y;
-    if (Math.sqrt(bcx * bcx + bcy * bcy) < 34) {
+    if (Math.sqrt(bcx * bcx + bcy * bcy) < BOSS_TUNING[bossState.bossType].bodyHit) {
       removeEnergy();
       GFX.hitFlash();
       SFX.play('hurt');
-      bossState.hitCooldown = 2200;
+      bossState.hitCooldown = BOSS_TUNING[bossState.bossType].hitCooldown;
       // 충돌 반동
       game.planeCollisionSpeedX = -3;
       game.planeCollisionSpeedY = (airplane.mesh.position.y > bossState.mesh.position.y) ? 2 : -2;
@@ -5257,13 +5305,13 @@ function updateBoss(dt) {
     if (airplane && airplane.mesh && (!bossState.hitCooldown || bossState.hitCooldown <= 0)) {
       var cdx = proj.mesh.position.x - airplane.mesh.position.x;
       var cdy = proj.mesh.position.y - airplane.mesh.position.y;
-      if (Math.sqrt(cdx * cdx + cdy * cdy) < 11) {
+      if (Math.sqrt(cdx * cdx + cdy * cdy) < BOSS_TUNING[bossState.bossType].bulletHit) {
         removeEnergy();
         GFX.hitFlash();
         SFX.play('hurt');
         scene.remove(proj.mesh);
         bossState.bossProjectiles.splice(pi, 1);
-        bossState.hitCooldown = 2200;
+        bossState.hitCooldown = BOSS_TUNING[bossState.bossType].hitCooldown;
         continue;
       }
     }
@@ -5379,7 +5427,7 @@ function fireBossProjectile() {
   var projMesh, speed, vx, vy, homing = false;
   var tier = bossState.bossType; // 0~3, 상위일수록 강력
   var sizeScale = 1 + tier * 0.5; // 1.0, 1.5, 2.0, 2.5
-  var speedScale = 1 + tier * 0.22; // 1.0, 1.22, 1.44, 1.66
+  var speedScale = BOSS_TUNING[tier].speed;
 
   if (tier === 0) {
     // 암모나이트: 먹물탄 (느리고 약간 유도)
@@ -5395,8 +5443,8 @@ function fireBossProjectile() {
     // 티라노: 화염구 (중간 속도, 산탄)
     projMesh = GFX.models.bossShot('fire', 3.6 * sizeScale);
     speed = 2.5 * speedScale;
-    ddx += (Math.random() - 0.5) * dist * 0.18;
-    ddy += (Math.random() - 0.5) * dist * 0.18;
+    ddx += (Math.random() - 0.5) * dist * BOSS_TUNING[tier].spread;
+    ddy += (Math.random() - 0.5) * dist * BOSS_TUNING[tier].spread;
     dist = Math.sqrt(ddx * ddx + ddy * ddy);
     if (dist < 1) dist = 1;
   } else {
@@ -5417,7 +5465,47 @@ function fireBossProjectile() {
   });
 }
 
-// 필살기: HP 25% 이하 시 투사체 와장창
+// 큰 패턴은 0.35초 전에 보스 주변이 번쩍여 미리 알려 준다
+function telegraphBossPattern() {
+  if (!bossState.mesh) return;
+  GFX.fx.burst(bossState.mesh.position, bossState.bossType === 2 ? 0xFF8A3C : 0x7CFFE0, 26, 1.6);
+  setTimeout(fireBossPattern, 350);
+}
+
+function addBossShot(kind, size, x, y, vx, vy) {
+  var m = GFX.models.bossShot(kind, size);
+  m.position.set(x, y, 0);
+  m.rotation.z = Math.atan2(vy, vx);
+  scene.add(m);
+  bossState.bossProjectiles.push({ mesh: m, vx: vx, vy: vy, life: 5000, homing: false });
+}
+
+// 티라노: 한 칸만 비운 부채꼴 화염 / UFO: 빈틈이 하나뿐인 광선 장막
+function fireBossPattern() {
+  if (!bossState.active || !bossState.mesh || !airplane || !airplane.mesh) return;
+  if (!bossState.bossProjectiles) bossState.bossProjectiles = [];
+  var bx = bossState.mesh.position.x, by = bossState.mesh.position.y;
+
+  if (bossState.bossType === 2) {
+    var base = Math.atan2(airplane.mesh.position.y - by, airplane.mesh.position.x - bx);
+    var hole = 1 + Math.floor(Math.random() * 5);
+    for (var i = 0; i < 7; i++) {
+      if (i === hole) continue;
+      var a = base + (i / 6 - 0.5) * 1.15;
+      addBossShot('fire', 6, bx - 20, by, Math.cos(a) * 3.8, Math.sin(a) * 3.8);
+    }
+  } else {
+    var rows = 10, step = 26, top = 238;
+    var gap = 1 + Math.floor(Math.random() * (rows - 3));
+    for (var r = 0; r < rows; r++) {
+      if (r === gap || r === gap + 1) continue;
+      addBossShot('beam', 4, bx - 10, top - r * step, -4.4, 0);
+    }
+  }
+  SFX.play(BOSS_ATTACKS[bossState.bossType]);
+}
+
+// 필살기: HP가 일정 이하로 내려가면 투사체 와장창
 function fireFuryAttack() {
   if (!bossState.active || !bossState.mesh || !airplane || !airplane.mesh) return;
   var bx = bossState.mesh.position.x;
@@ -5425,7 +5513,7 @@ function fireFuryAttack() {
   var px = airplane.mesh.position.x;
   var py = airplane.mesh.position.y;
   var baseAngle = Math.atan2(py - by, px - bx);
-  var count = 8 + bossState.bossType;
+  var count = BOSS_TUNING[bossState.bossType].furyCount;
 
   for (var fi = 0; fi < count; fi++) {
     (function(idx, total) {
@@ -5434,7 +5522,7 @@ function fireFuryAttack() {
         if (!bossState.bossProjectiles) bossState.bossProjectiles = [];
         var spread = (idx / (total - 1) - 0.5) * 1.6;
         var angle = baseAngle + spread;
-        var spd = 2 + Math.random() * 2;
+        var spd = (bossState.bossType >= 2 ? 2.8 : 2) + Math.random() * 2;
         var pm = GFX.models.bossShot(['ink', 'tooth', 'fire', 'beam'][bossState.bossType], bossState.bossType === 3 ? 2 : 2.6);
         pm.position.set(bx - 15, by, 0);
         pm.rotation.z = angle;
@@ -5569,7 +5657,7 @@ function showBossGuide() {
   guide.id = 'bossGuide';
   guide.style.cssText = 'position:fixed;left:50%;top:60%;transform:translate(-50%,-50%);z-index:2000;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;animation:fadeInOut 3s ease forwards;';
   guide.innerHTML = '<div style="font-size:60px;line-height:1;">⚠️</div>' +
-    '<div style="color:white;font-size:20px;font-weight:bold;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:8px 20px;border-radius:10px;white-space:nowrap;">' + (isMobile ? '화면을 터치하면 자동 발사!' : '마우스 왼쪽 버튼으로 발사!') + ' 보스전 탄약은 무제한</div>';
+    '<div style="color:white;font-size:clamp(15px,4.2vw,20px);font-weight:bold;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:8px 20px;border-radius:10px;width:max-content;max-width:86vw;">' + (isMobile ? '화면을 터치하면 자동 발사!' : '마우스 왼쪽 버튼으로 발사!') + ' 보스전 탄약은 무제한</div>';
   document.body.appendChild(guide);
 
   // fadeInOut ?ㅽ봽?덉엫 ?숈쟻 異붽?

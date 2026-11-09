@@ -15,10 +15,22 @@
 	--display: 'Playfair Display', 'Noto Sans KR', serif;
 }
 
+html, body {
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
 body {
 	font-family: var(--kr);
 	background: #06101e;
+	word-break: keep-all;
+	font-variant-numeric: lining-nums;
+	font-feature-settings: "lnum" 1;
 }
+
+/* 일시정지 버튼은 비행 중에만 보인다 */
+body:not(.in-flight) .mobile-pause-btn { display: none; }
 
 /* ----- 시작 화면 ----- */
 .start-overlay {
@@ -125,7 +137,8 @@ body {
 }
 
 .score {
-	align-items: center;
+	--hud-row: clamp(28px, 3vw, 38px);
+	align-items: stretch;
 	padding: 10px 8px;
 	background: var(--glass);
 	border: 1px solid var(--line);
@@ -142,21 +155,65 @@ body {
 
 .score__content--bordered { border-color: var(--line); }
 
+/* 열마다 내용이 달라도 라벨과 값이 같은 줄에 오도록 2행 격자로 맞춘다 */
+.score__content {
+	display: grid;
+	grid-template-rows: 12px var(--hud-row);
+	row-gap: 6px;
+	justify-items: center;
+	align-items: center;
+	align-content: center;
+}
+
 .score__label {
+	margin: 0;
+	line-height: 12px;
 	font-family: var(--kr);
 	font-size: 9px;
 	font-weight: 500;
 	letter-spacing: 0.24em;
+	text-indent: 0.24em;
 	color: var(--ink-dim);
 }
 
-.score__value { font-family: var(--display); color: var(--ink); }
-.score__unit { color: var(--ink-dim); }
+.score__value {
+	font-family: var(--display);
+	color: var(--ink);
+	line-height: 1;
+	font-variant-numeric: lining-nums tabular-nums;
+	font-feature-settings: "lnum" 1, "tnum" 1;
+}
+
+.score__value--level { font-size: clamp(14px, 1.7vw, 20px); }
+
+#level .score__value, #level .level-circle { grid-row: 2; grid-column: 1; }
+
+.level-circle {
+	position: static;
+	width: var(--hud-row);
+	height: var(--hud-row);
+	-webkit-transform: rotate(-90deg);
+	transform: rotate(-90deg);
+}
+
+#dist { grid-template-columns: auto auto; column-gap: 3px; }
+#dist .score__label { grid-column: 1 / -1; }
+#dist .score__value { grid-row: 2; grid-column: 1; min-width: 2.2em; text-align: right; }
+
+#coins .score__value { min-width: 2.2em; text-align: center; }
+
+.score__unit {
+	grid-row: 2;
+	grid-column: 2;
+	margin: 0;
+	color: var(--ink-dim);
+	transform: translateY(calc(clamp(18px, 2.5vw, 30px) * 0.2));
+}
 
 #levelCircleBgr { stroke: rgba(255, 255, 255, 0.18); stroke-width: 14px; }
 #levelCircleStroke { stroke: var(--gold); stroke-width: 14px; stroke-linecap: round; }
 
-.score__value--hearts { align-items: center; gap: 3px; min-height: 20px; }
+.score__value--hearts { align-items: center; gap: 3px; min-height: 20px; margin-top: 0; }
 
 .heart {
 	font-size: 0;
@@ -184,6 +241,12 @@ body {
 	box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+.continue-panel {
+	box-sizing: border-box;
+	width: min(360px, 90vw);
+	padding: 30px 28px 24px;
+}
+
 .shop-title, .settings-title, .daily-title, .gameover-title, .continue-title {
 	font-family: var(--display);
 	color: var(--ink);
@@ -206,6 +269,9 @@ body {
 
 .vehicle-card:hover, .upgrade-card:hover { border-color: rgba(236, 200, 126, 0.42); }
 .vehicle-card.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 10px 30px rgba(236, 200, 126, 0.14); }
+
+/* 낮은 화면에서도 닫기 버튼까지 닿도록 설정 창은 안쪽에서 스크롤한다 */
+.settings-panel { max-height: 92vh; overflow-y: auto; }
 
 .settings-row { background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.06); }
 .settings-row-label { font-family: var(--kr); font-weight: 500; }
@@ -264,6 +330,9 @@ body {
 	box-shadow: 0 8px 26px rgba(3, 8, 20, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
+/* 능력 버튼이 있는 비행체는 보스 발사 버튼을 그 위에 놓는다 */
+#bossFireUI.stacked { bottom: max(116px, calc(env(safe-area-inset-bottom) + 98px)); }
+
 .gameover-btn, .continue-btn, .continue-stop-btn { font-family: var(--kr); }
 
 .continue-btn, .gameover-btn--submit, .gameover-btn--replay {
@@ -277,4 +346,60 @@ body {
 /* 모바일: 일시정지 버튼과 점수판이 겹치지 않게 */
 @media screen and (max-width: 768px), screen and (max-height: 500px) and (orientation: landscape) {
 	.score { margin-right: 58px; }
+}
+
+/* 축소한 점수판의 원래 폭이 화면을 넓히지 않도록 흐름에서 빼서 오른쪽에 붙인다 */
+@media screen and (max-width: 768px) {
+	/* 폭 100%에 왼쪽 여백까지 더해져 화면이 옆으로 넓어지던 부분 */
+	.header { left: 0; top: 0; }
+	.score {
+		position: absolute;
+		top: max(12px, env(safe-area-inset-top));
+		right: calc(max(12px, env(safe-area-inset-right)) + 46px);
+		margin: 0;
+	}
+	.boss-ui { width: min(320px, 88vw); }
+}
+
+@media screen and (max-width: 480px) {
+	.header h1 { font-size: 1.2em; margin-top: 4px; }
+	.header h2 { display: none; }
+
+	.ranking-table th, .ranking-table td {
+		padding: 8px 5px;
+		letter-spacing: 0;
+		white-space: nowrap;
+	}
+	/* 좁은 화면에서는 레벨 열을 빼고 나머지를 온전히 보여 준다 */
+	.ranking-table th:nth-child(4), .ranking-table td:nth-child(4) { display: none; }
+	.ranking-table td:nth-child(2), .ranking-table td:nth-child(5) {
+		max-width: 92px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	#gameOverCloudSaveBtn, #cloudSaveBtn {
+		font-size: 0.72em !important;
+		padding: 8px 14px !important;
+		white-space: nowrap;
+	}
+}
+
+@media screen and (max-width: 360px) {
+	.header__title-wrap { display: none; }
+}
+
+@media screen and (max-height: 500px) and (orientation: landscape) {
+	/* 가로 화면에서는 발사 버튼이 화면 가운데를 막지 않도록 능력 버튼 옆에 둔다 */
+	#bossFireUI.stacked {
+		bottom: max(30px, calc(env(safe-area-inset-bottom) + 12px));
+		left: calc(50% + 84px);
+	}
+	/* 게임 오버 패널 제목을 가리지 않도록 미션 알림은 아래에 띄운다 */
+	#missionToast { top: auto !important; bottom: 10px; }
+}
+
+/* 세로 화면에서 시작 버튼이 캐릭터를 가리지 않도록 조금 내린다 */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+	.start-overlay { padding-top: calc(15vh + 34px); }
 }
