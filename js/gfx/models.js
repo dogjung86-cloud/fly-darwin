@@ -65,6 +65,70 @@
   }
   M.makeHalo = makeHalo;
 
+  // 밝은 하늘에서는 더하기 방식의 빛무리가 배경과 섞여 사라진다.
+  // 어두운 유리구슬을 아이템 뒤에 깔아 어떤 배경에서도 형체가 분리되게 하고, 바깥 빛은 밤에만 키운다.
+  var BEACON_VS = [
+    'uniform float uSize, uBack; varying vec2 vUv;',
+    'void main() {',
+    '  vUv = uv * 2.0 - 1.0;',
+    '  vec4 mv = modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 );',
+    '  mv.xy += position.xy * uSize;',
+    '  mv.xyz *= ( uBack - mv.z ) / -mv.z;',
+    '  gl_Position = projectionMatrix * mv;',
+    '}'
+  ].join('\n');
+  var BEACON_FS = [
+    'uniform vec3 uColor; uniform float uTime, uNight; varying vec2 vUv;',
+    GFX.outputChunk,
+    'void main() {',
+    '  float d = length( vUv );',
+    '  if ( d >= 1.0 ) discard;',
+    '  float orb = 0.74 + 0.02 * sin( uTime * 3.6 );',
+    '  float s = d / orb;',
+    '  float cover = 1.0 - smoothstep( 0.965, 1.0, s );',
+    '  float nz = sqrt( max( 1.0 - s * s, 0.0 ) );',
+    '  float fres = pow( 1.0 - nz, 3.0 );',
+    '  float a = cover * mix( 0.6, 0.86, fres );',
+    '  vec3 col = vec3( 0.012, 0.03, 0.085 ) * a + uColor * fres * cover * 0.22;',
+    '  float sweep = 0.78 + 0.22 * sin( atan( vUv.y, vUv.x ) * 3.0 - uTime * 2.4 );',
+    '  float ring = smoothstep( 0.075, 0.0, abs( s - 0.97 ) );',
+    '  col = mix( col, uColor * sweep, ring );',
+    '  a = max( a, ring );',
+    '  vec2 sp = vUv / orb - vec2( -0.4, 0.48 );',
+    '  float hl = smoothstep( 0.19, 0.03, length( sp * vec2( 1.0, 1.7 ) ) ) * cover;',
+    '  col += vec3( 0.9, 0.95, 1.0 ) * hl * 0.55;',
+    '  float g = max( ( 1.0 - d ) / ( 1.0 - orb ), 0.0 ) * ( 1.0 - cover );',
+    '  float glow = mix( 0.22, 0.85, uNight );',
+    '#ifdef GFX_DIRECT',
+    '  glow *= 0.25;',  // 직접 출력에서는 어두운 값이 감마로 크게 밝아진다
+    '#endif',
+    '  col += uColor * g * g * glow;',
+    '  gl_FragColor = vec4( gfxOut( col ), a );',
+    '}'
+  ].join('\n');
+  function makeBeacon(r, g, b, size, back) {
+    var mat = premultMaterial({
+      uniforms: {
+        uColor: { type: 'c', value: hdr(r, g, b) }, uSize: { type: 'f', value: size }, uBack: { type: 'f', value: back },
+        uTime: GFX.world.sharedTime, uNight: GFX.world.sharedNight
+      },
+      vertexShader: BEACON_VS, fragmentShader: BEACON_FS
+    });
+    var mesh = new THREE.Mesh(haloGeo(), mat);
+    mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  // 법선 방향으로 살짝 부풀린 뒷면만 그려서 얇고 어두운 외곽선을 만든다
+  function outlineMaterial(r, g, b, width) {
+    return new THREE.ShaderMaterial({
+      side: THREE.BackSide, fog: false, defines: GFX.defines(),
+      uniforms: { uColor: { type: 'c', value: hdr(r, g, b) }, uWidth: { type: 'f', value: width } },
+      vertexShader: 'uniform float uWidth; void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4( position + normal * uWidth, 1.0 ); }',
+      fragmentShader: ['uniform vec3 uColor;', GFX.outputChunk, 'void main() { gl_FragColor = vec4( gfxOut( uColor ), 1.0 ); }'].join('\n')
+    });
+  }
+
   // ----- 철퇴 -----
   var SPIKE_DIRS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
     [1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0], [1, 0, 1], [-1, 0, 1], [1, 0, -1], [-1, 0, -1], [0, 1, 1], [0, -1, 1], [0, 1, -1], [0, -1, -1]]
@@ -209,6 +273,8 @@
     var t = time();
     var flash = Math.pow(Math.max(Math.sin(t * 7 + this.phase) * Math.sin(t * 3.1 + this.phase * 1.7), 0), 3);
     var on = flash > 0.12;
+    if (on && !this.boltOn && Math.abs(this.mesh.position.x) < 380) SFX.play('thunder');
+    this.boltOn = on;
     for (var b = 0; b < this.bolts.length; b++) this.bolts[b].visible = on;
   };
 
@@ -527,23 +593,44 @@
   };
 
   // ----- 코인 -----
+  // 하늘을 거울처럼 비추면 금색이 날아가 배경에 묻히므로, 조명과 무관한 금속 그라데이션으로 칠한다.
+  var COIN_SCALE = 1.3;
   var coinAssets = lazy(function () {
     var profile = [[0, 0.42], [2.6, 0.42], [2.85, 0.68], [3.62, 0.68], [4.05, 0.34], [4.05, -0.34], [3.62, -0.68], [2.85, -0.68], [2.6, -0.42], [0, -0.42]]
       .reverse().map(function (p) { return new THREE.Vector3(p[0], p[1], 0); });
     var g = new THREE.LatheGeometry(profile, GFX.tier === 'low' ? 14 : 26);
     g.applyMatrix(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+    g.applyMatrix(new THREE.Matrix4().makeScale(COIN_SCALE, COIN_SCALE, COIN_SCALE));
     g.computeFaceNormals();
     g.computeVertexNormals();
-    return {
-      geo: new THREE.BufferGeometry().fromGeometry(g),
-      mat: new THREE.MeshPhongMaterial({ color: 0xffc23a, specular: 0xfff0c0, shininess: 150, emissive: 0x4a2c00, shading: THREE.SmoothShading })
-    };
+    var mat = new THREE.ShaderMaterial({
+      fog: false, defines: GFX.defines(),
+      vertexShader: 'varying vec3 vN, vV; void main() { vN = normalize( normalMatrix * normal ); vec4 mv = modelViewMatrix * vec4( position, 1.0 ); vV = normalize( -mv.xyz ); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: [
+        'varying vec3 vN, vV;',
+        GFX.outputChunk,
+        'void main() {',
+        '  vec3 N = normalize( vN ), V = normalize( vV );',
+        '  vec3 R = reflect( -V, N );',
+        '  float h = dot( R, vec3( 0.5, 0.82, 0.28 ) ) * 0.5 + 0.5;',
+        '  vec3 col = mix( vec3( 0.46, 0.17, 0.012 ), vec3( 0.98, 0.44, 0.02 ), smoothstep( 0.12, 0.5, h ) );',
+        '  col = mix( col, vec3( 1.5, 0.95, 0.2 ), smoothstep( 0.62, 0.9, h ) );',
+        '  float spec = pow( max( dot( R, normalize( vec3( -0.3, 0.6, 0.74 ) ) ), 0.0 ), 60.0 );',
+        '  col += vec3( 2.2, 1.7, 0.8 ) * spec;',
+        '  float edge = pow( 1.0 - max( dot( N, V ), 0.0 ), 3.0 );',
+        '  col = mix( col, vec3( 0.24, 0.07, 0.005 ), edge * 0.6 );',
+        '  gl_FragColor = vec4( gfxOut( col ), 1.0 );',
+        '}'
+      ].join('\n')
+    });
+    return { geo: new THREE.BufferGeometry().fromGeometry(g), mat: mat, outline: outlineMaterial(0.085, 0.03, 0.004, 0.75) };
   });
 
   window.Coin = function () {
     var a = coinAssets();
     this.mesh = new THREE.Mesh(a.geo, a.mat);
-    this.mesh.rotation.y = Math.random() * 6.28;
+    this.mesh.add(new THREE.Mesh(a.geo, a.outline));
+    this.spin = Math.random() * 6.28;
     this.mesh.castShadow = true;
     this.angle = 0;
     this.dist = 0;
@@ -553,23 +640,27 @@
   var fruitAssets = lazy(function () {
     var R = res(1.3);
     var v = new GFX.Voxels(-14, 14, -14, 14, -14, 14, R);
-    v.sphere(0, 0, 0, 6.4, function (x, y, z) { return mix(0xffd23a, 0xff9d14, (y + 6) / 12); });
+    v.sphere(0, 0, 0, 6.4, function (x, y, z) { return mix(0xffc800, 0xff9400, (y + 6) / 12); });
     [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].forEach(function (d) {
       v.capsule(d[0] * 5, d[1] * 5, d[2] * 5, 2.5, d[0] * 12, d[1] * 12, d[2] * 12, 0.5, function (x, y, z) {
         var r = Math.sqrt(x * x + y * y + z * z);
-        return mix(0xffe066, 0xfff6c8, Math.min(1, (r - 5) / 7));
+        return mix(0xffb000, 0xffe25a, Math.min(1, (r - 5) / 7));
       });
     });
-    return { geo: v.toGeometry({ jitter: 0.03 }), scale: 1 / R, mat: GFX.voxelMaterial({ specular: 0xffe9a0, shininess: 120, emissive: 0x7a4a00 }) };
+    var mat = GFX.voxelMaterial({ specular: 0x3a2a10, shininess: 40, emissive: 0x7a3c00 });
+    mat.fog = false;
+    delete mat.defines.GFX_VOXEL;   // 작은 물체라 복셀 줄눈이 어두운 무늬로 뭉개진다
+    return { geo: v.toGeometry({ jitter: 0.03 }), scale: 1 / R, mat: mat };
   });
 
   window.InvincibleFruit = function () {
     var a = fruitAssets();
     this.mesh = new THREE.Object3D();
     var body = new THREE.Mesh(a.geo, a.mat);
-    body.scale.set(a.scale, a.scale, a.scale);
+    var s = a.scale * 1.18;
+    body.scale.set(s, s, s);
     this.mesh.add(body);
-    this.mesh.add(makeHalo(1.15, 0.72, 0.16, 21));
+    this.mesh.add(makeBeacon(1.2, 0.66, 0.09, 23, 17));
     this.angle = 0;
     this.dist = 0;
   };
@@ -590,7 +681,7 @@
     g.computeVertexNormals();
     return {
       geo: new THREE.BufferGeometry().fromGeometry(g),
-      mat: new THREE.MeshPhongMaterial({ color: 0xf0163f, specular: 0xffffff, shininess: 170, emissive: 0x5a0416, shading: THREE.SmoothShading })
+      mat: new THREE.MeshPhongMaterial({ color: 0xe0102c, specular: 0x382024, shininess: 70, emissive: 0x6a0418, shading: THREE.SmoothShading, fog: false })
     };
   });
 
@@ -598,11 +689,12 @@
     var a = heartAssets();
     this.mesh = new THREE.Object3D();
     var heart = new THREE.Mesh(a.geo, a.mat);
-    heart.scale.set(0.5, 0.5, 0.5);
+    heart.scale.set(0.62, 0.62, 0.62);
     heart.rotation.z = Math.PI;
-    heart.position.set(0, 5, -2);
+    heart.position.set(0, 3.1, -1.24);
     this.mesh.add(heart);
-    this.mesh.add(makeHalo(1.05, 0.14, 0.24, 20));
+    this.spin = Math.random() * 6.28;
+    this.mesh.add(makeBeacon(1.2, 0.12, 0.2, 23, 15));
     this.angle = 0;
     this.dist = 0;
   };
@@ -619,9 +711,9 @@
         'void main() {',
         '  float f = pow( 1.0 - max( dot( normalize( vN ), normalize( vV ) ), 0.0 ), 2.4 );',
         '  float bands = 0.5 + 0.5 * sin( vO.y * 0.09 + uTime * 3.2 );',
-        '  float i = ( f * 1.1 + pow( bands, 8.0 ) * 0.12 ) * uStrength;',
-        '  vec3 c = mix( vec3( 7.0, 3.6, 0.7 ), vec3( 9.0, 8.0, 5.0 ), f );',
-        '  gl_FragColor = vec4( gfxOut( c * i ), min( 1.0, i ) * 0.12 );',
+        '  float i = ( f * 1.1 + pow( bands, 8.0 ) * 0.05 ) * uStrength;',
+        '  vec3 c = mix( vec3( 1.7, 0.8, 0.1 ), vec3( 2.6, 1.7, 0.45 ), f );',
+        '  gl_FragColor = vec4( gfxOut( c * i ), min( 1.0, i ) * 0.55 );',
         '}'
       ].join('\n')
     });

@@ -8,23 +8,23 @@
 
   // ----- 시간대 키프레임 (색은 sRGB 기준으로 적고 내부에서 선형으로 변환) -----
   var RAW_KEYS = [
-    { d: 0, seaRef: 1,
-      zenith: 0x1766c9, upper: 0x4b9fe6, horizon: 0xa8d8ef, haze: 0xeef3e6,
+    { d: 0, seaRef: 0.7, glint: 0.4,
+      zenith: 0x155db8, upper: 0x3f8ed6, horizon: 0x8cc4e4, haze: 0xd2e3e6,
       sun: 0xfff0d2, sunI: 22, sunAz: 0.5, sunEl: 0.56,
-      seaDeep: 0x06486a, seaMid: 0x0a8ea3, seaCrest: 0x63e0c8, foam: 0xf4fbff,
-      cloudLit: 0xffffff, cloudShade: 0x93b0d4,
-      key: 0xfff1dc, keyI: 1.05, back: 0xffd9a8, backI: 0.55,
-      hemiSky: 0xbcdffb, hemiGround: 0x3b8a96, hemiI: 0.62,
-      fog: 0xb6dcef, exposure: 1.0, stars: 0, aurora: 0, moon: 0, bloom: 0.5 },
-    { d: 3000, seaRef: 0.62,
+      seaDeep: 0x053a5a, seaMid: 0x0a6e8a, seaCrest: 0x36aca4, foam: 0xdcecf2,
+      cloudLit: 0xf1f4f7, cloudShade: 0x8aa6ca,
+      key: 0xfff1dc, keyI: 0.98, back: 0xffd9a8, backI: 0.5,
+      hemiSky: 0xbcdffb, hemiGround: 0x3b8a96, hemiI: 0.56,
+      fog: 0xa2cfe8, exposure: 0.88, stars: 0, aurora: 0, moon: 0, bloom: 0.32 },
+    { d: 3000, seaRef: 0.55, glint: 0.55,
       zenith: 0x2a63b5, upper: 0x7fa9d8, horizon: 0xf4d6ac, haze: 0xffd39a,
       sun: 0xffd9a0, sunI: 26, sunAz: 0.3, sunEl: 0.2,
-      seaDeep: 0x0a3f62, seaMid: 0x1a7f92, seaCrest: 0xf0c890, foam: 0xfff0dc,
+      seaDeep: 0x0a3f62, seaMid: 0x1a7088, seaCrest: 0xc4966a, foam: 0xf0e0cc,
       cloudLit: 0xfff0d6, cloudShade: 0xa38fa8,
       key: 0xffe2bc, keyI: 1.0, back: 0xffb066, backI: 0.85,
       hemiSky: 0xcfd9ee, hemiGround: 0x5a6a78, hemiI: 0.55,
-      fog: 0xe8d4b8, exposure: 1.0, stars: 0, aurora: 0, moon: 0, bloom: 0.6 },
-    { d: 5200, seaRef: 0.3,
+      fog: 0xe8d4b8, exposure: 0.93, stars: 0, aurora: 0, moon: 0, bloom: 0.48 },
+    { d: 5200, seaRef: 0.3, glint: 1,
       zenith: 0x2b3f86, upper: 0x8a6a94, horizon: 0xff9a5a, haze: 0xffb066,
       sun: 0xffa45e, sunI: 30, sunAz: 0.12, sunEl: 0.045,
       seaDeep: 0x10304f, seaMid: 0x3a5a78, seaCrest: 0xff9a60, foam: 0xffd9b8,
@@ -32,7 +32,7 @@
       key: 0xffc896, keyI: 0.82, back: 0xff8240, backI: 1.15,
       hemiSky: 0xb79ac0, hemiGround: 0x53405c, hemiI: 0.46,
       fog: 0xe0a07c, exposure: 1.02, stars: 0.04, aurora: 0, moon: 0, bloom: 0.75 },
-    { d: 7000, seaRef: 0.32,
+    { d: 7000, seaRef: 0.32, glint: 1,
       zenith: 0x131f52, upper: 0x3a3f7c, horizon: 0x8a5a78, haze: 0xa56a70,
       sun: 0xff8a5c, sunI: 8, sunAz: 0.05, sunEl: -0.06,
       seaDeep: 0x0a1a38, seaMid: 0x1c3a5e, seaCrest: 0x7f7aa8, foam: 0xb8c0dc,
@@ -40,7 +40,7 @@
       key: 0xb9b6e0, keyI: 0.62, back: 0xc0709a, backI: 0.75,
       hemiSky: 0x6f78b4, hemiGround: 0x2c3158, hemiI: 0.5,
       fog: 0x5a4a70, exposure: 1.1, stars: 0.45, aurora: 0, moon: 0.45, bloom: 0.62 },
-    { d: 9500, seaRef: 0.38,
+    { d: 9500, seaRef: 0.38, glint: 1,
       zenith: 0x060c2a, upper: 0x10204e, horizon: 0x24406c, haze: 0x2c5078,
       sun: 0xbcd6ff, sunI: 0, sunAz: -0.5, sunEl: 0.7,
       seaDeep: 0x040f26, seaMid: 0x0f2c50, seaCrest: 0x6f9cc8, foam: 0xbcd4ec,
@@ -48,7 +48,7 @@
       key: 0xa9c4f4, keyI: 0.72, back: 0x6f9cf0, backI: 0.8,
       hemiSky: 0x4f6eb0, hemiGround: 0x18305c, hemiI: 0.62,
       fog: 0x1f3762, exposure: 1.18, stars: 1, aurora: 0.25, moon: 1, bloom: 0.62 },
-    { d: 13000, seaRef: 0.38,
+    { d: 13000, seaRef: 0.38, glint: 1,
       zenith: 0x030616, upper: 0x0a1534, horizon: 0x142b4c, haze: 0x1a3a58,
       sun: 0xbcd6ff, sunI: 0, sunAz: -0.5, sunEl: 0.7,
       seaDeep: 0x020a1c, seaMid: 0x08203c, seaCrest: 0x2f6f7c, foam: 0x7fb0bc,
@@ -59,7 +59,7 @@
   ];
 
   var COLOR_FIELDS = ['zenith', 'upper', 'horizon', 'haze', 'sun', 'seaDeep', 'seaMid', 'seaCrest', 'foam', 'cloudLit', 'cloudShade', 'key', 'back', 'hemiSky', 'hemiGround', 'fog'];
-  var NUM_FIELDS = ['seaRef', 'sunI', 'sunAz', 'sunEl', 'keyI', 'backI', 'hemiI', 'exposure', 'stars', 'aurora', 'moon', 'bloom'];
+  var NUM_FIELDS = ['seaRef', 'glint', 'sunI', 'sunAz', 'sunEl', 'keyI', 'backI', 'hemiI', 'exposure', 'stars', 'aurora', 'moon', 'bloom'];
 
   var KEYS = RAW_KEYS.map(function (k) {
     var out = { d: k.d };
@@ -80,8 +80,9 @@
 
   var lights = {};
   var sky, seaMesh, seaUniforms, cloudsMesh, cloudUniforms, dustMesh, dustUniforms;
-  var shared = { time: { type: 'f', value: 0 } };
+  var shared = { time: { type: 'f', value: 0 }, night: { type: 'f', value: 0 } };
   world.sharedTime = shared.time;
+  world.sharedNight = shared.night;
 
   function sampleEnv(distance) {
     var i = 0;
@@ -301,7 +302,7 @@
       uDeep: { type: 'c', value: env.seaDeep }, uMid: { type: 'c', value: env.seaMid }, uCrest: { type: 'c', value: env.seaCrest }, uFoam: { type: 'c', value: env.foam },
       uZenith: { type: 'c', value: env.upper }, uHorizon: { type: 'c', value: env.horizon }, uSun: { type: 'c', value: env.sun },
       uSunDir: { type: 'v3', value: sunDir }, uMoonDir: { type: 'v3', value: moonDir }, uSunI: { type: 'f', value: 20 }, uMoon: { type: 'f', value: 0 },
-      uFog: { type: 'c', value: env.fog }, uCam: { type: 'v3', value: new THREE.Vector3() }, uRef: { type: 'f', value: 1 },
+      uFog: { type: 'c', value: env.fog }, uCam: { type: 'v3', value: new THREE.Vector3() }, uRef: { type: 'f', value: 1 }, uGlint: { type: 'f', value: 1 },
       uShadow: { type: 'v4', value: new THREE.Vector4(0, 100, 0, 0) }
     };
     var mat = new THREE.ShaderMaterial({
@@ -324,7 +325,7 @@
         '}'
       ].join('\n'),
       fragmentShader: [
-        'uniform float uTime, uRot, uRadius, uSunI, uMoon, uRef;',
+        'uniform float uTime, uRot, uRadius, uSunI, uMoon, uRef, uGlint;',
         'uniform vec3 uDeep, uMid, uCrest, uFoam, uZenith, uHorizon, uSun, uSunDir, uMoonDir, uFog, uCam;',
         'uniform vec4 uShadow;',
         'varying vec3 vWorld; varying vec2 vSea;',
@@ -372,7 +373,7 @@
         '  float glintI = uSunI > 0.5 ? uSunI : uMoon * 2.4;',
         '  float sparkle = mix( 1.0, smoothstep( 0.5, 0.78, noise( vec2( q.x * uRadius * 0.55, q.y * 0.55 ) + uTime * 0.6 ) ), near );',
         '  float RdS = max( dot( R, S ), 0.0 );',
-        '  col += glintC * ( pow( RdS, 900.0 ) * glintI * 0.3 * sparkle + pow( RdS, 140.0 ) * glintI * 0.006 + pow( RdS, 18.0 ) * 0.018 * min( glintI, 3.0 ) );',
+        '  col += glintC * uGlint * ( pow( RdS, 900.0 ) * glintI * 0.3 * sparkle + pow( RdS, 140.0 ) * glintI * 0.006 + pow( RdS, 18.0 ) * 0.018 * min( glintI, 3.0 ) );',
         // 물마루에만 생기는 얇은 거품
         '  vec2 fq = vec2( q.x * uRadius * 0.07, q.y * 0.07 );',
         '  float n1 = noise( fq + vec2( uTime * 0.14, uTime * 0.05 ) );',
@@ -623,12 +624,17 @@
     bossTint += (bossTintTarget - bossTint) * Math.min(1, dt * 2.2);
     applyEnv();
 
+    // 안개 밝기로 낮밤을 판단한다 (아이템 표식의 바깥 빛 세기에 쓴다)
+    var fogLum = env.fog.r * 0.2126 + env.fog.g * 0.7152 + env.fog.b * 0.0722;
+    shared.night.value = 1 - Math.max(0, Math.min(1, (fogLum - 0.08) / 0.42));
+
     var cam = GFX.camera;
     if (seaUniforms) {
       seaUniforms.uCam.value.copy(cam.position);
       seaUniforms.uSunI.value = env.sunEl > -0.04 ? env.sunI : 0;
       seaUniforms.uMoon.value = env.moon;
       seaUniforms.uRef.value = env.seaRef;
+      seaUniforms.uGlint.value = env.glint;
       if (typeof sea !== 'undefined' && sea && sea.mesh) seaUniforms.uRot.value = sea.mesh.rotation.z;
       if (typeof airplane !== 'undefined' && airplane && airplane.mesh) {
         var ap = airplane.mesh.position;

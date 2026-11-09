@@ -42,7 +42,7 @@ function applyBgmVolume() {
   if (typeof bgm !== 'undefined' && bgm) bgm.volume = getBgmBaseVolume() * audioSettings.bgm;
 }
 
-// SOUND EFFECTS (Web Audio API - no external files needed)
+// 효과음 재생은 js/sfx.js가 맡고, 여기서는 오디오 컨텍스트만 공유한다
 var audioCtx = null;
 function getAudioCtx() {
   if (!audioCtx) {
@@ -53,96 +53,6 @@ function getAudioCtx() {
     audioCtx.resume();
   }
   return audioCtx;
-}
-
-function playPowerupSound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-
-    //
-    var frequencies = [523, 659, 784, 1047]; // C5, E5, G5, C6
-    for (var i = 0; i < frequencies.length; i++) {
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = frequencies[i];
-      gain.gain.setValueAtTime(sfxVol(0.15), now + i * 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + i * 0.08);
-      osc.stop(now + i * 0.08 + 0.25);
-    }
-  } catch(e) {}
-}
-
-function playDestroySound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-
-    //
-    var osc = ctx.createOscillator();
-    var oscGain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
-    oscGain.gain.setValueAtTime(sfxVol(0.16), now);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-    osc.connect(oscGain);
-    oscGain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.3);
-
-    //
-    var bufferSize = ctx.sampleRate * 0.25;
-    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    var data = buffer.getChannelData(0);
-    for (var i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
-    }
-    var noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    var gain = ctx.createGain();
-    gain.gain.setValueAtTime(sfxVol(0.13), now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-    var filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 3000;
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-    noise.start(now);
-    noise.stop(now + 0.3);
-  } catch(e) {}
-}
-
-function playInvincibleSmashSound() {
-  //
-  if (typeof playShatterSound === 'function') {
-    playShatterSound();
-  }
-}
-
-function playCoinSound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-
-    //
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(1800, now + 0.05);
-    gain.gain.setValueAtTime(sfxVol(0.1), now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.12);
-  } catch(e) {}
 }
 
 // GAME VARIABLES
@@ -402,6 +312,7 @@ function startMobileAutoFire() {
     if (mobileAutoFireInterval) return;
     mobileAutoFireInterval = setInterval(function() {
       if (game.status !== 'playing') { stopMobileAutoFire(); return; }
+      if (paused) return;
       // 보스전 자동 발사
       if (typeof bossState !== 'undefined' && bossState.active) {
         fireBossWeapon();
@@ -474,6 +385,7 @@ function handleMouseDown(event) {
         mouseHoldInterval = null;
         return;
       }
+      if (paused) return;
       fireBossWeapon();
     }, 100);
     return;
@@ -968,6 +880,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
       var hd = Math.sqrt(hdx * hdx + hdy * hdy);
       if (hd < game.blackHoleRadius) {
         slowTarget = Math.min(slowTarget, game.blackHoleMinSlow + (1 - game.blackHoleMinSlow) * (hd / game.blackHoleRadius));
+        SFX.play('blackHole');
         if (!game.blackHoleHintShown) {
           game.blackHoleHintShown = true;
           showEvoPassiveText('블랙홀 근처에서는 시간이 느려집니다');
@@ -988,7 +901,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
 
       if (game.invincible) {
         particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 20, hitColor, 2);
-        playInvincibleSmashSound();
+        SFX.play('shatter');
       } else {
         particlesHolder.spawnParticles(ennemy.mesh.position.clone(), 15, hitColor, 3);
         if (isColumn) {
@@ -999,7 +912,7 @@ EnnemiesHolder.prototype.rotateEnnemies = function(){
           game.planeCollisionSpeedY = 42 * ky / kd;
         }
         GFX.hitFlash();
-        playDestroySound();
+        SFX.play('hurt');
         removeEnergy();
       }
     } else if (ennemy.angle > Math.PI){
@@ -1058,13 +971,13 @@ function updateFlyingAsteroids() {
     if (d < OBSTACLE_HIT.flyingAsteroid) {
       if (game.invincible) {
         particlesHolder.spawnParticles(a.mesh.position.clone(), 20, 0xD4A843, 2);
-        playInvincibleSmashSound();
+        SFX.play('shatter');
       } else {
         particlesHolder.spawnParticles(a.mesh.position.clone(), 15, 0xD4A843, 3);
         game.planeCollisionSpeedX = 42 * diffPos.x / d;
         game.planeCollisionSpeedY = 42 * diffPos.y / d;
         GFX.hitFlash();
-        playDestroySound();
+        SFX.play('hurt');
         removeEnergy();
       }
       scene.remove(a.mesh);
@@ -1099,6 +1012,11 @@ ParticlesHolder = function (){
 
 ParticlesHolder.prototype.spawnParticles = function(pos, density, color, scale){
   GFX.fx.burst(pos, color, density, scale);
+}
+
+// 화면 가장자리에서도 옆면이 되지 않도록 아이템을 카메라 쪽으로 돌려 둔다
+function facingCamera(x) {
+  return Math.atan2(camera.position.x - x, camera.position.z);
 }
 
 CoinsHolder = function (nCoins){
@@ -1140,7 +1058,9 @@ CoinsHolder.prototype.rotateCoins = function(){
     if (coin.angle>Math.PI*2) coin.angle -= Math.PI*2;
     coin.mesh.position.y = -game.seaRadius + Math.sin(coin.angle)*coin.distance;
     coin.mesh.position.x = Math.cos(coin.angle)*coin.distance;
-    coin.mesh.rotation.y += deltaTime * 0.006;
+    // 완전히 옆면이 되면 선처럼 보여 놓치기 쉬우므로 좌우로 흔들기만 한다
+    coin.spin += deltaTime * 0.0045;
+    coin.mesh.rotation.y = facingCamera(coin.mesh.position.x) + Math.sin(coin.spin) * 0.85;
 
     //var globalCoinPosition =  coin.mesh.localToWorld(new THREE.Vector3());
     var diffPos = airplane.mesh.position.clone().sub(coin.mesh.position.clone());
@@ -1201,8 +1121,8 @@ InvincibleFruitHolder.prototype.rotateFruits = function(){
     fruit.mesh.position.y = -game.seaRadius + Math.sin(fruit.angle) * fruit.distance;
     fruit.mesh.position.x = Math.cos(fruit.angle) * fruit.distance;
     //
-    fruit.mesh.rotation.y += 0.05;
-    fruit.mesh.rotation.z += 0.03;
+    fruit.mesh.rotation.y += deltaTime * 0.003;
+    fruit.mesh.rotation.z += deltaTime * 0.0018;
 
     var diffPos = airplane.mesh.position.clone().sub(fruit.mesh.position.clone());
     var d = diffPos.length();
@@ -1211,7 +1131,7 @@ InvincibleFruitHolder.prototype.rotateFruits = function(){
       this.mesh.remove(fruit.mesh);
       particlesHolder.spawnParticles(fruit.mesh.position.clone(), 10, 0xFFD700, 1.2);
       activateInvincible();
-      playPowerupSound();
+      SFX.play('fruit');
       i--;
     } else if (fruit.angle > Math.PI){
       this.fruitsPool.unshift(this.fruitsInUse.splice(i, 1)[0]);
@@ -1258,7 +1178,9 @@ HeartItemHolder.prototype.rotateItems = function(){
     if (item.angle > Math.PI * 2) item.angle -= Math.PI * 2;
     item.mesh.position.y = -game.seaRadius + Math.sin(item.angle) * item.distance;
     item.mesh.position.x = Math.cos(item.angle) * item.distance;
-    item.mesh.rotation.y += 0.06;
+    // 옆면이 되면 하트 모양을 알아보기 어려워 좌우로 흔들기만 한다
+    item.spin += deltaTime * 0.0038;
+    item.mesh.rotation.y = facingCamera(item.mesh.position.x) + Math.sin(item.spin) * 0.7;
     item.mesh.rotation.z = Math.sin(Date.now() * 0.003) * 0.2;
 
     var diffPos = airplane.mesh.position.clone().sub(item.mesh.position.clone());
@@ -1268,7 +1190,7 @@ HeartItemHolder.prototype.rotateItems = function(){
       this.mesh.remove(item.mesh);
       particlesHolder.spawnParticles(item.mesh.position.clone(), 10, 0xFF4466, 1.2);
       addHeart();
-      playPowerupSound();
+      SFX.play('heart');
       i--;
     } else if (item.angle > Math.PI){
       this.itemsPool.unshift(this.itemsInUse.splice(i, 1)[0]);
@@ -1441,6 +1363,16 @@ function showEvolutionText() {
   });
 }
 
+// 변신이 끝나는 순간 새 몸이 내는 소리
+var EVOLUTION_CALLS = {
+  'Anomalocaris': 'evoAnomalocaris',
+  'Dunkleosteus': 'evoDunkleosteus',
+  'Tiktaalik': 'evoTiktaalik',
+  'Plesiosaur': 'evoPlesiosaur',
+  'Quetzalcoatlus': 'evoQuetzalcoatlus',
+  "Darwin's Finch": 'evoFinch'
+};
+
 function transformPlane(newFormString) {
   //
   if (game.transforming) return;
@@ -1448,6 +1380,7 @@ function transformPlane(newFormString) {
   
   //
   showEvolutionText();
+  SFX.play('evolve');
   
   // 보호막은 몸체가 아니므로 변신 블록에서 제외한다 (변신이 끝나면 새 몸체에 다시 붙는다)
   if (invincibleGlow && invincibleGlow.parent) invincibleGlow.parent.remove(invincibleGlow);
@@ -1589,6 +1522,7 @@ function transformPlane(newFormString) {
           //
           GFX.fx.nova(airplane.mesh.position, 0xFFE9A8, 0.7);
           GFX.whiteFlash(0.35);
+          SFX.play(EVOLUTION_CALLS[newFormString]);
           
           //
           if (game.invincible && !game.hitInvincible && invincibleGlow) {
@@ -1751,7 +1685,8 @@ function loop(){
       updateFlyingAsteroids();
 
       var expectedLevel = Math.floor(game.distance / game.distanceForLevelUpdate) + 1;
-      if (expectedLevel > game.level){
+      var leveledUp = expectedLevel > game.level;
+      if (leveledUp){
         game.level = expectedLevel;
         fieldLevel.innerHTML = Math.floor(game.level);
         showLevelUpText(game.level);
@@ -1781,6 +1716,9 @@ function loop(){
           markDarwinFinchReached();
         }
       }
+
+      // 진화와 겹치면 진화음만 들리게 한다
+      if (leveledUp && !game.transforming) SFX.play('levelUp');
 
       updateTurbulence();
       //
@@ -1812,7 +1750,7 @@ function loop(){
     //
     if (airplane.mesh.position.y < 10 && !game.splashPlayed) {
       game.splashPlayed = true;
-      playWaterSplashSound();
+      SFX.play('splash');
     }
 
     if (airplane.mesh.position.y <-200){
@@ -1913,7 +1851,7 @@ function addCoin(){
   game.coinsEarnedThisRound += earned;
   saveCoins(game.coins);
   document.getElementById('coinsValue').textContent = game.coins;
-  playCoinSound();
+  SFX.play('coin');
   // 미션: 코인 수집 추적
   if (typeof updateMissionProgress === 'function') updateMissionProgress('coinsCollected', earned, 'add');
 }
@@ -2065,7 +2003,7 @@ function updateTurbulence() {
       game.turbulenceTimer = 0;
       showTurbulenceWarning(game.turbulenceLevel);
       //
-      playTurbulenceSound();
+      SFX.play('turbulence');
       break;
     }
   }
@@ -2101,33 +2039,6 @@ function showTurbulenceWarning(level) {
       }, 700);
     }, 1500);
   });
-}
-
-function playTurbulenceSound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-    //
-    var bufferSize = ctx.sampleRate * 0.5;
-    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    var data = buffer.getChannelData(0);
-    for (var i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.5;
-    }
-    var noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    var gain = ctx.createGain();
-    gain.gain.setValueAtTime(sfxVol(0.12), now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-    var filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 400;
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-    noise.start(now);
-    noise.stop(now + 0.5);
-  } catch(e) {}
 }
 
 function updatePlane(){
@@ -2854,6 +2765,7 @@ function continueGame() {
 
   //
   activateInvincible();
+  SFX.play('revive');
 
   //
   game.status = "playing";
@@ -2868,6 +2780,7 @@ function stopAndShowGameOver() {
 }
 
 function showGameOver() {
+  SFX.play('gameOver');
   // 게임 오버 진동 (모바일 앱)
   if (navigator.vibrate) navigator.vibrate([100, 50, 200]);
   // 최대 거리 기록 갱신
@@ -3240,7 +3153,7 @@ function init(event){
   initShopUI();
   initSettingsUI();
   initAbilitySystem();
-  initAbilitySounds();
+  SFX.init();
   initDailyUI();
   initStartScreen();
   initAuth();
@@ -3366,28 +3279,6 @@ function checkAndResetDaily() {
 }
 
 // 보상 수령 효과음 (동전 여러 개 떨어지는 느낌)
-function playRewardCoinSound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-    var notes = [1200, 1400, 1600, 1800, 2100];
-    for (var i = 0; i < notes.length; i++) {
-      var t = now + i * 0.07;
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(notes[i], t);
-      osc.frequency.exponentialRampToValueAtTime(notes[i] * 1.2, t + 0.06);
-      gain.gain.setValueAtTime(sfxVol(0.12), t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(t);
-      osc.stop(t + 0.15);
-    }
-  } catch(e) {}
-}
-
 // 출석 보상 수령
 function claimAttendance() {
   var data = loadDailyData();
@@ -3412,7 +3303,7 @@ function claimAttendance() {
   saveCoins(game.coins);
   saveDailyData(data);
 
-  playRewardCoinSound();
+  SFX.play('reward');
 
   // UI 갱신
   renderAttendance();
@@ -3435,7 +3326,7 @@ function claimMission(missionIdx) {
   saveCoins(game.coins);
   saveDailyData(data);
 
-  playRewardCoinSound();
+  SFX.play('reward');
 
   renderMissions();
   updateDailyCoinsDisplay();
@@ -4475,17 +4366,9 @@ function initSettingsUI() {
       var v = parseInt(this.value, 10) / 100;
       audioSettings.sfx = v;
       if (sfxLabel) sfxLabel.textContent = Math.round(v * 100) + '%';
-      // Update HTMLAudio template volumes for next clones
-      try {
-        if (typeof shotSound !== 'undefined' && shotSound) shotSound.volume = sfxVol(0.06);
-        if (typeof shatterSounds !== 'undefined') {
-          for (var i = 0; i < shatterSounds.length; i++) shatterSounds[i].volume = sfxVol(0.2);
-        }
-        if (typeof waterSplashSound !== 'undefined' && waterSplashSound) waterSplashSound.volume = sfxVol(0.35);
-      } catch(e) {}
       saveAudioSettings();
-      // Brief preview tone so user can hear the new SFX level
-      try { if (typeof playCoinSound === 'function') playCoinSound(); } catch(e) {}
+      // 바뀐 음량을 바로 들어볼 수 있게 짧게 재생한다
+      SFX.play('coin');
     });
   }
 }
@@ -4621,6 +4504,7 @@ function initAbilitySystem() {
         clearInterval(bossFireInterval);
         bossFireInterval = setInterval(function() {
           if (!bossState.active) { clearInterval(bossFireInterval); return; }
+          if (paused) return;
           fireBossWeapon();
         }, 150);
       }
@@ -4768,12 +4652,14 @@ function startAbilityCooldown(ms) {
 
 // === Slow Motion ===
 function activateSlowmo() {
+  SFX.play('slowmo');
   abilityState.slowmoActive = true;
   abilityState.slowmoTimer = abilityState.slowmoDuration;
 }
 
 // === Invincibility ===
 function activateInvincibility() {
+  SFX.play('fruit');
   game.invincibleDuration = 5000;
   activateInvincible();
 }
@@ -4790,6 +4676,7 @@ function activateUfoBooster() {
 
 // === Booster ===
 function activateBooster() {
+  SFX.play('booster');
   abilityState.boosterActive = true;
   abilityState.boosterDistStart = game.distance;
   abilityState.boosterDistTarget = game.distance + (shopState && shopState.selectedVehicle === 'UFO' ? 1000 : 500);
@@ -4806,7 +4693,7 @@ function fireMissile() {
   var mesh = GFX.models.playerMissile();
   mesh.position.set(pos.x + 15, pos.y, pos.z);
   scene.add(mesh);
-  playShotSound();
+  SFX.play('shot');
 
   abilityState.projectiles.push({
     mesh: mesh,
@@ -4823,7 +4710,7 @@ function fireLaser() {
   var mesh = GFX.models.playerLaser();
   mesh.position.set(pos.x + 20, pos.y, pos.z);
   scene.add(mesh);
-  playLaserSound();
+  SFX.play('laser');
 
   abilityState.projectiles.push({
     mesh: mesh,
@@ -4905,7 +4792,7 @@ function checkProjectileCollision(proj) {
         ennemiesHolder.ennemiesInUse.splice(i, 1);
         proj.life = 0;
         spawnDestroyParticles(destroyPos, destroyColor);
-        playShatterSound();
+        SFX.play('shatter');
         // 로켓 패시브: 미사일 파괴 시 코인 드롭
         if (shopState && shopState.selectedVehicle === 'Rocket') { for(var rc=0;rc<10;rc++) addCoin(); }
         return true;
@@ -4929,7 +4816,7 @@ function checkProjectileCollision(proj) {
         flyingAsteroids.splice(j, 1);
         proj.life = 0;
         spawnDestroyParticles(destroyPos2, getEnemyDestroyColor('asteroid'));
-        playShatterSound();
+        SFX.play('shatter');
         if (shopState && shopState.selectedVehicle === 'Rocket') { for(var rc=0;rc<10;rc++) addCoin(); }
         return true;
       }
@@ -4947,75 +4834,6 @@ function getAbilitySpeedMultiplier() {
 }
 
 // ===== DESTROY PARTICLES =====
-
-var shotSound = null;
-var shatterSounds = [];
-var waterSplashSound = null;
-
-function initAbilitySounds() {
-  try {
-    shotSound = new Audio('audio/shot-hard.mp3');
-    shotSound.volume = sfxVol(0.06);
-    shatterSounds.push(new Audio('audio/rock-shatter-1.mp3'));
-    shatterSounds.push(new Audio('audio/rock-shatter-2.mp3'));
-    shatterSounds.push(new Audio('audio/bullet-impact-rock.mp3'));
-    for (var i = 0; i < shatterSounds.length; i++) {
-      shatterSounds[i].volume = sfxVol(0.2);
-    }
-    waterSplashSound = new Audio('audio/water-splash.mp3');
-    waterSplashSound.volume = sfxVol(0.35);
-  } catch(e) {}
-}
-
-function playShotSound() {
-  try {
-    if (shotSound) {
-      var s = shotSound.cloneNode();
-      s.volume = sfxVol(0.06);
-      s.play().catch(function(){});
-    }
-  } catch(e) {}
-}
-
-var _laserAudioCtx = null;
-function playLaserSound() {
-  try {
-    if (!_laserAudioCtx) _laserAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var ctx = _laserAudioCtx;
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(sfxVol(0.08), ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.15);
-  } catch(e) {}
-}
-
-function playShatterSound() {
-  try {
-    if (shatterSounds.length > 0) {
-      var idx = Math.floor(Math.random() * shatterSounds.length);
-      var s = shatterSounds[idx].cloneNode();
-      s.volume = sfxVol(0.2);
-      s.play().catch(function(){});
-    }
-  } catch(e) {}
-}
-
-function playWaterSplashSound() {
-  try {
-    if (waterSplashSound) {
-      var s = waterSplashSound.cloneNode();
-      s.volume = sfxVol(0.35);
-      s.play().catch(function(){});
-    }
-  } catch(e) {}
-}
 
 function spawnDestroyParticles(worldPos, color) {
   GFX.fx.shatter(worldPos, color || 0x888888, 1);
@@ -5061,7 +4879,7 @@ function destroyNearbyEnemies() {
         ennemiesHolder.mesh.remove(ennemy.mesh);
         ennemiesHolder.ennemiesInUse.splice(i, 1);
         spawnDestroyParticles(dpos, destroyColor);
-        playShatterSound();
+        SFX.play('shatter');
       }
     }
   }
@@ -5079,7 +4897,7 @@ function destroyNearbyEnemies() {
         scene.remove(ast.mesh);
         flyingAsteroids.splice(j, 1);
         spawnDestroyParticles(dpos2, getEnemyDestroyColor('asteroid'));
-        playShatterSound();
+        SFX.play('shatter');
       }
     }
   }
@@ -5217,27 +5035,8 @@ function clearAllObstacles() {
   }
 }
 
-function playBossWarningSound() {
-  try {
-    var ctx = getAudioCtx();
-    var now = ctx.currentTime;
-    // 경고 사이렌
-    for (var i = 0; i < 3; i++) {
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(400, now + i * 0.4);
-      osc.frequency.linearRampToValueAtTime(800, now + i * 0.4 + 0.2);
-      gain.gain.setValueAtTime(sfxVol(0.12), now + i * 0.4);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.4 + 0.35);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(now + i * 0.4); osc.stop(now + i * 0.4 + 0.4);
-    }
-  } catch(e) {}
-}
-
 function showBossWarning(name, callback) {
-  playBossWarningSound();
+  SFX.play('bossWarning');
 
   var warn = document.createElement('div');
   warn.id = 'bossWarning';
@@ -5293,6 +5092,7 @@ function spawnBoss(config, typeIndex) {
     bossState.mesh.position.set(350, game.planeDefaultHeight + 30, 0);
     bossState.mesh.scale.set(1.5, 1.5, 1.5);
     scene.add(bossState.mesh);
+    SFX.play(BOSS_VOICES[bossState.bossType]);
 
     // UI
     var ui = document.getElementById('bossUI');
@@ -5419,7 +5219,7 @@ function updateBoss(dt) {
     if (Math.sqrt(bcx * bcx + bcy * bcy) < 34) {
       removeEnergy();
       GFX.hitFlash();
-      playDestroySound();
+      SFX.play('hurt');
       bossState.hitCooldown = 2200;
       // 충돌 반동
       game.planeCollisionSpeedX = -3;
@@ -5460,7 +5260,7 @@ function updateBoss(dt) {
       if (Math.sqrt(cdx * cdx + cdy * cdy) < 11) {
         removeEnergy();
         GFX.hitFlash();
-        playDestroySound();
+        SFX.play('hurt');
         scene.remove(proj.mesh);
         bossState.bossProjectiles.splice(pi, 1);
         bossState.hitCooldown = 2200;
@@ -5503,7 +5303,7 @@ function updateBoss(dt) {
         scene.remove(m.mesh);
         bossState.missiles.splice(i, 1);
         GFX.fx.burst(m.mesh.position, 0xFFB060, 10, 0.8);
-        playShatterSound();
+        SFX.play('bossHit');
         updateBossUI();
 
         if (bossState.hp <= 0) {
@@ -5526,7 +5326,7 @@ function updateBoss(dt) {
         scene.remove(ap.mesh);
         abilityState.projectiles.splice(ai, 1);
         GFX.fx.burst(ap.mesh.position, 0x66FFC0, 10, 0.8);
-        playShatterSound();
+        SFX.play('bossHit');
         updateBossUI();
         if (bossState.hp <= 0) { defeatBoss(); return; }
       }
@@ -5537,6 +5337,9 @@ function updateBoss(dt) {
     retreatBoss();
   }
 }
+
+var BOSS_VOICES = ['bossAmmonite', 'bossMegalodon', 'bossTrex', 'bossUfo'];
+var BOSS_ATTACKS = ['atkInk', 'atkTooth', 'atkFire', 'atkBeam'];
 
 // 보스전 전용 발사 (탄약 소모 없음): UFO는 레이저, 나머지는 미사일
 function fireBossWeapon() {
@@ -5551,7 +5354,7 @@ function fireBossMissile() {
   var mesh = GFX.models.playerMissile();
   mesh.position.set(pos.x + 15, pos.y, pos.z);
   scene.add(mesh);
-  playShotSound();
+  SFX.play('shot');
 
   bossState.missiles.push({
     mesh: mesh,
@@ -5601,9 +5404,9 @@ function fireBossProjectile() {
     projMesh = GFX.models.bossShot('beam', 3 * sizeScale);
     projMesh.rotation.z = Math.atan2(ddy, ddx);
     speed = 5 * speedScale;
-    if (typeof playUfoLaserSound === 'function') playUfoLaserSound();
   }
 
+  SFX.play(BOSS_ATTACKS[tier]);
   vx = (ddx / dist) * speed;
   vy = (ddy / dist) * speed;
   projMesh.position.set(bx - 20, by, 0);
@@ -5636,6 +5439,7 @@ function fireFuryAttack() {
         pm.position.set(bx - 15, by, 0);
         pm.rotation.z = angle;
         scene.add(pm);
+        SFX.play(BOSS_ATTACKS[bossState.bossType]);
         bossState.bossProjectiles.push({
           mesh: pm, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, life: 5000, homing: false
         });
@@ -5656,7 +5460,7 @@ function defeatBoss() {
     );
     spawnDestroyParticles(offset, 0xFF6600);
   }
-  playShatterSound();
+  SFX.play('bossDefeat');
 
   GFX.fx.nova(bossState.mesh.position, 0xFFC070, 1.4);
   GFX.whiteFlash(0.55);
@@ -5721,6 +5525,9 @@ function cleanupBoss() {
   bossState.chargeTimer = 0;
   bossState.active = false;
   bossState.cooldown = 500;
+
+  // 전투가 끝나면 전투음은 바로 끊는다
+  SFX.stop(['shot', 'laser', 'bossHit', 'atkInk', 'atkTooth', 'atkFire', 'atkBeam']);
 
   // 보스전 종료 후 비행 속도 복원
   if (bossState.savedBaseSpeed !== undefined) {
